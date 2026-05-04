@@ -1,0 +1,5 @@
+# StreamPulse Backend Configuration
+# Non-sensitive defaults. Override with environment variables.
+app:
+  name: streampulse-api
+  version: 1.0.0

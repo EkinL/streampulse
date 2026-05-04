@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: development
+      PORT: 8080
+      DATABASE_URL: postgres://streampulse:streampulse@postgres:5432/streampulse?sslmode=disable
+      JWT_SECRET: dev-secret-change-in-production-please
+      JWT_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 168h
+      OTEL_ENDPOINT: otel-collector:4317
+      OTEL_SERVICE_NAME: streampulse-api
+      LOG_LEVEL: debug
+      CORS_ALLOWED_ORIGINS: "*"
+      RATE_LIMIT_RPS: "10"
+      RATE_LIMIT_BURST: "20"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - streampulse
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: streampulse
+      POSTGRES_USER: streampulse
+      POSTGRES_PASSWORD: streampulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streampulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streampulse
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - streampulse
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    networks:
+      - streampulse
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+    networks:
+      - streampulse
+
+volumes:
+  pgdata:
+  grafana-data:
+
+networks:
+  streampulse:
+    driver: bridge
