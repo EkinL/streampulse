@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS favorites;
+DROP TABLE IF EXISTS tracks;
+DROP TABLE IF EXISTS playlists;

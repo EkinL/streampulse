@@ -1,0 +1,110 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/playlist_repository.dart';
+import '../../domain/playlist_model.dart';
+import '../../../../core/network/api_exceptions.dart';
+
+final playlistListProvider =
+    StateNotifierProvider<PlaylistNotifier, AsyncValue<List<PlaylistModel>>>(
+        (ref) {
+  return PlaylistNotifier(ref.read(playlistRepositoryProvider));
+});
+
+final playlistDetailProvider =
+    FutureProvider.family<PlaylistModel, String>((ref, id) async {
+  final repo = ref.read(playlistRepositoryProvider);
+  return repo.getPlaylist(id);
+});
+
+class PlaylistNotifier
+    extends StateNotifier<AsyncValue<List<PlaylistModel>>> {
+  final PlaylistRepository _repository;
+
+  PlaylistNotifier(this._repository)
+      : super(const AsyncValue.loading()) {
+    fetch();
+  }
+
+  Future<void> fetch() async {
+    state = const AsyncValue.loading();
+    try {
+      final playlists = await _repository.listPlaylists();
+      state = AsyncValue.data(playlists);
+    } on ApiException catch (e, st) {
+      state = AsyncValue.error(e.message, st);
+    } catch (e, st) {
+      state = AsyncValue.error(e.toString(), st);
+    }
+  }
+
+  Future<void> create({
+    required String name,
+    bool isPublic = false,
+  }) async {
+    try {
+      await _repository.createPlaylist(name: name, isPublic: isPublic);
+      await fetch();
+    } on ApiException catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> update({
+    required String id,
+    String? name,
+    bool? isPublic,
+  }) async {
+    try {
+      await _repository.updatePlaylist(
+        id: id,
+        name: name,
+        isPublic: isPublic,
+      );
+      await fetch();
+    } on ApiException catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> delete(String id) async {
+    try {
+      await _repository.deletePlaylist(id);
+      await fetch();
+    } on ApiException catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> addTrack({
+    required String playlistId,
+    required String title,
+    required String url,
+    required int duration,
+  }) async {
+    try {
+      await _repository.addTrack(
+        playlistId: playlistId,
+        title: title,
+        url: url,
+        duration: duration,
+      );
+      await fetch();
+    } on ApiException catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> removeTrack({
+    required String playlistId,
+    required String trackId,
+  }) async {
+    try {
+      await _repository.removeTrack(
+        playlistId: playlistId,
+        trackId: trackId,
+      );
+      await fetch();
+    } on ApiException catch (e) {
+      throw e;
+    }
+  }
+}
