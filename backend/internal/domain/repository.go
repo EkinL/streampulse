@@ -1,0 +1,68 @@
+package domain
+
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
+
+type UserRepository interface {
+	Create(ctx context.Context, user *User) error
+	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+	List(ctx context.Context, page, perPage int) ([]User, int, error)
+	UpdateRole(ctx context.Context, id uuid.UUID, role Role) error
+}
+
+type StreamRepository interface {
+	Create(ctx context.Context, stream *Stream) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Stream, error)
+	List(ctx context.Context, page, perPage int) ([]Stream, int, error)
+	Update(ctx context.Context, stream *Stream) error
+	UpdateStatus(ctx context.Context, id uuid.UUID, status StreamStatus) error
+	UpdateListenerCount(ctx context.Context, id uuid.UUID, count int) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type PlaylistRepository interface {
+	Create(ctx context.Context, playlist *Playlist) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Playlist, error)
+	ListByOwner(ctx context.Context, ownerID uuid.UUID, page, perPage int) ([]Playlist, int, error)
+	ListPublic(ctx context.Context, page, perPage int) ([]Playlist, int, error)
+	Update(ctx context.Context, playlist *Playlist) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	AddTrack(ctx context.Context, playlistID uuid.UUID, track *Track) error
+	RemoveTrack(ctx context.Context, playlistID, trackID uuid.UUID) error
+}
+
+type RefreshTokenRepository interface {
+	Store(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt interface{}) error
+	FindByHash(ctx context.Context, tokenHash string) (uuid.UUID, error)
+	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
+	DeleteExpired(ctx context.Context) error
+}
+
+type FavoriteRepository interface {
+	Add(ctx context.Context, userID, streamID uuid.UUID) error
+	Remove(ctx context.Context, userID, streamID uuid.UUID) error
+	ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int) ([]Stream, int, error)
+	Exists(ctx context.Context, userID, streamID uuid.UUID) (bool, error)
+}
+
+type MusicFavoriteRepository interface {
+	Add(ctx context.Context, userID, musicID uuid.UUID) error
+	Remove(ctx context.Context, userID, musicID uuid.UUID) error
+	ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int) ([]Music, int, error)
+	Exists(ctx context.Context, userID, musicID uuid.UUID) (bool, error)
+	ListIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+}
+
+type MusicRepository interface {
+	Create(ctx context.Context, music *Music) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Music, error)
+	List(ctx context.Context, page, perPage int) ([]Music, int, error)
+	Search(ctx context.Context, query string, page, perPage int) ([]Music, int, error)
+	ListByUploader(ctx context.Context, uploaderID uuid.UUID, page, perPage int) ([]Music, int, error)
+	Update(ctx context.Context, music *Music) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
