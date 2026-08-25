@@ -42,7 +42,7 @@ func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 			Timestamp: time.Now().UTC(),
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func respondPaginated(w http.ResponseWriter, data interface{}, page, perPage, total int) {
@@ -59,7 +59,7 @@ func respondPaginated(w http.ResponseWriter, data interface{}, page, perPage, to
 			Total:     total,
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func respondError(w http.ResponseWriter, status int, code, message string) {
@@ -76,7 +76,7 @@ func respondError(w http.ResponseWriter, status int, code, message string) {
 			Timestamp: time.Now().UTC(),
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func decodeJSON(r *http.Request, v interface{}) error {

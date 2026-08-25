@@ -53,8 +53,10 @@ func LoadFromEnvFile(path string) {
 			if line[i] == '=' {
 				key := string(line[:i])
 				val := string(line[i+1:])
-				if os.Getenv(key) == "" {
-					os.Setenv(key, val)
+				// os.Setenv n'echoue que sur une cle vide ou contenant '='.
+				// On coupe a la premiere '=', il ne reste que la cle vide a ecarter.
+				if key != "" && os.Getenv(key) == "" {
+					_ = os.Setenv(key, val)
 				}
 				break
 			}

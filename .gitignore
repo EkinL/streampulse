@@ -39,3 +39,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Config locale de dev (adresse LAN de la machine, regeneree par `make dart-define`)
+mobile/dart_define.json
+
+# Outils
+.claude/

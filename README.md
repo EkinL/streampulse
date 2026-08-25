@@ -48,7 +48,7 @@ app/             Router, Theme, Constants
 
 | Composant | Technologie |
 |-----------|-------------|
-| Backend | Go 1.22+, chi, pgx, zerolog |
+| Backend | Go 1.26, chi, pgx, zerolog |
 | Base de donnees | PostgreSQL 16 |
 | Auth | JWT HS256 (bcrypt) |
 | Streaming | SSE (fan-out Hub) |
@@ -60,7 +60,7 @@ app/             Router, Theme, Constants
 ## Prerequis
 
 - Docker & Docker Compose v2+
-- Go 1.22+ (dev backend)
+- Go 1.26 (dev backend)
 - Flutter 3.x (dev mobile)
 
 ## Demarrage rapide
