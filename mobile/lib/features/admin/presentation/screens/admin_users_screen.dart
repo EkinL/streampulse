@@ -98,8 +98,8 @@ class AdminUsersScreen extends ConsumerWidget {
                       style: TextStyle(color: SP.text2),
                       items: const [
                         DropdownMenuItem(
-                          value: 'listener',
-                          child: Text('Listener'),
+                          value: 'user',
+                          child: Text('User'),
                         ),
                         DropdownMenuItem(
                           value: 'broadcaster',
