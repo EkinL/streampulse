@@ -48,7 +48,9 @@ func main() {
 		defer func() {
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer shutdownCancel()
-			tp.Shutdown(shutdownCtx)
+			if err := tp.Shutdown(shutdownCtx); err != nil {
+				logger.Error().Err(err).Msg("failed to shut down otel tracer")
+			}
 		}()
 	}
 

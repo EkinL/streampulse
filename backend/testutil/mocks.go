@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/streampulse/backend/internal/domain"
@@ -83,6 +84,10 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 	return nil
 }
 
+// Garde-fou de compilation : si domain.StreamRepository gagne une methode,
+// c'est ici que ca casse, et pas au milieu d'un fichier de test.
+var _ domain.StreamRepository = (*MockStreamRepo)(nil)
+
 // MockStreamRepo is a mock implementation of domain.StreamRepository
 type MockStreamRepo struct {
 	mu      sync.RWMutex
@@ -130,6 +135,19 @@ func (m *MockStreamRepo) List(_ context.Context, page, perPage int) ([]domain.St
 		end = total
 	}
 	return all[start:end], total, nil
+}
+
+func (m *MockStreamRepo) Update(_ context.Context, stream *domain.Stream) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	existing, ok := m.streams[stream.ID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	existing.Title = stream.Title
+	existing.Description = stream.Description
+	existing.UpdatedAt = time.Now().UTC()
+	return nil
 }
 
 func (m *MockStreamRepo) UpdateStatus(_ context.Context, id uuid.UUID, status domain.StreamStatus) error {

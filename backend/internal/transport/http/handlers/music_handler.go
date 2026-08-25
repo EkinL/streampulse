@@ -117,7 +117,7 @@ func (h *MusicHandler) UploadMusic(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "INVALID_BODY", "file field is required")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	title := r.FormValue("title")
 	artist := r.FormValue("artist")
