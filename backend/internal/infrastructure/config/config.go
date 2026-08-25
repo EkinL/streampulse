@@ -12,6 +12,7 @@ import (
 type Config struct {
 	AppEnv             string        `env:"APP_ENV,default=development"`
 	Port               int           `env:"PORT,default=8080"`
+	MetricsPort        int           `env:"METRICS_PORT,default=9091"`
 	DatabaseURL        string        `env:"DATABASE_URL,required"`
 	JWTSecret          string        `env:"JWT_SECRET,required"`
 	JWTExpiry          time.Duration `env:"JWT_EXPIRY,default=15m"`
@@ -38,6 +39,10 @@ func (c *Config) IsDevelopment() bool {
 
 func (c *Config) Addr() string {
 	return fmt.Sprintf(":%d", c.Port)
+}
+
+func (c *Config) MetricsAddr() string {
+	return fmt.Sprintf(":%d", c.MetricsPort)
 }
 
 func LoadFromEnvFile(path string) {
