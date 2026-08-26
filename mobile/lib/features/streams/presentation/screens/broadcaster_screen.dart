@@ -183,28 +183,24 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       sendTimeout: Duration.zero,
     ));
 
-    // Fire-and-forget: this POST stays open for the whole broadcast, so it is
-    // deliberately not awaited. Cancelling the token is the normal way out.
-    unawaited(() async {
-      try {
-        await broadcastDio.post(
-          url,
-          data: controller.stream,
-          options: Options(
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/octet-stream',
-              'Transfer-Encoding': 'chunked',
-            },
-          ),
-          cancelToken: _broadcastCancelToken,
-        );
-      } catch (e) {
-        if (e is! DioException || !CancelToken.isCancel(e)) {
-          debugPrint('Broadcast connection ended: $e');
-        }
+    broadcastDio
+        .post(
+      url,
+      data: controller.stream,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/octet-stream',
+          'Transfer-Encoding': 'chunked',
+        },
+      ),
+      cancelToken: _broadcastCancelToken,
+    )
+        .then<void>((_) {}, onError: (e) {
+      if (!CancelToken.isCancel(e)) {
+        debugPrint('Broadcast connection ended: $e');
       }
-    }());
+    });
   }
 
   Future<void> _stopBroadcasting() async {
@@ -374,9 +370,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                   : () async {
                       if (!(formKey.currentState?.validate() ?? false)) return;
                       setDialogState(() => isSubmitting = true);
-                      // Grab the dialog's navigator up front so no
-                      // BuildContext has to survive the await below.
-                      final navigator = Navigator.of(ctx);
                       try {
                         final repo = ref.read(musicRepositoryProvider);
                         await repo.addMusicByUrl(
@@ -386,15 +379,17 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                           url: urlCtrl.text.trim(),
                           duration: int.tryParse(durationCtrl.text.trim()) ?? 0,
                         );
-                        if (!mounted) return;
-                        navigator.pop();
-                        context.showSnackBar('Music added successfully');
-                        _loadMyMusic();
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        if (mounted) {
+                          context.showSnackBar('Music added successfully');
+                          _loadMyMusic();
+                        }
                       } catch (e) {
                         setDialogState(() => isSubmitting = false);
-                        if (!mounted) return;
-                        context.showSnackBar('Failed to add music: $e',
-                            isError: true);
+                        if (mounted) {
+                          context.showSnackBar('Failed to add music: $e',
+                              isError: true);
+                        }
                       }
                     },
               style: FilledButton.styleFrom(
@@ -426,12 +421,10 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       appBar: AppBar(
         backgroundColor: SP.surface,
         foregroundColor: SP.text1,
-        leading: Navigator.of(context).canPop()
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : null,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text('Broadcaster'),
       ),
       body: SingleChildScrollView(

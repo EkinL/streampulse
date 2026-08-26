@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -95,10 +96,22 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
         throw HttpException(msg);
       }
 
-      // Start PCM player stream - matches recorder: PCM16, 16kHz, mono
+      // iOS route le son selon la session audio active. Sans configuration,
+      // la categorie par defaut (soloAmbient) est coupee par l'interrupteur
+      // silencieux, et une session posee par un recorder (playAndRecord)
+      // sort sur l'ecouteur telephonique, pas le haut-parleur.
+      // Playback = haut-parleur, insensible a l'interrupteur, comme la musique.
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+
+      // Start PCM player stream - matches recorder: PCM16, 16kHz, mono.
+      // interleaved: true est obligatoire pour alimenter uint8ListSink.
+      // En interleaved: false, flutter_sound attend int16Sink/float32Sink et
+      // uint8ListSink vaut null : les donnees partent a la poubelle en silence.
       await _player.startPlayerFromStream(
         codec: Codec.pcm16,
-        interleaved: false,
+        interleaved: true,
         sampleRate: 16000,
         numChannels: 1,
         bufferSize: 8192,

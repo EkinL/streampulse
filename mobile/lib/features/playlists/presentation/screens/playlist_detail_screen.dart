@@ -177,52 +177,9 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           ],
                         ),
                       )
-                    : ReorderableListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: playlist.tracks.length,
-                        onReorder: (oldIndex, newIndex) {
-                          // Reorder handled locally for UX
-                        },
-                        itemBuilder: (context, index) {
-                          final track = playlist.tracks[index];
-                          return _TrackListItem(
-                            key: ValueKey(track.id),
-                            track: track,
-                            index: index,
-                            onTap: () {
-                              final musicList = playlist.tracks
-                                  .map((t) => MusicModel(
-                                        id: t.id,
-                                        title: t.title,
-                                        artist: '',
-                                        album: '',
-                                        duration: t.duration,
-                                        url: t.url,
-                                        coverUrl: null,
-                                        uploadedBy: '',
-                                        createdAt: DateTime.now(),
-                                      ))
-                                  .toList();
-                              ref
-                                  .read(playerProvider.notifier)
-                                  .playPlaylist(musicList, index);
-                            },
-                            onRemove: () {
-                              ref
-                                  .read(playlistListProvider.notifier)
-                                  .removeTrack(
-                                    playlistId: playlistId,
-                                    trackId: track.id,
-                                  )
-                                  .then((_) {
-                                ref.invalidate(
-                                    playlistDetailProvider(playlistId));
-                                if (!context.mounted) return;
-                                context.showSnackBar('Track removed');
-                              });
-                            },
-                          );
-                        },
+                    : _ReorderableTrackList(
+                        playlistId: playlistId,
+                        tracks: playlist.tracks,
                       ),
               ),
             ],
@@ -250,6 +207,116 @@ class PlaylistDetailScreen extends ConsumerWidget {
           scrollController: scrollController,
         ),
       ),
+    );
+  }
+}
+
+/// The track list keeps its own copy of the tracks so a drag & drop feels
+/// instant: we reorder locally first, then persist through the API, and only
+/// roll back if the server refuses. The provider refetch (add/remove/pull to
+/// refresh) re-seeds the local copy via [didUpdateWidget].
+class _ReorderableTrackList extends ConsumerStatefulWidget {
+  final String playlistId;
+  final List<TrackModel> tracks;
+
+  const _ReorderableTrackList({
+    required this.playlistId,
+    required this.tracks,
+  });
+
+  @override
+  ConsumerState<_ReorderableTrackList> createState() =>
+      _ReorderableTrackListState();
+}
+
+class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
+  late List<TrackModel> _tracks;
+
+  @override
+  void initState() {
+    super.initState();
+    _tracks = List.of(widget.tracks);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReorderableTrackList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.tracks, widget.tracks)) {
+      _tracks = List.of(widget.tracks);
+    }
+  }
+
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    // ReorderableListView quirk: when an item moves down, newIndex is
+    // computed as if the dragged item was already removed from the list.
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (newIndex == oldIndex) return;
+
+    final previous = List.of(_tracks);
+    setState(() {
+      final track = _tracks.removeAt(oldIndex);
+      _tracks.insert(newIndex, track);
+    });
+
+    try {
+      await ref.read(playlistListProvider.notifier).reorderTracks(
+            playlistId: widget.playlistId,
+            trackIds: _tracks.map((t) => t.id).toList(),
+          );
+      ref.invalidate(playlistDetailProvider(widget.playlistId));
+    } catch (_) {
+      // The server refused: put things back the way they were.
+      if (!mounted) return;
+      setState(() => _tracks = previous);
+      context.showSnackBar('Could not reorder tracks');
+    }
+  }
+
+  void _playFrom(int index) {
+    final musicList = _tracks
+        .map((t) => MusicModel(
+              id: t.id,
+              title: t.title,
+              artist: '',
+              album: '',
+              duration: t.duration,
+              url: t.url,
+              coverUrl: null,
+              uploadedBy: '',
+              createdAt: DateTime.now(),
+            ))
+        .toList();
+    ref.read(playerProvider.notifier).playPlaylist(musicList, index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _tracks.length,
+      onReorder: _onReorder,
+      itemBuilder: (context, index) {
+        final track = _tracks[index];
+        return _TrackListItem(
+          key: ValueKey(track.id),
+          track: track,
+          index: index,
+          onTap: () => _playFrom(index),
+          onRemove: () {
+            ref
+                .read(playlistListProvider.notifier)
+                .removeTrack(
+                  playlistId: widget.playlistId,
+                  trackId: track.id,
+                )
+                .then((_) {
+              if (!context.mounted) return;
+              ref.invalidate(playlistDetailProvider(widget.playlistId));
+              context.showSnackBar('Track removed');
+            });
+          },
+        );
+      },
     );
   }
 }

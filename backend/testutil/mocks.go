@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/streampulse/backend/internal/domain"
@@ -83,6 +84,10 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 	return nil
 }
 
+// Garde-fou de compilation : si domain.StreamRepository gagne une methode,
+// c'est ici que ca casse, et pas au milieu d'un fichier de test.
+var _ domain.StreamRepository = (*MockStreamRepo)(nil)
+
 // MockStreamRepo is a mock implementation of domain.StreamRepository
 type MockStreamRepo struct {
 	mu      sync.RWMutex
@@ -130,6 +135,19 @@ func (m *MockStreamRepo) List(_ context.Context, page, perPage int) ([]domain.St
 		end = total
 	}
 	return all[start:end], total, nil
+}
+
+func (m *MockStreamRepo) Update(_ context.Context, stream *domain.Stream) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	existing, ok := m.streams[stream.ID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	existing.Title = stream.Title
+	existing.Description = stream.Description
+	existing.UpdatedAt = time.Now().UTC()
+	return nil
 }
 
 func (m *MockStreamRepo) UpdateStatus(_ context.Context, id uuid.UUID, status domain.StreamStatus) error {
@@ -211,6 +229,8 @@ type MockPlaylistRepo struct {
 	mu        sync.RWMutex
 	playlists map[uuid.UUID]*domain.Playlist
 }
+
+var _ domain.PlaylistRepository = (*MockPlaylistRepo)(nil)
 
 func NewMockPlaylistRepo() *MockPlaylistRepo {
 	return &MockPlaylistRepo{playlists: make(map[uuid.UUID]*domain.Playlist)}
@@ -323,8 +343,39 @@ func (m *MockPlaylistRepo) RemoveTrack(_ context.Context, playlistID, trackID uu
 	for i, t := range p.Tracks {
 		if t.ID == trackID {
 			p.Tracks = append(p.Tracks[:i], p.Tracks[i+1:]...)
+			// Mirror the real repo: positions are compacted after a removal.
+			for j := range p.Tracks {
+				p.Tracks[j].Position = j
+			}
 			return nil
 		}
 	}
 	return domain.ErrNotFound
+}
+
+func (m *MockPlaylistRepo) ReorderTracks(_ context.Context, playlistID uuid.UUID, trackIDs []uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.playlists[playlistID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if len(trackIDs) != len(p.Tracks) {
+		return domain.ErrInvalidInput
+	}
+	byID := make(map[uuid.UUID]domain.Track, len(p.Tracks))
+	for _, t := range p.Tracks {
+		byID[t.ID] = t
+	}
+	reordered := make([]domain.Track, 0, len(trackIDs))
+	for i, id := range trackIDs {
+		t, ok := byID[id]
+		if !ok {
+			return domain.ErrNotFound
+		}
+		t.Position = i
+		reordered = append(reordered, t)
+	}
+	p.Tracks = reordered
+	return nil
 }
