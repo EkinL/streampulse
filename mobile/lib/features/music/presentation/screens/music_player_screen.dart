@@ -42,7 +42,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: SP.text3.withOpacity(0.3),
+                      color: SP.text3.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -89,8 +89,8 @@ class MusicPlayerScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(color: SP.accent),
                     ),
                   ),
-                  error: (err, _) => Padding(
-                    padding: const EdgeInsets.all(16),
+                  error: (err, _) => const Padding(
+                    padding: EdgeInsets.all(16),
                     child: Text(
                       'Failed to load playlists',
                       style: TextStyle(color: SP.error),
@@ -325,7 +325,7 @@ class MusicPlayerScreen extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              SP.gradEnd.withOpacity(0.3),
+              SP.gradEnd.withValues(alpha: 0.3),
               SP.bg,
             ],
           ),
@@ -397,7 +397,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: SP.gradEnd.withOpacity(0.3),
+                        color: SP.gradEnd.withValues(alpha: 0.3),
                         blurRadius: 32,
                         offset: const Offset(0, 16),
                       ),
@@ -439,7 +439,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                     activeTrackColor: SP.accent,
                     inactiveTrackColor: SP.surfaceVariant,
                     thumbColor: SP.accent,
-                    overlayColor: SP.accent.withOpacity(0.1),
+                    overlayColor: SP.accent.withValues(alpha: 0.1),
                     trackHeight: 4,
                     thumbShape:
                         const RoundSliderThumbShape(enabledThumbRadius: 6),

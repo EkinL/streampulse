@@ -53,16 +53,16 @@ class StreamNotifier
         format: format,
       );
       await fetchStreams();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
   Future<void> toggleFavorite(String streamId) async {
     try {
       await _favoritesRepository.addFavorite(streamId);
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -78,8 +78,8 @@ class StreamNotifier
         description: description,
       );
       await fetchStreams();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 }

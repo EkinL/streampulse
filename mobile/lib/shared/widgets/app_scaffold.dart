@@ -111,7 +111,7 @@ class AppScaffold extends ConsumerWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: SP.text3.withOpacity(0.3),
+                color: SP.text3.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -182,7 +182,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? SP.accent : SP.text2.withOpacity(0.6);
+    final color = selected ? SP.accent : SP.text2.withValues(alpha: 0.6);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

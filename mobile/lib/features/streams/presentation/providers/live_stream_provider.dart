@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
@@ -103,7 +102,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
       // sort sur l'ecouteur telephonique, pas le haut-parleur.
       // Playback = haut-parleur, insensible a l'interrupteur, comme la musique.
       final session = await AudioSession.instance;
-      await session.configure(AudioSessionConfiguration.music());
+      await session.configure(const AudioSessionConfiguration.music());
       await session.setActive(true);
 
       // Start PCM player stream - matches recorder: PCM16, 16kHz, mono.
