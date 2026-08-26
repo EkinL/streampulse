@@ -230,6 +230,8 @@ type MockPlaylistRepo struct {
 	playlists map[uuid.UUID]*domain.Playlist
 }
 
+var _ domain.PlaylistRepository = (*MockPlaylistRepo)(nil)
+
 func NewMockPlaylistRepo() *MockPlaylistRepo {
 	return &MockPlaylistRepo{playlists: make(map[uuid.UUID]*domain.Playlist)}
 }
@@ -341,8 +343,39 @@ func (m *MockPlaylistRepo) RemoveTrack(_ context.Context, playlistID, trackID uu
 	for i, t := range p.Tracks {
 		if t.ID == trackID {
 			p.Tracks = append(p.Tracks[:i], p.Tracks[i+1:]...)
+			// Mirror the real repo: positions are compacted after a removal.
+			for j := range p.Tracks {
+				p.Tracks[j].Position = j
+			}
 			return nil
 		}
 	}
 	return domain.ErrNotFound
+}
+
+func (m *MockPlaylistRepo) ReorderTracks(_ context.Context, playlistID uuid.UUID, trackIDs []uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.playlists[playlistID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if len(trackIDs) != len(p.Tracks) {
+		return domain.ErrInvalidInput
+	}
+	byID := make(map[uuid.UUID]domain.Track, len(p.Tracks))
+	for _, t := range p.Tracks {
+		byID[t.ID] = t
+	}
+	reordered := make([]domain.Track, 0, len(trackIDs))
+	for i, id := range trackIDs {
+		t, ok := byID[id]
+		if !ok {
+			return domain.ErrNotFound
+		}
+		t.Position = i
+		reordered = append(reordered, t)
+	}
+	p.Tracks = reordered
+	return nil
 }

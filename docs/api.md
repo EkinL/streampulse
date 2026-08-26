@@ -109,11 +109,12 @@ data: <base64-audio-chunk>
 |--------|------|------|-------------|
 | GET | `/playlists` | Yes | List my playlists |
 | POST | `/playlists` | Yes | Create playlist |
-| GET | `/playlists/:id` | Yes | Get playlist + tracks |
+| GET | `/playlists/:id` | Yes | Get playlist + tracks (private: owner only, 404 otherwise) |
 | PUT | `/playlists/:id` | Yes | Update playlist (owner) |
 | DELETE | `/playlists/:id` | Yes | Delete playlist (owner) |
-| POST | `/playlists/:id/tracks` | Yes | Add track (owner) |
-| DELETE | `/playlists/:id/tracks/:trackId` | Yes | Remove track (owner) |
+| POST | `/playlists/:id/tracks` | Yes | Add track at the end of the queue (owner) |
+| PUT | `/playlists/:id/tracks` | Yes | Reorder the queue (owner) |
+| DELETE | `/playlists/:id/tracks/:trackId` | Yes | Remove track, positions are compacted (owner) |
 
 **POST /playlists**
 ```json
@@ -123,6 +124,15 @@ data: <base64-audio-chunk>
 **POST /playlists/:id/tracks**
 ```json
 { "title": "Song Name", "url": "https://example.com/song.mp3", "duration": 240 }
+```
+
+**PUT /playlists/:id/tracks** — queue logic: tracks are stored with a `position`
+(0..n-1) that defines the play order. The client sends the **complete** list of
+track ids in the desired order; positions are rewritten atomically in a single
+transaction. Responds with the updated playlist. `400` on missing/duplicate/extra
+ids, `403` if not the owner, `404` on unknown playlist or track.
+```json
+{ "track_ids": ["uuid-3", "uuid-1", "uuid-2"] }
 ```
 
 ### Admin

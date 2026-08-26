@@ -153,14 +153,75 @@ func (r *PlaylistRepo) AddTrack(ctx context.Context, playlistID uuid.UUID, track
 }
 
 func (r *PlaylistRepo) RemoveTrack(ctx context.Context, playlistID, trackID uuid.UUID) error {
-	result, err := r.pool.Exec(ctx,
-		"DELETE FROM tracks WHERE id = $1 AND playlist_id = $2", trackID, playlistID,
-	)
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
+		return fmt.Errorf("playlist_repo: remove_track: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// RETURNING gives us the freed position so the tracks after it can slide up.
+	var removedPos int
+	err = tx.QueryRow(ctx,
+		"DELETE FROM tracks WHERE id = $1 AND playlist_id = $2 RETURNING position",
+		trackID, playlistID,
+	).Scan(&removedPos)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("playlist_repo: remove_track: %w", domain.ErrNotFound)
+		}
 		return fmt.Errorf("playlist_repo: remove_track: %w", err)
 	}
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("playlist_repo: remove_track: %w", domain.ErrNotFound)
+
+	// Compact positions so the queue stays gapless (0..n-1).
+	_, err = tx.Exec(ctx,
+		"UPDATE tracks SET position = position - 1 WHERE playlist_id = $1 AND position > $2",
+		playlistID, removedPos,
+	)
+	if err != nil {
+		return fmt.Errorf("playlist_repo: remove_track: compact: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("playlist_repo: remove_track: commit: %w", err)
+	}
+	return nil
+}
+
+func (r *PlaylistRepo) ReorderTracks(ctx context.Context, playlistID uuid.UUID, trackIDs []uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("playlist_repo: reorder_tracks: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// The new order must cover the playlist exactly: same track count,
+	// and every id must belong to the playlist (checked per UPDATE below).
+	var count int
+	if err := tx.QueryRow(ctx,
+		"SELECT COUNT(*) FROM tracks WHERE playlist_id = $1", playlistID,
+	).Scan(&count); err != nil {
+		return fmt.Errorf("playlist_repo: reorder_tracks: count: %w", err)
+	}
+	if count != len(trackIDs) {
+		return fmt.Errorf("playlist_repo: reorder_tracks: expected %d track ids, got %d: %w",
+			count, len(trackIDs), domain.ErrInvalidInput)
+	}
+
+	for pos, trackID := range trackIDs {
+		result, err := tx.Exec(ctx,
+			"UPDATE tracks SET position = $1 WHERE id = $2 AND playlist_id = $3",
+			pos, trackID, playlistID,
+		)
+		if err != nil {
+			return fmt.Errorf("playlist_repo: reorder_tracks: %w", err)
+		}
+		if result.RowsAffected() == 0 {
+			return fmt.Errorf("playlist_repo: reorder_tracks: track %s: %w", trackID, domain.ErrNotFound)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("playlist_repo: reorder_tracks: commit: %w", err)
 	}
 	return nil
 }

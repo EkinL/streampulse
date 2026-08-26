@@ -37,6 +37,12 @@ type AddTrackInput struct {
 	Duration   int
 }
 
+type ReorderTracksInput struct {
+	PlaylistID uuid.UUID
+	OwnerID    uuid.UUID
+	TrackIDs   []uuid.UUID
+}
+
 func (s *PlaylistService) CreatePlaylist(ctx context.Context, input CreatePlaylistInput) (*domain.Playlist, error) {
 	if input.Name == "" {
 		return nil, fmt.Errorf("playlist: create: name is required: %w", domain.ErrInvalidInput)
@@ -54,10 +60,15 @@ func (s *PlaylistService) CreatePlaylist(ctx context.Context, input CreatePlayli
 	return playlist, nil
 }
 
-func (s *PlaylistService) GetPlaylist(ctx context.Context, id uuid.UUID) (*domain.Playlist, error) {
+func (s *PlaylistService) GetPlaylist(ctx context.Context, id, requesterID uuid.UUID) (*domain.Playlist, error) {
 	playlist, err := s.playlistRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("playlist: get: %w", err)
+	}
+	// A private playlist is only visible to its owner. We answer NotFound
+	// instead of Forbidden so we don't leak that the playlist exists.
+	if !playlist.IsPublic && playlist.OwnerID != requesterID {
+		return nil, fmt.Errorf("playlist: get: %w", domain.ErrNotFound)
 	}
 	return playlist, nil
 }
@@ -138,6 +149,43 @@ func (s *PlaylistService) AddTrack(ctx context.Context, input AddTrackInput) (*d
 		return nil, fmt.Errorf("playlist: add_track: %w", err)
 	}
 	return track, nil
+}
+
+// ReorderTracks persists a new play order for the whole playlist. The caller
+// sends the complete list of track ids in the desired order; positions are
+// rewritten as 0..n-1 in that order. Sending the full list keeps the operation
+// atomic and idempotent, which is much easier to reason about than move-one-
+// track deltas when two devices reorder at the same time.
+func (s *PlaylistService) ReorderTracks(ctx context.Context, input ReorderTracksInput) (*domain.Playlist, error) {
+	playlist, err := s.playlistRepo.FindByID(ctx, input.PlaylistID)
+	if err != nil {
+		return nil, fmt.Errorf("playlist: reorder_tracks: %w", err)
+	}
+	if playlist.OwnerID != input.OwnerID {
+		return nil, fmt.Errorf("playlist: reorder_tracks: %w", domain.ErrNotOwner)
+	}
+
+	if len(input.TrackIDs) == 0 {
+		return nil, fmt.Errorf("playlist: reorder_tracks: track_ids is required: %w", domain.ErrInvalidInput)
+	}
+	seen := make(map[uuid.UUID]struct{}, len(input.TrackIDs))
+	for _, id := range input.TrackIDs {
+		if _, dup := seen[id]; dup {
+			return nil, fmt.Errorf("playlist: reorder_tracks: duplicate track id %s: %w", id, domain.ErrInvalidInput)
+		}
+		seen[id] = struct{}{}
+	}
+
+	if err := s.playlistRepo.ReorderTracks(ctx, input.PlaylistID, input.TrackIDs); err != nil {
+		return nil, fmt.Errorf("playlist: reorder_tracks: %w", err)
+	}
+
+	// Re-read so the caller gets the tracks back in their new order.
+	updated, err := s.playlistRepo.FindByID(ctx, input.PlaylistID)
+	if err != nil {
+		return nil, fmt.Errorf("playlist: reorder_tracks: %w", err)
+	}
+	return updated, nil
 }
 
 func (s *PlaylistService) RemoveTrack(ctx context.Context, playlistID, trackID, ownerID uuid.UUID) error {

@@ -33,6 +33,7 @@ type PlaylistRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	AddTrack(ctx context.Context, playlistID uuid.UUID, track *Track) error
 	RemoveTrack(ctx context.Context, playlistID, trackID uuid.UUID) error
+	ReorderTracks(ctx context.Context, playlistID uuid.UUID, trackIDs []uuid.UUID) error
 }
 
 type RefreshTokenRepository interface {

@@ -131,6 +131,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Put("/{id}", playlistHandler.UpdatePlaylist)
 			r.Delete("/{id}", playlistHandler.DeletePlaylist)
 			r.Post("/{id}/tracks", playlistHandler.AddTrack)
+			r.Put("/{id}/tracks", playlistHandler.ReorderTracks)
 			r.Delete("/{id}/tracks/{trackId}", playlistHandler.RemoveTrack)
 		})
 
