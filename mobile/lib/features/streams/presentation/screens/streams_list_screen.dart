@@ -97,17 +97,17 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                       const SizedBox(height: 32),
 
                       // Section header
-                      Row(
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Active Streams',
                             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: SP.text1),
                           ),
                           Row(
                             children: [
                               _FilterChip(label: 'Popular', selected: true),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               _FilterChip(label: 'Newest', selected: false),
                             ],
                           ),
@@ -123,8 +123,10 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                               onTap: () => context.push('/streams/${stream.id}'),
                               onFavorite: () {
                                 ref.read(streamListProvider.notifier).toggleFavorite(stream.id).then((_) {
+                                  if (!context.mounted) return;
                                   context.showSnackBar('Added to favorites');
                                 }).catchError((_) {
+                                  if (!context.mounted) return;
                                   context.showSnackBar('Failed', isError: true);
                                 });
                               },
@@ -147,8 +149,8 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                           padding: EdgeInsets.all(24),
                           child: CircularProgressIndicator(color: SP.accent),
                         )),
-                        error: (e, _) => Padding(
-                          padding: const EdgeInsets.all(16),
+                        error: (e, _) => const Padding(
+                          padding: EdgeInsets.all(16),
                           child: Text('Could not load music', style: TextStyle(color: SP.text3)),
                         ),
                         data: (musicList) {
@@ -238,9 +240,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
             title: titleCtrl.text.trim(),
             description: descCtrl.text.trim(),
           ).then((_) {
-            if (mounted) context.showSnackBar('Stream updated');
+            if (context.mounted) context.showSnackBar('Stream updated');
           }).catchError((_) {
-            if (mounted) context.showSnackBar('Update failed', isError: true);
+            if (context.mounted) {
+              context.showSnackBar('Update failed', isError: true);
+            }
           });
         },
       ),
@@ -287,8 +291,8 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      SP.gradEnd.withOpacity(0.7),
-                      SP.accent.withOpacity(0.3),
+                      SP.gradEnd.withValues(alpha: 0.7),
+                      SP.accent.withValues(alpha: 0.3),
                       SP.bg,
                     ],
                   ),

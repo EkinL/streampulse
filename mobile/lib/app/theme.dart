@@ -112,12 +112,12 @@ class AppTheme {
             fontSize: 10,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
-            color: selected ? SP.accent : SP.text2.withOpacity(0.6),
+            color: selected ? SP.accent : SP.text2.withValues(alpha: 0.6),
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return IconThemeData(color: selected ? SP.accent : SP.text2.withOpacity(0.6), size: 22);
+          return IconThemeData(color: selected ? SP.accent : SP.text2.withValues(alpha: 0.6), size: 22);
         }),
       ),
       snackBarTheme: SnackBarThemeData(

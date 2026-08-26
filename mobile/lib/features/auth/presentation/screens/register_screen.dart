@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -74,8 +73,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withOpacity(0.18),
-                    SP.accent.withOpacity(0.0),
+                    SP.accent.withValues(alpha: 0.18),
+                    SP.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -92,8 +91,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFFF6B6B).withOpacity(0.12),
-                    const Color(0xFFFF6B6B).withOpacity(0.0),
+                    const Color(0xFFFF6B6B).withValues(alpha: 0.12),
+                    const Color(0xFFFF6B6B).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -239,7 +238,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: SP.accent.withOpacity(0.10),
+                                    color: SP.accent.withValues(alpha: 0.10),
                                     offset: const Offset(0, 10),
                                     blurRadius: 15,
                                     spreadRadius: -3,

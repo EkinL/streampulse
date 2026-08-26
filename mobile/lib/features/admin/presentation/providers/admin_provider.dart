@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/domain/user_model.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/network/api_exceptions.dart';
 
 final adminProvider =
     StateNotifierProvider<AdminNotifier, AsyncValue<List<UserModel>>>((ref) {
@@ -40,7 +39,7 @@ class AdminNotifier extends StateNotifier<AsyncValue<List<UserModel>>> {
   }) async {
     try {
       await _dio.put(
-        ApiEndpoints.adminUser(userId),
+        ApiEndpoints.adminUserRole(userId),
         data: {'role': role},
       );
       await fetchUsers();

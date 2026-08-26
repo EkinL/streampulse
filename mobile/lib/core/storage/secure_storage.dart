@@ -1,46 +1,38 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'token_store.dart';
+import 'token_store_io.dart'
+    if (dart.library.js_interop) 'token_store_web.dart';
 
 final secureStorageProvider = Provider<SecureStorageService>((ref) {
   return SecureStorageService();
 });
 
+/// Stores the auth tokens on whichever backing store the platform provides.
 class SecureStorageService {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
 
-  final FlutterSecureStorage _storage;
+  final TokenStore _store;
 
-  SecureStorageService()
-      : _storage = const FlutterSecureStorage(
-          aOptions: AndroidOptions(encryptedSharedPreferences: true),
-          iOptions: IOSOptions(
-            accessibility: KeychainAccessibility.first_unlock_this_device,
-          ),
-        );
+  SecureStorageService({TokenStore? store})
+      : _store = store ?? createTokenStore();
 
+  /// Written one after the other, never concurrently: some backing stores
+  /// initialise lazily on first write and do not tolerate a race.
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
-    await Future.wait([
-      _storage.write(key: _accessTokenKey, value: accessToken),
-      _storage.write(key: _refreshTokenKey, value: refreshToken),
-    ]);
+    await _store.write(_accessTokenKey, accessToken);
+    await _store.write(_refreshTokenKey, refreshToken);
   }
 
-  Future<String?> getAccessToken() async {
-    return _storage.read(key: _accessTokenKey);
-  }
+  Future<String?> getAccessToken() => _store.read(_accessTokenKey);
 
-  Future<String?> getRefreshToken() async {
-    return _storage.read(key: _refreshTokenKey);
-  }
+  Future<String?> getRefreshToken() => _store.read(_refreshTokenKey);
 
   Future<void> clearTokens() async {
-    await Future.wait([
-      _storage.delete(key: _accessTokenKey),
-      _storage.delete(key: _refreshTokenKey),
-    ]);
+    await _store.delete(_accessTokenKey);
+    await _store.delete(_refreshTokenKey);
   }
 }

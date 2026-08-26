@@ -15,18 +15,18 @@ class ApiException implements Exception {
 
 class UnauthorizedException extends ApiException {
   const UnauthorizedException({
-    String message = 'Unauthorized. Please log in again.',
-  }) : super(message: message, statusCode: 401);
+    super.message = 'Unauthorized. Please log in again.',
+  }) : super(statusCode: 401);
 }
 
 class NotFoundException extends ApiException {
   const NotFoundException({
-    String message = 'Resource not found.',
-  }) : super(message: message, statusCode: 404);
+    super.message = 'Resource not found.',
+  }) : super(statusCode: 404);
 }
 
 class ServerException extends ApiException {
   const ServerException({
-    String message = 'An internal server error occurred.',
-  }) : super(message: message, statusCode: 500);
+    super.message = 'An internal server error occurred.',
+  }) : super(statusCode: 500);
 }
