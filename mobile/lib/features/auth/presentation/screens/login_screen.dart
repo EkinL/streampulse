@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -68,8 +67,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withOpacity(0.18),
-                    SP.accent.withOpacity(0.0),
+                    SP.accent.withValues(alpha: 0.18),
+                    SP.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -86,8 +85,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFFF6B6B).withOpacity(0.12),
-                    const Color(0xFFFF6B6B).withOpacity(0.0),
+                    const Color(0xFFFF6B6B).withValues(alpha: 0.12),
+                    const Color(0xFFFF6B6B).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -112,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: SP.surface,
-                            boxShadow: [
+                            boxShadow: const [
                               BoxShadow(
                                 color: SP.glow,
                                 blurRadius: 40,
@@ -120,7 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ],
                             border: Border.all(
-                              color: SP.accent.withOpacity(0.2),
+                              color: SP.accent.withValues(alpha: 0.2),
                               width: 2,
                             ),
                           ),
@@ -131,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: SP.accent.withOpacity(0.1),
+                                  color: SP.accent.withValues(alpha: 0.1),
                                   width: 1,
                                 ),
                               ),
@@ -258,7 +257,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: SP.accent.withOpacity(0.10),
+                                color: SP.accent.withValues(alpha: 0.10),
                                 offset: const Offset(0, 10),
                                 blurRadius: 15,
                                 spreadRadius: -3,

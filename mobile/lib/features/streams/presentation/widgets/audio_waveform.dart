@@ -81,8 +81,8 @@ class _AudioWaveformState extends State<AudioWaveform>
             height: widget.height * _barHeights[index],
             decoration: BoxDecoration(
               color: widget.isActive
-                  ? widget.color.withOpacity(0.7 + 0.3 * _barHeights[index])
-                  : widget.color.withOpacity(0.2),
+                  ? widget.color.withValues(alpha: 0.7 + 0.3 * _barHeights[index])
+                  : widget.color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           );

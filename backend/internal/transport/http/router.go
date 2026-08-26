@@ -66,7 +66,6 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Public routes
 	r.Get("/health", healthHandler.Health)
-	r.Handle("/metrics", promhttp.Handler())
 
 	// Auth routes (public)
 	r.Route("/auth", func(r chi.Router) {
@@ -140,6 +139,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Use(middleware.RequireRole(domain.RoleAdmin))
 			r.Get("/admin/users", adminHandler.ListUsers)
 			r.Put("/admin/users/{id}/role", adminHandler.UpdateUserRole)
+
+			// Prometheus metrics: admin only, as required by docs/api.md.
+			// Prometheus itself scrapes the internal listener started in
+			// cmd/server/main.go, not this route.
+			r.Handle("/metrics", promhttp.Handler())
 		})
 	})
 

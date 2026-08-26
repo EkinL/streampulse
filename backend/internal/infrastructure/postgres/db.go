@@ -83,12 +83,12 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, logger zerolog.Logge
 		}
 
 		if _, err := tx.Exec(ctx, string(content)); err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("postgres: execute migration %s: %w", version, err)
 		}
 
 		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", version); err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("postgres: record migration %s: %w", version, err)
 		}
 

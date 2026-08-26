@@ -95,11 +95,11 @@ class AdminUsersScreen extends ConsumerWidget {
                       underline: const SizedBox(),
                       borderRadius: BorderRadius.circular(8),
                       dropdownColor: SP.surfaceVariant,
-                      style: TextStyle(color: SP.text2),
+                      style: const TextStyle(color: SP.text2),
                       items: const [
                         DropdownMenuItem(
-                          value: 'listener',
-                          child: Text('Listener'),
+                          value: 'user',
+                          child: Text('User'),
                         ),
                         DropdownMenuItem(
                           value: 'broadcaster',
@@ -119,14 +119,18 @@ class AdminUsersScreen extends ConsumerWidget {
                                 role: newRole,
                               )
                               .then((_) {
-                            context.showSnackBar(
-                              'Updated ${user.username} to $newRole',
-                            );
+                            if (context.mounted) {
+                              context.showSnackBar(
+                                'Updated ${user.username} to $newRole',
+                              );
+                            }
                           }).catchError((e) {
-                            context.showSnackBar(
-                              'Failed to update role: $e',
-                              isError: true,
-                            );
+                            if (context.mounted) {
+                              context.showSnackBar(
+                                'Failed to update role: $e',
+                                isError: true,
+                              );
+                            }
                           });
                         }
                       },

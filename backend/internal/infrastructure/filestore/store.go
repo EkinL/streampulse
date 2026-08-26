@@ -28,14 +28,26 @@ func (fs *FileStore) SaveFile(filename string, data io.Reader) (string, error) {
 	ext := filepath.Ext(filename)
 	newName := uuid.New().String() + ext
 
-	dst, err := os.Create(filepath.Join(fs.baseDir, newName))
+	path := filepath.Join(fs.baseDir, newName)
+	dst, err := os.Create(path)
 	if err != nil {
 		return "", fmt.Errorf("filestore: create file: %w", err)
 	}
-	defer dst.Close()
 
+	// Sur chaque sortie en erreur on retire le fichier : sinon il reste sur
+	// disque, tronque et reference par personne, puisque le nom vient d'un
+	// UUID genere ici et n'est rendu a l'appelant qu'en cas de succes.
 	if _, err := io.Copy(dst, data); err != nil {
+		_ = dst.Close()
+		_ = os.Remove(path)
 		return "", fmt.Errorf("filestore: write file: %w", err)
+	}
+
+	// Close explicite et verifie : c'est lui qui remonte une ecriture
+	// incomplete (disque plein, quota), qu'un defer aurait avalee.
+	if err := dst.Close(); err != nil {
+		_ = os.Remove(path)
+		return "", fmt.Errorf("filestore: close file: %w", err)
 	}
 
 	return fs.baseURL + "/" + newName, nil

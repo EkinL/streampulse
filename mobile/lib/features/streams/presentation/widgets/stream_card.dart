@@ -34,7 +34,7 @@ class StreamCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: stream.isLive
-                      ? [SP.gradEnd.withOpacity(0.6), SP.gradStart.withOpacity(0.3)]
+                      ? [SP.gradEnd.withValues(alpha: 0.6), SP.gradStart.withValues(alpha: 0.3)]
                       : [SP.surfaceVariant, SP.tag],
                 ),
               ),
@@ -42,7 +42,7 @@ class StreamCard extends StatelessWidget {
                 child: Icon(
                   Icons.radio,
                   size: 36,
-                  color: stream.isLive ? SP.accent : SP.text3.withOpacity(0.5),
+                  color: stream.isLive ? SP.accent : SP.text3.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -187,7 +187,7 @@ class _FormatTag extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.45,
-          color: SP.text2.withOpacity(0.6),
+          color: SP.text2.withValues(alpha: 0.6),
         ),
       ),
     );

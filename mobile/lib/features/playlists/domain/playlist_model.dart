@@ -1,7 +1,6 @@
 class PlaylistModel {
   final String id;
   final String name;
-  @override
   final String ownerId;
   final bool isPublic;
   final List<TrackModel> tracks;

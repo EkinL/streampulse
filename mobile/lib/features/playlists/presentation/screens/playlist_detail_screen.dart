@@ -57,8 +57,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      SP.accent.withOpacity(0.15),
-                      SP.accent.withOpacity(0.02),
+                      SP.accent.withValues(alpha: 0.15),
+                      SP.accent.withValues(alpha: 0.02),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -215,6 +215,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                     trackId: track.id,
                                   )
                                   .then((_) {
+                                if (!context.mounted) return;
                                 ref.invalidate(
                                     playlistDetailProvider(playlistId));
                                 context.showSnackBar('Track removed');
@@ -377,7 +378,7 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
           height: 4,
           margin: const EdgeInsets.only(top: 12, bottom: 16),
           decoration: BoxDecoration(
-            color: SP.text3.withOpacity(0.3),
+            color: SP.text3.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(2),
           ),
         ),

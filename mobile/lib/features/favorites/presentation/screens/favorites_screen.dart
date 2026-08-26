@@ -92,7 +92,9 @@ class FavoritesScreen extends ConsumerWidget {
                         .read(favoritesProvider.notifier)
                         .remove(stream.id)
                         .then((_) {
-                      context.showSnackBar('Removed from favorites');
+                      if (context.mounted) {
+                        context.showSnackBar('Removed from favorites');
+                      }
                     });
                   },
                 );

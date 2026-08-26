@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -106,8 +105,9 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       _descriptionController.clear();
       if (mounted) context.showSnackBar('Stream created');
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         context.showSnackBar('Failed to create stream: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isCreating = false);
     }
@@ -128,8 +128,9 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
 
       if (mounted) context.showSnackBar('You are LIVE!');
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         context.showSnackBar('Failed to start: $e', isError: true);
+      }
     }
   }
 
@@ -195,7 +196,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       ),
       cancelToken: _broadcastCancelToken,
     )
-        .catchError((e) {
+        .then<void>((_) {}, onError: (e) {
       if (!CancelToken.isCancel(e)) {
         debugPrint('Broadcast connection ended: $e');
       }
@@ -225,8 +226,9 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       ref.read(streamListProvider.notifier).fetchStreams();
       if (mounted) context.showSnackBar('Stream stopped');
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         context.showSnackBar('Failed to stop: $e', isError: true);
+      }
     }
   }
 
@@ -377,8 +379,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                           url: urlCtrl.text.trim(),
                           duration: int.tryParse(durationCtrl.text.trim()) ?? 0,
                         );
+                        if (ctx.mounted) Navigator.of(ctx).pop();
                         if (mounted) {
-                          Navigator.of(ctx).pop();
                           context.showSnackBar('Music added successfully');
                           _loadMyMusic();
                         }
@@ -462,7 +464,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
 
   Widget _buildLiveCard() {
     return Card(
-      color: SP.liveBg.withOpacity(0.15),
+      color: SP.liveBg.withValues(alpha: 0.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -483,7 +485,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                     children: [
                       Icon(Icons.circle,
                           size: 8,
-                          color: _isBroadcasting ? SP.liveText : SP.liveText.withOpacity(0.5)),
+                          color: _isBroadcasting ? SP.liveText : SP.liveText.withValues(alpha: 0.5)),
                       const SizedBox(width: 4),
                       Text(
                         _isBroadcasting ? 'LIVE' : 'STARTING...',
@@ -616,7 +618,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _selectedFormat,
+            initialValue: _selectedFormat,
             decoration: InputDecoration(
               labelText: 'Audio Format',
               border: OutlineInputBorder(
@@ -664,8 +666,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
           error: (error, _) => Text('Error: $error', style: const TextStyle(color: SP.error)),
           data: (streams) {
             if (streams.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.all(24),
+              return const Padding(
+                padding: EdgeInsets.all(24),
                 child: Text('No streams yet.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: SP.text3)),
@@ -786,7 +788,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
             decoration: BoxDecoration(
               color: SP.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: SP.accent.withOpacity(0.3), width: 1),
+              border: Border.all(color: SP.accent.withValues(alpha: 0.3), width: 1),
             ),
             child: Row(
               children: [
@@ -800,10 +802,10 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                   child: const Icon(Icons.add, color: SP.btnText, size: 24),
                 ),
                 const SizedBox(width: 14),
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Add Music',
                         style: TextStyle(
@@ -835,8 +837,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
             ),
           )
         else if (_myMusic.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
+          const Padding(
+            padding: EdgeInsets.all(24),
             child: Text(
               'No music uploaded yet.',
               textAlign: TextAlign.center,
