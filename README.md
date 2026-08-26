@@ -98,6 +98,9 @@ flutter pub get
 flutter run
 ```
 
+Lecture en arriere-plan et controles ecran verrouille via `audio_service`,
+voir [ADR 004](docs/ADR/004-background-audio.md).
+
 ## Variables d'environnement
 
 | Variable | Default | Description |
@@ -147,6 +150,7 @@ cd mobile && flutter test
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
+- [ADR 004 - Lecture en arriere-plan et session media](docs/ADR/004-background-audio.md)
 
 ## Contribution
 

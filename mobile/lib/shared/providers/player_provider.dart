@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:just_audio/just_audio.dart' show ProcessingState;
+
 import '../../app/constants.dart';
+import '../../core/audio/audio_handler.dart';
 import '../../features/music/domain/music_model.dart';
+import 'volume_provider.dart';
 
 class PlayerState {
   final MusicModel? currentTrack;
@@ -13,6 +17,8 @@ class PlayerState {
   final List<MusicModel> queue;
   final int queueIndex;
 
+  final double volume;
+
   const PlayerState({
     this.currentTrack,
     this.isPlaying = false,
@@ -20,7 +26,11 @@ class PlayerState {
     this.duration = Duration.zero,
     this.queue = const [],
     this.queueIndex = 0,
+    this.volume = AppConstants.defaultVolume,
   });
+
+  bool get hasNext => queueIndex + 1 < queue.length;
+  bool get hasPrevious => queueIndex > 0;
 
   PlayerState copyWith({
     MusicModel? currentTrack,
@@ -29,6 +39,7 @@ class PlayerState {
     Duration? duration,
     List<MusicModel>? queue,
     int? queueIndex,
+    double? volume,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -37,38 +48,51 @@ class PlayerState {
       duration: duration ?? this.duration,
       queue: queue ?? this.queue,
       queueIndex: queueIndex ?? this.queueIndex,
+      volume: volume ?? this.volume,
     );
   }
 }
 
+/// File d'attente du lecteur de pistes, la lecture passe par le handler.
 class PlayerNotifier extends StateNotifier<PlayerState> {
-  final AudioPlayer _player;
+  final StreamPulseAudioHandler _handler;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
-  PlayerNotifier(this._player) : super(const PlayerState()) {
+  PlayerNotifier(this._handler, {double initialVolume = AppConstants.defaultVolume})
+      : super(PlayerState(volume: initialVolume)) {
+    _handler
+      ..onSkipToNext = next
+      ..onSkipToPrevious = previous;
+
     _subscriptions.add(
-      _player.positionStream.listen((pos) {
+      _handler.positionStream.listen((pos) {
         if (mounted) state = state.copyWith(position: pos);
       }),
     );
     _subscriptions.add(
-      _player.durationStream.listen((dur) {
-        if (mounted && dur != null) {
-          state = state.copyWith(duration: dur);
-        }
+      _handler.durationStream.listen((dur) {
+        if (mounted && dur != null) state = state.copyWith(duration: dur);
       }),
     );
     _subscriptions.add(
-      _player.playerStateStream.listen((playerState) {
-        if (!mounted) return;
-        final playing = playerState.playing;
-        state = state.copyWith(isPlaying: playing);
-
-        if (playerState.processingState == ProcessingState.completed) {
+      _handler.playingStream.listen((playing) {
+        if (mounted) state = state.copyWith(isPlaying: playing);
+      }),
+    );
+    _subscriptions.add(
+      _handler.processingStateStream.listen((processing) {
+        if (mounted && processing == ProcessingState.completed) {
           _onTrackCompleted();
         }
       }),
     );
+    _subscriptions.add(
+      _handler.volumeStream.listen((v) {
+        if (mounted) state = state.copyWith(volume: v);
+      }),
+    );
+
+    _handler.setVolume(initialVolume);
   }
 
   String _resolveUrl(String url) {
@@ -78,40 +102,42 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     return url;
   }
 
-  Future<void> play(MusicModel track) async {
-    final url = _resolveUrl(track.url);
-    await _player.setUrl(url);
-    state = state.copyWith(
-      currentTrack: track,
-      queue: [track],
-      queueIndex: 0,
-      position: Duration.zero,
+  MediaItem _toMediaItem(MusicModel track) {
+    final cover = track.coverUrl;
+    return MediaItem(
+      id: track.id,
+      title: track.title,
+      artist: track.artist.isNotEmpty ? track.artist : null,
+      album: track.album.isNotEmpty ? track.album : null,
+      duration: track.duration > 0 ? Duration(seconds: track.duration) : null,
+      artUri: cover != null && cover.isNotEmpty
+          ? Uri.tryParse(_resolveUrl(cover))
+          : null,
     );
-    await _player.play();
   }
 
-  Future<void> playPlaylist(List<MusicModel> tracks, int startIndex) async {
-    if (tracks.isEmpty) return;
-    final index = startIndex.clamp(0, tracks.length - 1);
-    final track = tracks[index];
-    final url = _resolveUrl(track.url);
-    await _player.setUrl(url);
+  Future<void> _load(List<MusicModel> queue, int index) async {
+    final track = queue[index];
+    await _handler.loadTrack(_toMediaItem(track), _resolveUrl(track.url));
     state = state.copyWith(
       currentTrack: track,
-      queue: tracks,
+      queue: queue,
       queueIndex: index,
       position: Duration.zero,
     );
-    await _player.play();
+    await _handler.play();
   }
 
-  Future<void> pause() async {
-    await _player.pause();
+  Future<void> play(MusicModel track) => _load([track], 0);
+
+  Future<void> playPlaylist(List<MusicModel> tracks, int startIndex) async {
+    if (tracks.isEmpty) return;
+    await _load(tracks, startIndex.clamp(0, tracks.length - 1));
   }
 
-  Future<void> resume() async {
-    await _player.play();
-  }
+  Future<void> pause() => _handler.pause();
+
+  Future<void> resume() => _handler.play();
 
   Future<void> togglePlayPause() async {
     if (state.isPlaying) {
@@ -121,58 +147,39 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  Future<void> seekTo(Duration position) async {
-    await _player.seek(position);
-  }
+  Future<void> seekTo(Duration position) => _handler.seek(position);
+
+  Future<void> setVolume(double volume) => _handler.setVolume(volume);
 
   Future<void> next() async {
-    if (state.queue.isEmpty) return;
-    final nextIndex = state.queueIndex + 1;
-    if (nextIndex < state.queue.length) {
-      final track = state.queue[nextIndex];
-      final url = _resolveUrl(track.url);
-      await _player.setUrl(url);
-      state = state.copyWith(
-        currentTrack: track,
-        queueIndex: nextIndex,
-        position: Duration.zero,
-      );
-      await _player.play();
-    }
+    if (!state.hasNext) return;
+    await _load(state.queue, state.queueIndex + 1);
   }
 
   Future<void> previous() async {
     if (state.queue.isEmpty) return;
-    // If more than 3 seconds in, restart current track
-    if (state.position.inSeconds > 3) {
+    // au-dela de 3s, precedent = redemarrer la piste
+    if (state.position.inSeconds > 3 || !state.hasPrevious) {
       await seekTo(Duration.zero);
       return;
     }
-    final prevIndex = state.queueIndex - 1;
-    if (prevIndex >= 0) {
-      final track = state.queue[prevIndex];
-      final url = _resolveUrl(track.url);
-      await _player.setUrl(url);
-      state = state.copyWith(
-        currentTrack: track,
-        queueIndex: prevIndex,
-        position: Duration.zero,
-      );
-      await _player.play();
-    }
+    await _load(state.queue, state.queueIndex - 1);
   }
 
   Future<void> stop() async {
-    await _player.stop();
-    state = const PlayerState();
+    await _handler.stop();
+    state = PlayerState(volume: state.volume);
   }
 
-  void _onTrackCompleted() {
-    if (state.queueIndex + 1 < state.queue.length) {
-      next();
-    } else {
-      state = state.copyWith(isPlaying: false);
+  Future<void> _onTrackCompleted() async {
+    if (state.hasNext) {
+      await next();
+      return;
     }
+    // fin de file : retour au debut, pret a rejouer
+    await _handler.pause();
+    await _handler.seek(Duration.zero);
+    state = state.copyWith(isPlaying: false, position: Duration.zero);
   }
 
   @override
@@ -180,14 +187,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     for (final sub in _subscriptions) {
       sub.cancel();
     }
-    _player.dispose();
+    if (_handler.onSkipToNext == next) _handler.onSkipToNext = null;
+    if (_handler.onSkipToPrevious == previous) _handler.onSkipToPrevious = null;
     super.dispose();
   }
 }
 
 final playerProvider =
     StateNotifierProvider<PlayerNotifier, PlayerState>((ref) {
-  final player = AudioPlayer();
-  ref.onDispose(player.dispose);
-  return PlayerNotifier(player);
+  final handler = ref.watch(audioHandlerProvider);
+  final notifier = PlayerNotifier(
+    handler,
+    initialVolume: ref.read(volumeProvider),
+  );
+  ref.listen<double>(volumeProvider, (_, v) => notifier.setVolume(v));
+  return notifier;
 });
