@@ -198,7 +198,9 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	// Send initial connected event
-	fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\",\"stream_id\":\"%s\"}\n\n", streamID)
+	if _, err := fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\",\"stream_id\":\"%s\"}\n\n", streamID); err != nil {
+		return
+	}
 	flusher.Flush()
 
 	h.logger.Info().
@@ -218,7 +220,12 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			encoded := base64.StdEncoding.EncodeToString(data)
-			fmt.Fprintf(w, "data: %s\n\n", encoded)
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", encoded); err != nil {
+				h.logger.Debug().Err(err).
+					Str("client_id", client.ID.String()).
+					Msg("sse write failed, closing stream")
+				return
+			}
 			flusher.Flush()
 			h.metrics.StreamBytesSentTotal.Add(float64(len(data)))
 		}

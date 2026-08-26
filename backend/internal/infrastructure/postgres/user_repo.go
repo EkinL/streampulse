@@ -116,8 +116,7 @@ func (r *UserRepo) scanUser(ctx context.Context, query string, args ...interface
 }
 
 func isDuplicateKeyError(err error) bool {
-	return err != nil && (errors.Is(err, pgx.ErrNoRows) == false) &&
-		(fmt.Sprintf("%v", err) != "" && containsDuplicateKey(err.Error()))
+	return err != nil && !errors.Is(err, pgx.ErrNoRows) && containsDuplicateKey(err.Error())
 }
 
 func containsDuplicateKey(s string) bool {

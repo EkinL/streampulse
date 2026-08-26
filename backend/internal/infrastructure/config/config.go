@@ -12,6 +12,7 @@ import (
 type Config struct {
 	AppEnv             string        `env:"APP_ENV,default=development"`
 	Port               int           `env:"PORT,default=8080"`
+	MetricsPort        int           `env:"METRICS_PORT,default=9091"`
 	DatabaseURL        string        `env:"DATABASE_URL,required"`
 	JWTSecret          string        `env:"JWT_SECRET,required"`
 	JWTExpiry          time.Duration `env:"JWT_EXPIRY,default=15m"`
@@ -40,6 +41,10 @@ func (c *Config) Addr() string {
 	return fmt.Sprintf(":%d", c.Port)
 }
 
+func (c *Config) MetricsAddr() string {
+	return fmt.Sprintf(":%d", c.MetricsPort)
+}
+
 func LoadFromEnvFile(path string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -53,8 +58,10 @@ func LoadFromEnvFile(path string) {
 			if line[i] == '=' {
 				key := string(line[:i])
 				val := string(line[i+1:])
-				if os.Getenv(key) == "" {
-					os.Setenv(key, val)
+				// os.Setenv n'echoue que sur une cle vide ou contenant '='.
+				// On coupe a la premiere '=', il ne reste que la cle vide a ecarter.
+				if key != "" && os.Getenv(key) == "" {
+					_ = os.Setenv(key, val)
 				}
 				break
 			}

@@ -8,6 +8,7 @@ services:
     environment:
       APP_ENV: development
       PORT: 8080
+      METRICS_PORT: 9091
       DATABASE_URL: postgres://streampulse:streampulse@postgres:5432/streampulse?sslmode=disable
       JWT_SECRET: dev-secret-change-in-production-please
       JWT_EXPIRY: 15m

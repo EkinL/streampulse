@@ -126,7 +126,7 @@ class PlaylistsScreen extends ConsumerWidget {
               SwitchListTile(
                 title: const Text('Public', style: TextStyle(color: SP.text1)),
                 value: isPublic,
-                activeColor: SP.accent,
+                activeThumbColor: SP.accent,
                 onChanged: (v) => setDialogState(() => isPublic = v),
                 contentPadding: EdgeInsets.zero,
               ),

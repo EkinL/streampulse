@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
 	"github.com/streampulse/backend/internal/infrastructure/config"
@@ -48,7 +49,9 @@ func main() {
 		defer func() {
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer shutdownCancel()
-			tp.Shutdown(shutdownCtx)
+			if err := tp.Shutdown(shutdownCtx); err != nil {
+				logger.Error().Err(err).Msg("failed to shut down otel tracer")
+			}
 		}()
 	}
 
@@ -128,6 +131,19 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Internal metrics server. Prometheus scrapes this listener from
+	// inside the Docker network; the public /metrics route on the main
+	// router is admin-only (see transport/http/router.go).
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+	metricsSrv := &http.Server{
+		Addr:         cfg.MetricsAddr(),
+		Handler:      metricsMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -139,11 +155,22 @@ func main() {
 		}
 	}()
 
+	go func() {
+		logger.Info().Str("addr", cfg.MetricsAddr()).Msg("metrics server started")
+		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal().Err(err).Msg("metrics server error")
+		}
+	}()
+
 	<-quit
 	logger.Info().Msg("shutting down server...")
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
+
+	if err := metricsSrv.Shutdown(shutdownCtx); err != nil {
+		logger.Error().Err(err).Msg("metrics server forced to shutdown")
+	}
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal().Err(err).Msg("server forced to shutdown")

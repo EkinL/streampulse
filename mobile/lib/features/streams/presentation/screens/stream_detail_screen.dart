@@ -64,7 +64,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                   .read(streamListProvider.notifier)
                   .toggleFavorite(widget.streamId)
                   .then((_) {
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Added to favorites')),
                   );
@@ -95,8 +95,8 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              SP.accent.withOpacity(0.2),
-                              SP.accent.withOpacity(0.05),
+                              SP.accent.withValues(alpha: 0.2),
+                              SP.accent.withValues(alpha: 0.05),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -236,7 +236,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isLive ? SP.liveBg.withOpacity(0.15) : SP.offlineBg,
+        color: isLive ? SP.liveBg.withValues(alpha: 0.15) : SP.offlineBg,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

@@ -1,30 +1,60 @@
-// This is a basic Flutter widget test.
+// Smoke test: verifie que l'app demarre, que le routeur resout la route
+// initiale et que sans session stockee on aboutit sur l'ecran de connexion.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Le stockage securise est remplace par un faux : en test widget il n'y a
+// pas de plateforme native, les appels de canal ne se terminent jamais.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:streampulse/features/auth/data/auth_local_source.dart';
+import 'package:streampulse/features/auth/presentation/screens/login_screen.dart';
+import 'package:streampulse/features/auth/presentation/screens/splash_screen.dart';
 import 'package:streampulse/main.dart';
 
+class _FakeAuthLocalSource implements AuthLocalSource {
+  @override
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {}
+
+  @override
+  Future<String?> getAccessToken() async => null;
+
+  @override
+  Future<String?> getRefreshToken() async => null;
+
+  @override
+  Future<void> clearTokens() async {}
+
+  @override
+  Future<bool> hasValidToken() async => false;
+}
+
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('l\'app demarre sur le splash puis redirige vers le login',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authLocalSourceProvider.overrideWithValue(_FakeAuthLocalSource()),
+        ],
+        child: const StreamPulseApp(),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Premier rendu : MaterialApp monte, splash affiche pendant AuthLoading.
+    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byType(SplashScreen), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // checkAuth() ne trouve aucun token -> AuthUnauthenticated
+    // -> redirection du routeur vers /login.
+    // Pas de pumpAndSettle : le splash contient un spinner anime en boucle.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 400));
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 }

@@ -34,8 +34,8 @@ class FavoritesNotifier
     try {
       await _repository.addFavorite(streamId);
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -43,8 +43,8 @@ class FavoritesNotifier
     try {
       await _repository.removeFavorite(streamId);
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 }

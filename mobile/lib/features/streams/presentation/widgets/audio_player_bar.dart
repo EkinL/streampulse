@@ -43,7 +43,7 @@ class AudioPlayerBar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -114,7 +114,7 @@ class AudioPlayerBar extends ConsumerWidget {
                     boxShadow: [
                       BoxShadow(
                         color: (isReceivingData ? Colors.green : Colors.orange)
-                            .withOpacity(0.4),
+                            .withValues(alpha: 0.4),
                         blurRadius: 6,
                       ),
                     ],
@@ -152,7 +152,7 @@ class AudioPlayerBar extends ConsumerWidget {
             ? SP.error
             : isLive
                 ? SP.accent
-                : SP.text3.withOpacity(0.3),
+                : SP.text3.withValues(alpha: 0.3),
       ),
       onPressed: isLive || isConnected
           ? () {

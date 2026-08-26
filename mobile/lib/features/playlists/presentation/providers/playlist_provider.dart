@@ -43,8 +43,8 @@ class PlaylistNotifier
     try {
       await _repository.createPlaylist(name: name, isPublic: isPublic);
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -60,8 +60,8 @@ class PlaylistNotifier
         isPublic: isPublic,
       );
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -69,8 +69,8 @@ class PlaylistNotifier
     try {
       await _repository.deletePlaylist(id);
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -88,8 +88,8 @@ class PlaylistNotifier
         duration: duration,
       );
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 
@@ -103,8 +103,8 @@ class PlaylistNotifier
         trackId: trackId,
       );
       await fetch();
-    } on ApiException catch (e) {
-      throw e;
+    } on ApiException {
+      rethrow;
     }
   }
 }

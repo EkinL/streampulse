@@ -3,7 +3,7 @@
 ## Prerequis
 
 - Docker & Docker Compose v2+
-- Go 1.22+ (dev local backend)
+- Go 1.26 (dev local backend)
 - Flutter 3.x (dev local mobile)
 
 ## Demarrage rapide
