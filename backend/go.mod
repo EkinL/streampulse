@@ -3,6 +3,7 @@ module github.com/streampulse/backend
 go 1.26.0
 
 require (
+	github.com/exaring/otelpgx v0.6.2
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
