@@ -1,0 +1,92 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: streampulse-technique
+    folder: StreamPulse Alerts
+    interval: 1m
+    rules:
+      - uid: streampulse-api-down
+        title: API StreamPulse indisponible
+        condition: C
+        for: 1m
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+          category: technique
+        annotations:
+          summary: "L'API StreamPulse ne repond plus au scrape Prometheus"
+          description: "up{job=\"streampulse-api\"} == 0 depuis au moins 1 minute : le service est down ou injoignable."
+        data:
+          - refId: A
+            datasourceUid: PBFA97CFB590B2093
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: up{job="streampulse-api"}
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+              refId: C
+
+  - orgId: 1
+    name: streampulse-metier
+    folder: StreamPulse Alerts
+    interval: 1m
+    rules:
+      - uid: streampulse-disconnections-spike
+        title: Pic de deconnexions brutales
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Alerting
+        labels:
+          severity: warning
+          category: metier
+        annotations:
+          summary: "Deconnexions brutales anormalement elevees"
+          description: "rate(stream_disconnections_total[5m]) > 0.5/s pendant plus de 2 minutes. Seuil indicatif, a recalibrer avec du trafic reel."
+        data:
+          - refId: A
+            datasourceUid: PBFA97CFB590B2093
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: rate(stream_disconnections_total[5m])
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.5]
+              refId: C
