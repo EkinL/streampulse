@@ -41,10 +41,39 @@ console's origin via `CORS_ALLOWED_ORIGINS`.
 ```sh
 flutter build apk --release
 flutter build web --release -t lib/main_web.dart
+./scripts/build_ipa.sh
 ```
 
 The web build is served as a static site; it uses go_router's default hash
 URLs, so no server-side rewrite rule is required.
+
+### iOS AppBundle (.ipa)
+
+`./scripts/build_ipa.sh` (or `make ipa` from the repository root) produces
+`build/ios/ipa/StreamPulse-<version>+<build>.ipa`. It needs Xcode, so it
+cannot run on Linux — the CI job builds on `macos-latest`.
+
+The script archives with `flutter build ipa --release --no-codesign`, then
+assembles the `.ipa` itself. That extra step is not optional: without a
+signing certificate the Flutter tool stops at the `.xcarchive` and prints
+*"Codesigning disabled with --no-codesign, skipping IPA"*, because
+`xcodebuild -exportArchive` refuses to export unsigned. An `.ipa` is a zip
+containing `Payload/<App>.app`, which the script builds from the archive's
+`.app` and then verifies.
+
+> **The resulting `.ipa` is unsigned.** It is a valid archive deliverable, but
+> it will not install on an iPhone and cannot go to TestFlight without being
+> re-signed with a distribution certificate. Signing would require an Apple
+> Developer account, a `DEVELOPMENT_TEAM` in the Xcode project, and a
+> certificate plus provisioning profile held as CI secrets — none of which
+> exist in this repository today.
+
+The archive also yields `build/ios/archive/Runner.xcarchive/dSYMs`, uploaded
+as a separate CI artifact: without them a release crash report cannot be
+symbolicated.
+
+Bundle identifier and application id are `dev.streampulse.app` on both
+platforms.
 
 ## Checks
 

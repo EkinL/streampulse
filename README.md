@@ -99,6 +99,25 @@ flutter pub get
 flutter run
 ```
 
+## Livrables
+
+| Livrable | Commande | Sortie |
+|----------|----------|--------|
+| Binaire API | `cd backend && make build` | `backend/bin/server` |
+| Image Docker API | `cd backend && make docker-build` | `streampulse-api` |
+| APK Android | `cd mobile && flutter build apk --release` | `mobile/build/app/outputs/flutter-apk/` |
+| **AppBundle iOS (.ipa)** | `make ipa` | `mobile/build/ios/ipa/StreamPulse-<version>+<build>.ipa` |
+| Console web | `cd mobile && flutter build web --release -t lib/main_web.dart` | `mobile/build/web/` |
+
+`make build-all` enchaine binaire API + APK + `.ipa`.
+
+Le `.ipa` **n'est pas signe** : c'est un livrable d'archive valide, mais il
+doit etre re-signe avec un certificat de distribution pour s'installer sur un
+appareil ou partir en TestFlight. Details : [mobile/README.md](mobile/README.md#ios-appbundle-ipa).
+Xcode est requis, donc le job CI correspondant tourne sur `macos-latest`.
+
+Identifiant d'application : `dev.streampulse.app` (iOS et Android).
+
 ## Variables d'environnement
 
 | Variable | Default | Description |

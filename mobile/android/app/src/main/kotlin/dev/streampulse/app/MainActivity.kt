@@ -1,4 +1,4 @@
-package com.example.streampulse
+package dev.streampulse.app
 
 import io.flutter.embedding.android.FlutterActivity
 
