@@ -129,6 +129,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `JWT_REFRESH_EXPIRY` | 168h | Duree refresh token |
 | `OTEL_ENDPOINT` | localhost:4317 | Endpoint OTEL Collector |
 | `LOG_LEVEL` | info | Niveau de log |
+| `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
 
