@@ -1,0 +1,12 @@
+# Redocly lint configuration for api/openapi.yaml.
+#
+# `make openapi-lint` and the backend CI job both run against this file.
+extends:
+  - recommended
+
+rules:
+  # The first server entry is http://localhost:8080 on purpose: the stack is
+  # brought up locally with `make up`, and that is the URL every reviewer and
+  # every `flutter run` actually hits. The second entry is the templated one
+  # for any real deployment.
+  no-server-example.com: off
