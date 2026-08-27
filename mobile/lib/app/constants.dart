@@ -6,6 +6,11 @@ class AppConstants {
     defaultValue: 'http://localhost:8080',
   );
 
+  static const String grafanaUrl = String.fromEnvironment(
+    'GRAFANA_URL',
+    defaultValue: 'http://localhost:3000/d/streampulse',
+  );
+
   static const String appName = 'StreamPulse';
 
   // Storage keys

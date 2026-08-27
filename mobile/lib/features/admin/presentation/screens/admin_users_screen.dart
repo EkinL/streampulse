@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../app/constants.dart';
 import '../../../../app/theme.dart';
 import '../providers/admin_provider.dart';
 import '../../../../core/utils/extensions.dart';
@@ -43,6 +45,25 @@ class AdminUsersScreen extends ConsumerWidget {
         backgroundColor: SP.surface,
         foregroundColor: SP.text1,
         title: const Text('User Management'),
+        actions: [
+          IconButton(
+            tooltip: 'Open Grafana dashboard',
+            icon: const Icon(Icons.query_stats),
+            onPressed: () async {
+              final uri = Uri.parse(AppConstants.grafanaUrl);
+              final opened = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!opened && context.mounted) {
+                context.showSnackBar(
+                  'Could not open Grafana dashboard',
+                  isError: true,
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: SP.accent,
