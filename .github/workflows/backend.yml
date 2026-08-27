@@ -10,6 +10,9 @@ on:
     paths:
       - 'backend/**'
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -23,6 +26,31 @@ jobs:
         with:
           version: v2.13
           working-directory: backend
+
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Valide la description elle-meme. Sa correspondance avec les routes
+      # reellement servies est verifiee par le job `test`
+      # (TestOpenAPICoversEveryRoute).
+      - name: Lint OpenAPI description
+        working-directory: backend
+        run: npx --yes @redocly/cli@1.25.11 lint api/openapi.yaml
+      # Document autoportant, publie comme livrable de la PR.
+      - name: Bundle OpenAPI description
+        working-directory: backend
+        run: npx --yes @redocly/cli@1.25.11 bundle api/openapi.yaml -o openapi.bundled.yaml
+      - name: Upload OpenAPI description
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: |
+            backend/api/openapi.yaml
+            backend/openapi.bundled.yaml
 
   test:
     runs-on: ubuntu-latest
@@ -61,7 +89,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, openapi]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

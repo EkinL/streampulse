@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,14 +54,15 @@ class MusicRepository {
   }
 
   Future<MusicModel> uploadMusic({
-    required File file,
+    required Uint8List bytes,
+    required String filename,
     required String title,
     required String artist,
     String album = '',
   }) async {
     try {
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
         'title': title,
         'artist': artist,
         'album': album,

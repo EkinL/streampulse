@@ -54,6 +54,7 @@ app/             Router, Theme, Constants
 | Streaming | SSE (fan-out Hub) |
 | Mobile | Flutter 3.x, Riverpod, Dio |
 | Observabilite | OpenTelemetry, Prometheus, Grafana |
+| Contrat API | OpenAPI 3.1 (Redocly lint) |
 | CI/CD | GitHub Actions |
 | Conteneurisation | Docker, Docker Compose |
 
@@ -101,6 +102,25 @@ flutter run
 Lecture en arriere-plan et controles ecran verrouille via `audio_service`,
 voir [ADR 004](docs/ADR/004-background-audio.md).
 
+## Livrables
+
+| Livrable | Commande | Sortie |
+|----------|----------|--------|
+| Binaire API | `cd backend && make build` | `backend/bin/server` |
+| Image Docker API | `cd backend && make docker-build` | `streampulse-api` |
+| APK Android | `cd mobile && flutter build apk --release` | `mobile/build/app/outputs/flutter-apk/` |
+| **AppBundle iOS (.ipa)** | `make ipa` | `mobile/build/ios/ipa/StreamPulse-<version>+<build>.ipa` |
+| Console web | `cd mobile && flutter build web --release -t lib/main_web.dart` | `mobile/build/web/` |
+
+`make build-all` enchaine binaire API + APK + `.ipa`.
+
+Le `.ipa` **n'est pas signe** : c'est un livrable d'archive valide, mais il
+doit etre re-signe avec un certificat de distribution pour s'installer sur un
+appareil ou partir en TestFlight. Details : [mobile/README.md](mobile/README.md#ios-appbundle-ipa).
+Xcode est requis, donc le job CI correspondant tourne sur `macos-latest`.
+
+Identifiant d'application : `dev.streampulse.app` (iOS et Android).
+
 ## Variables d'environnement
 
 | Variable | Default | Description |
@@ -123,15 +143,34 @@ ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeou
 
 ## API
 
-Documentation complete : [docs/api.md](docs/api.md)
+Le contrat REST est decrit en **OpenAPI 3.1** : [backend/api/openapi.yaml](backend/api/openapi.yaml).
+C'est la source de verite unique — un test Go casse le build si le routeur et
+la description divergent.
+
+| Ou | Quoi |
+|----|------|
+| [backend/api/openapi.yaml](backend/api/openapi.yaml) | La description, dans le depot |
+| http://localhost:8080/openapi.yaml | La meme, embarquee dans le binaire qui tourne |
+| http://localhost:8080/docs | Swagger UI |
+| [docs/api.md](docs/api.md) | Guide narratif : conventions, flux d'auth, quickstart |
+
+```bash
+# Valider la description
+cd backend && make openapi-lint
+
+# Verifier qu'elle correspond aux routes reellement servies
+cd backend && go test ./internal/transport/http/
+```
 
 Endpoints principaux :
 - `POST /auth/register` - Inscription
 - `POST /auth/login` - Connexion
 - `GET /streams` - Liste des streams
 - `GET /streams/:id/listen` - Ecouter un stream (SSE)
+- `GET /streams/:id/audio` - Ecouter un stream (flux audio brut)
 - `POST /streams` - Creer un stream (broadcaster)
-- `GET/POST/PUT/DELETE /playlists` - CRUD playlists
+- `GET/POST/PUT/DELETE /playlists` - CRUD playlists + file d'attente
+- `GET /search` - Recherche globale streams + musiques
 
 ## Roles
 

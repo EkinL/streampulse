@@ -4,6 +4,32 @@ import '../../../../app/theme.dart';
 import '../providers/admin_provider.dart';
 import '../../../../core/utils/extensions.dart';
 
+/// Roles an admin can assign, using the values the API validates against
+/// (`domain.Role`: anonymous, user, broadcaster, admin). 'anonymous' is not
+/// assignable - it only describes an unauthenticated request.
+const List<String> assignableRoles = ['user', 'broadcaster', 'admin'];
+
+/// A plain account is called a listener in the product, `user` on the wire.
+String roleLabel(String role) {
+  switch (role) {
+    case 'user':
+      return 'Listener';
+    case 'broadcaster':
+      return 'Broadcaster';
+    case 'admin':
+      return 'Admin';
+    default:
+      return role;
+  }
+}
+
+/// The dropdown options for a user, always including their current role:
+/// DropdownButton asserts if its value is missing from the item list.
+List<String> roleOptionsFor(String currentRole) => [
+      ...assignableRoles,
+      if (!assignableRoles.contains(currentRole)) currentRole,
+    ];
+
 class AdminUsersScreen extends ConsumerWidget {
   const AdminUsersScreen({super.key});
 
@@ -96,19 +122,12 @@ class AdminUsersScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                       dropdownColor: SP.surfaceVariant,
                       style: const TextStyle(color: SP.text2),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'user',
-                          child: Text('User'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'broadcaster',
-                          child: Text('Broadcaster'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'admin',
-                          child: Text('Admin'),
-                        ),
+                      items: [
+                        for (final role in roleOptionsFor(user.role))
+                          DropdownMenuItem(
+                            value: role,
+                            child: Text(roleLabel(role)),
+                          ),
                       ],
                       onChanged: (newRole) {
                         if (newRole != null && newRole != user.role) {
@@ -119,18 +138,16 @@ class AdminUsersScreen extends ConsumerWidget {
                                 role: newRole,
                               )
                               .then((_) {
-                            if (context.mounted) {
-                              context.showSnackBar(
-                                'Updated ${user.username} to $newRole',
-                              );
-                            }
+                            if (!context.mounted) return;
+                            context.showSnackBar(
+                              'Updated ${user.username} to ${roleLabel(newRole)}',
+                            );
                           }).catchError((e) {
-                            if (context.mounted) {
-                              context.showSnackBar(
-                                'Failed to update role: $e',
-                                isError: true,
-                              );
-                            }
+                            if (!context.mounted) return;
+                            context.showSnackBar(
+                              'Failed to update role: $e',
+                              isError: true,
+                            );
                           });
                         }
                       },

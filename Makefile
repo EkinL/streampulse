@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-mobile dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
 
 up:
 	docker compose up -d --build
@@ -9,8 +9,11 @@ down:
 logs:
 	docker compose logs -f
 
+# L'ordre compte : build_ipa.sh commence par `flutter clean`, qui supprime
+# build/ et donc l'APK. Le .ipa passe en premier.
 build-all:
 	cd backend && make build
+	cd mobile && ./scripts/build_ipa.sh
 	cd mobile && flutter build apk --release
 
 test-backend:
@@ -18,6 +21,14 @@ test-backend:
 
 test-mobile:
 	cd mobile && flutter test
+
+# AppBundle iOS non signe (livrable). Necessite Xcode : impossible sur Linux.
+# Le .ipa atterrit dans mobile/build/ios/ipa/.
+ipa:
+	cd mobile && ./scripts/build_ipa.sh
+
+openapi-lint:
+	cd backend && make openapi-lint
 
 restart:
 	docker compose restart api

@@ -1,4 +1,4 @@
-package com.example.streampulse
+package dev.streampulse.app
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

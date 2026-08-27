@@ -53,6 +53,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	// Handlers
 	authMw := middleware.NewAuthMiddleware(cfg.JWTManager)
 	healthHandler := handlers.NewHealthHandler()
+	docsHandler := handlers.NewDocsHandler()
 	authHandler := handlers.NewAuthHandler(cfg.AuthService)
 	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.Logger, cfg.Metrics)
 	playlistHandler := handlers.NewPlaylistHandler(cfg.PlaylistService)
@@ -66,6 +67,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Public routes
 	r.Get("/health", healthHandler.Health)
+
+	// API description. Public on purpose: a client that cannot read the
+	// contract before authenticating cannot implement authentication.
+	r.Get("/openapi.yaml", docsHandler.Spec)
+	r.Get("/docs", docsHandler.UI)
 
 	// Auth routes (public)
 	r.Route("/auth", func(r chi.Router) {
