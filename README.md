@@ -114,6 +114,12 @@ voir [ADR 004](docs/ADR/004-background-audio.md).
 | `LOG_LEVEL` | info | Niveau de log |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
+| `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
+| `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
+| `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
+
+Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent
+ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeouts.md).
 
 ## API
 
