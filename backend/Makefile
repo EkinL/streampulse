@@ -6,8 +6,11 @@ build:
 run:
 	go run ./cmd/server
 
+# Suite complete. Les tests d'integration tournent si DATABASE_URL est defini,
+# sinon ils se declarent ignores. -coverpkg mesure la couverture de tout le
+# module, y compris ce que les tests d'integration exercent dans d'autres paquets.
 test:
-	go test -race -coverprofile=coverage.out ./...
+	go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
 
 test-cover: test
 	go tool cover -html=coverage.out
@@ -30,3 +33,25 @@ docker-build:
 
 clean:
 	rm -rf bin/ coverage.out
+
+.PHONY: test-unit test-integration cover-check
+
+# Suite unitaire seule, sans base : les tests d'integration se declarent
+# ignores quand DATABASE_URL est vide.
+test-unit:
+	DATABASE_URL= go test -race ./...
+
+# Suite d'integration (repositories + API bout en bout) contre une base
+# PostgreSQL jetable. Chaque paquet travaille dans son propre schema, la base
+# n'a donc besoin ni d'etre vide ni d'etre reinitialisee entre deux runs.
+test-integration:
+	@test -n "$$DATABASE_URL" || { echo "DATABASE_URL requis, ex. postgres://localhost:5432/streampulse_test?sslmode=disable"; exit 1; }
+	go test -race -count=1 ./internal/infrastructure/postgres/ ./internal/integration/
+
+# Seuil de couverture, identique a celui de la CI. Valeur et trajectoire dans
+# docs/plan-de-tests.md.
+COVERAGE_MIN ?= 70
+cover-check: test
+	@total=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | tr -d '%'); \
+	echo "couverture totale : $$total % (minimum $(COVERAGE_MIN) %)"; \
+	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) ? 1 : 0 }'

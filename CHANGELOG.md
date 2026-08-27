@@ -34,6 +34,15 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 - Preuve de charge du Hub de fan-out : benchmarks et tests a 1000 auditeurs
 - Documentation de scalabilite chiffree, ADR 004 a 006, cahier de recette, SLO
   et guide utilisateur
+- Plan de tests iteratifs (`docs/plan-de-tests.md`) : niveaux, cartographie
+  des cas d'usage, campagne de securite OWASP API, iterations
+- Tests d'integration contre PostgreSQL reel (repositories, schema isole par
+  paquet) et suite API de bout en bout par role (`internal/integration`)
+- Tests de securite : jetons forges, injection SQL, mass assignment, matrice
+  RBAC, rate limiting, secrets haches
+- Tests unitaires JWT, middlewares (auth, RBAC, rate-limit, CORS), services
+  user et music ; `make test-unit`, `make test-integration`, `make cover-check`
+- Seuil de couverture en CI (70 %, cible 80 %) et mesure inter-paquets
 
 ### Modifie
 - Identifiant d'application : `com.example.streampulse` -> `dev.streampulse.app`
@@ -42,11 +51,17 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ### Corrige
 - `/metrics` restreint au role `admin` ; Prometheus scrute un listener interne
 - CI mobile reparee : le test de fumee compilait sur une classe inexistante
+- Rate limiting inoperant (A-01) : la cle etait `IP:port`, donc un compteur
+  neuf par connexion ; elle est desormais l'hote seul
+- `POST /streams/{id}/start|stop`, `POST /playlists/{id}/tracks` et
+  `PUT /admin/users/{id}/role` repondaient 500 sur un identifiant inconnu :
+  404 `NOT_FOUND`, documente dans l'OpenAPI
 
 ### Connu
-- Le rate limiting est inoperant : voir A-01 du
+- `HEAD /health` renvoie 405 : voir A-02 du
   [cahier de recette](docs/cahier-de-recette.md)
-- `HEAD /health` renvoie 405 : voir A-02
+- `http_requests_total` et `http_request_duration_seconds` ne sont jamais
+  alimentes : voir O-1 du [plan de tests](docs/plan-de-tests.md)
 
 ## [1.0.0] — 2026-08-27
 

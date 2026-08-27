@@ -175,12 +175,21 @@ Endpoints principaux :
 ## Tests
 
 ```bash
-# Backend
-cd backend && go test -race ./...
+# Backend, suite unitaire (sans base)
+cd backend && make test-unit
+
+# Backend, suite d'integration : repositories et API bout en bout contre PostgreSQL
+export DATABASE_URL=postgres://localhost:5432/streampulse_test?sslmode=disable
+make test-integration
+
+# Tout, avec le seuil de couverture de la CI
+make cover-check
 
 # Mobile
 cd mobile && flutter test
 ```
+
+Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](docs/plan-de-tests.md).
 
 ## Documentation
 
@@ -188,7 +197,8 @@ cd mobile && flutter test
 |----------|-----------|
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
-| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | Strategie de test et 48 cas de recette executes |
+| [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
+| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 48 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
 | [docs/deployment.md](docs/deployment.md) | Deploiement |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
