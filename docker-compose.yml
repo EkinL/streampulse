@@ -16,6 +16,7 @@ services:
       OTEL_ENDPOINT: otel-collector:4317
       OTEL_SERVICE_NAME: streampulse-api
       LOG_LEVEL: debug
+      LOG_FORMAT: json
       CORS_ALLOWED_ORIGINS: "*"
       RATE_LIMIT_RPS: "10"
       RATE_LIMIT_BURST: "20"

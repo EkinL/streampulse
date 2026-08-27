@@ -20,6 +20,7 @@ type Config struct {
 	OTELEndpoint       string        `env:"OTEL_ENDPOINT,default=localhost:4317"`
 	OTELServiceName    string        `env:"OTEL_SERVICE_NAME,default=streampulse-api"`
 	LogLevel           string        `env:"LOG_LEVEL,default=info"`
+	LogFormat          string        `env:"LOG_FORMAT,default=console"`
 	CORSAllowedOrigins string        `env:"CORS_ALLOWED_ORIGINS,default=*"`
 	RateLimitRPS       float64       `env:"RATE_LIMIT_RPS,default=10"`
 	RateLimitBurst     int           `env:"RATE_LIMIT_BURST,default=20"`
@@ -31,10 +32,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: load: %w", err)
 	}
 	return &cfg, nil
-}
-
-func (c *Config) IsDevelopment() bool {
-	return c.AppEnv == "development"
 }
 
 func (c *Config) Addr() string {

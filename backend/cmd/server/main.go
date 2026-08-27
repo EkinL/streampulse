@@ -35,7 +35,7 @@ func main() {
 
 	// Initialize logger
 	var logger = observability.NewLogger(cfg.LogLevel, cfg.OTELServiceName)
-	if !cfg.IsDevelopment() {
+	if cfg.LogFormat == "json" {
 		logger = observability.NewProductionLogger(cfg.LogLevel, cfg.OTELServiceName)
 	}
 
