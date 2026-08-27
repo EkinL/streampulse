@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-mobile ipa dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
 
 up:
 	docker compose up -d --build
@@ -26,6 +26,9 @@ test-mobile:
 # Le .ipa atterrit dans mobile/build/ios/ipa/.
 ipa:
 	cd mobile && ./scripts/build_ipa.sh
+
+openapi-lint:
+	cd backend && make openapi-lint
 
 restart:
 	docker compose restart api

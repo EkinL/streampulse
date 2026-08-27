@@ -1,0 +1,1727 @@
+openapi: 3.1.0
+
+info:
+  title: StreamPulse API
+  version: 1.0.0
+  summary: Real-time audio streaming platform.
+  description: |
+    REST + SSE API of the StreamPulse platform (Go 1.26, chi router).
+
+    ## Response envelope
+
+    Every JSON response produced by a handler is wrapped:
+
+    ```json
+    { "data": { }, "meta": { "requestId": "uuid", "timestamp": "RFC3339" } }
+    ```
+
+    List endpoints add `page`, `perPage` and `total` to `meta`.
+    Errors replace `data` with `error: { code, message }`.
+
+    ## Roles
+
+    Roles are ordered: `anonymous` < `user` < `broadcaster` < `admin`.
+    An endpoint marked "broadcaster" is therefore also reachable by an admin.
+
+    ## Known inconsistency
+
+    `401`, `403` and `429` raised by the middleware chain (authentication,
+    RBAC, rate limiting) are written with `http.Error`: the body is the
+    `error` object alone, without the `meta` envelope, and the
+    `Content-Type` is `text/plain; charset=utf-8`. Errors raised inside a
+    handler always use the JSON envelope. Both shapes are documented on
+    each operation.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (docker compose up)
+  - url: '{scheme}://{host}'
+    description: Any deployment
+    variables:
+      scheme:
+        default: https
+        enum: [http, https]
+      host:
+        default: api.streampulse.local
+
+tags:
+  - name: system
+    description: Health, metrics and API description.
+  - name: auth
+    description: Registration, login and token rotation.
+  - name: streams
+    description: Live stream catalogue and playback.
+  - name: broadcast
+    description: Stream lifecycle and audio ingest, broadcaster only.
+  - name: music
+    description: On-demand music catalogue and search.
+  - name: favorites
+    description: Per-user favorite streams and tracks.
+  - name: playlists
+    description: Playlist CRUD and queue ordering.
+  - name: admin
+    description: User administration, admin only.
+
+security: []
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: Liveness probe
+      description: Always public. Used by the Docker HEALTHCHECK and by the CI smoke test.
+      responses:
+        '200':
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            const: ok
+              example:
+                data: { status: ok }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /openapi.yaml:
+    get:
+      tags: [system]
+      operationId: getOpenAPISpec
+      summary: This document
+      description: Serves the OpenAPI description embedded in the binary, so it can never drift from the deployed build.
+      responses:
+        '200':
+          description: The OpenAPI 3.1 document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /docs:
+    get:
+      tags: [system]
+      operationId: getDocsUI
+      summary: Swagger UI
+      description: |
+        HTML page rendering `/openapi.yaml` with Swagger UI. The renderer is
+        loaded from a public CDN, so this page needs internet access; the
+        machine-readable spec at `/openapi.yaml` never does.
+      responses:
+        '200':
+          description: HTML documentation page.
+          content:
+            text/html:
+              schema:
+                type: string
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /metrics:
+    get:
+      tags: [system]
+      operationId: getMetrics
+      summary: Prometheus metrics
+      description: |
+        Prometheus exposition format. Restricted to `admin`.
+
+        Prometheus itself does not scrape this route: it scrapes the
+        unauthenticated internal listener bound to `METRICS_PORT` (9091),
+        which is only reachable from the Docker network.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Metrics in Prometheus text format.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP active_streams Number of streams currently live
+                # TYPE active_streams gauge
+                active_streams 3
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /uploads/{filepath}:
+    get:
+      tags: [system]
+      operationId: getUpload
+      summary: Uploaded audio file
+      description: Static file server over the upload directory. URLs are handed back by `POST /music`.
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          description: Path of the stored file, relative to the upload root.
+          schema:
+            type: string
+          example: 2026/08/9f1c-track.mp3
+      responses:
+        '200':
+          description: The file.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: No such file.
+
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Create an account
+      description: Creates a `user` account and returns a token pair straight away — no confirmation step.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created, session opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Email already registered.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: CONFLICT, message: email already registered }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Open a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Session opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Wrong email or password.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: UNAUTHORIZED, message: invalid credentials }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      summary: Rotate the token pair
+      description: |
+        Exchanges a refresh token for a fresh pair. The presented refresh
+        token is consumed: rotation is one-shot, replaying it returns 401.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Refresh token unknown, already used, or expired.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: UNAUTHORIZED, message: invalid or expired refresh token }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams:
+    get:
+      tags: [streams]
+      operationId: listStreams
+      summary: List streams
+      description: Public catalogue. Anonymous visitors may browse, but not listen.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of streams.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamListEnvelope'
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [broadcast]
+      operationId: createStream
+      summary: Create a stream
+      description: Creates the stream in `idle` state. Requires the `broadcaster` role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStreamRequest'
+      responses:
+        '201':
+          description: Stream created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [streams]
+      operationId: getStream
+      summary: Get a stream
+      responses:
+        '200':
+          description: The stream.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamEnvelope'
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      tags: [broadcast]
+      operationId: updateStream
+      summary: Rename a stream
+      description: Title and description only. Owner-only, on top of the `broadcaster` role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStreamRequest'
+      responses:
+        '200':
+          description: Stream updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/listen:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [streams]
+      operationId: listenStream
+      summary: Listen over SSE
+      description: |
+        Server-Sent Events channel. The first frame is an `event: connected`
+        control frame; every following frame carries one **base64-encoded**
+        audio chunk in its `data:` field.
+
+        The connection is long-lived and has no server-side write timeout.
+        Registering here increments `active_listeners`; closing it increments
+        `stream_disconnections_total`.
+
+        Prefer `/streams/{id}/audio` for a native audio player — the base64
+        framing here exists for clients that can only consume SSE.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: SSE stream opened.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-cache }
+            X-Accel-Buffering:
+              schema: { type: string, const: 'no' }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: connected
+                data: {"status":"connected","stream_id":"3f6c…"}
+
+                data: SUQzBAAAAAAAI1RTU0UAAAAP…
+        '400':
+          description: Invalid id, or the stream is not live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                notLive:
+                  value:
+                    error: { code: STREAM_NOT_LIVE, message: stream is not currently live }
+                    meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+                invalidID:
+                  value:
+                    error: { code: BAD_REQUEST, message: invalid stream id }
+                    meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/audio:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [streams]
+      operationId: listenStreamRaw
+      summary: Listen as a raw audio stream
+      description: |
+        Same fan-out as `/listen`, without the SSE framing: the response body
+        is a chunked stream of raw audio bytes, feedable directly to a native
+        player (`just_audio` on the mobile app).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Audio stream opened.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid id, or the stream is not live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/listeners:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [streams]
+      operationId: getStreamListeners
+      summary: Who is listening right now
+      description: Live snapshot read from the in-memory hub. An unknown stream id yields an empty list, not a 404.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current listeners.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [listeners, count]
+                        properties:
+                          listeners:
+                            type: array
+                            items: { $ref: '#/components/schemas/ListenerInfo' }
+                          count:
+                            type: integer
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /streams/{id}/start:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    post:
+      tags: [broadcast]
+      operationId: startStream
+      summary: Go live
+      description: Moves the stream to `live` so listeners may connect. Owner-only.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stream is live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: live }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '409':
+          description: Stream is already live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: CONFLICT, message: stream is already live }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/stop:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    post:
+      tags: [broadcast]
+      operationId: stopStream
+      summary: End the broadcast
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stream stopped.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: stopped }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/broadcast:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    post:
+      tags: [broadcast]
+      operationId: broadcastStream
+      summary: Push audio into a live stream
+      description: |
+        Long-lived upload. The body is read in 4 KiB chunks and each chunk is
+        fanned out to every connected listener; the request stays open for the
+        whole broadcast. The stream must already be `live`
+        (`POST /streams/{id}/start`) and the caller must own it.
+
+        No response body is written: the connection is the transport.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Continuous audio byte stream.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Broadcaster disconnected, stream closed cleanly. Empty body.
+        '400':
+          description: Invalid id, or the stream was never started.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: STREAM_NOT_LIVE, message: stream must be started first }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music:
+    get:
+      tags: [music]
+      operationId: listMusic
+      summary: List the music catalogue
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicListEnvelope'
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [music]
+      operationId: addMusic
+      summary: Add a track
+      description: |
+        Two shapes, picked from the `Content-Type`:
+
+        - `application/json` — register a track already hosted elsewhere, by URL.
+        - `multipart/form-data` — upload the audio file itself (32 MiB parse
+          limit); the server stores it and returns the resulting `/uploads/…` URL.
+
+        Requires the `broadcaster` role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMusicURLRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The audio file.
+                title:
+                  type: string
+                artist:
+                  type: string
+                album:
+                  type: string
+                duration:
+                  type: string
+                  description: Duration in seconds, sent as a form value.
+      responses:
+        '201':
+          description: Track added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicEnvelope'
+        '400':
+          description: Malformed body, unparseable multipart form, or missing `file` field.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                missingFile:
+                  value:
+                    error: { code: INVALID_BODY, message: file field is required }
+                    meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+                invalidInput:
+                  value:
+                    error: { code: INVALID_INPUT, message: title is required }
+                    meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music/search:
+    get:
+      tags: [music]
+      operationId: searchMusic
+      summary: Full-text search over tracks
+      description: PostgreSQL full-text search on title, artist and album.
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of matching tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicListEnvelope'
+        '400':
+          description: Missing `q`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: INVALID_INPUT, message: query parameter q is required }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music/favorites:
+    get:
+      tags: [favorites]
+      operationId: listMusicFavorites
+      summary: List favorite tracks
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of favorite tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music/favorites/ids:
+    get:
+      tags: [favorites]
+      operationId: listMusicFavoriteIDs
+      summary: List favorite track ids
+      description: Identifiers only — lets a client paint the heart icons of a long list in one round trip.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The ids.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [ids]
+                        properties:
+                          ids:
+                            type: array
+                            items:
+                              type: string
+                              format: uuid
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MusicID'
+    get:
+      tags: [music]
+      operationId: getMusic
+      summary: Get a track
+      responses:
+        '200':
+          description: The track.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicEnvelope'
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      tags: [music]
+      operationId: updateMusic
+      summary: Edit a track's metadata
+      description: Metadata only, the audio URL is immutable. Uploader-only, on top of the `broadcaster` role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMusicRequest'
+      responses:
+        '200':
+          description: Track updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [music]
+      operationId: deleteMusic
+      summary: Delete a track
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Track deleted.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          message: { type: string, const: music deleted }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /music/{id}/favorite:
+    parameters:
+      - $ref: '#/components/parameters/MusicID'
+    post:
+      tags: [favorites]
+      operationId: addMusicFavorite
+      summary: Favorite a track
+      description: Idempotent — favoriting twice still returns 201.
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Track favorited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: added }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [favorites]
+      operationId: removeMusicFavorite
+      summary: Unfavorite a track
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Track unfavorited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: removed }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /search:
+    get:
+      tags: [music]
+      operationId: globalSearch
+      summary: Search streams and tracks at once
+      description: |
+        Tracks are matched with PostgreSQL full-text search (first 20 hits).
+        Streams are matched with a case-insensitive substring match on the
+        title, over the first 100 streams only — the query is not pushed down
+        to the database yet.
+      parameters:
+        - $ref: '#/components/parameters/Query'
+      responses:
+        '200':
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/SearchResult' }
+        '400':
+          description: Missing `q`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /favorites:
+    get:
+      tags: [favorites]
+      operationId: listFavoriteStreams
+      summary: List favorite streams
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of favorite streams.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /favorites/{streamId}:
+    parameters:
+      - name: streamId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [favorites]
+      operationId: addFavoriteStream
+      summary: Favorite a stream
+      description: Idempotent — favoriting twice still returns 201.
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Stream favorited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: added }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [favorites]
+      operationId: removeFavoriteStream
+      summary: Unfavorite a stream
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stream unfavorited.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: removed }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /playlists:
+    get:
+      tags: [playlists]
+      operationId: listPlaylists
+      summary: List my playlists
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of playlists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [playlists]
+      operationId: createPlaylist
+      summary: Create a playlist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaylistRequest'
+      responses:
+        '201':
+          description: Playlist created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /playlists/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PlaylistID'
+    get:
+      tags: [playlists]
+      operationId: getPlaylist
+      summary: Get a playlist with its tracks
+      description: |
+        Readable by the owner, or by anyone authenticated if the playlist is
+        public. Tracks come back ordered by `position`.
+
+        A private playlist owned by someone else answers `404`, not `403`, on
+        purpose: a `403` would confirm that the id exists.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The playlist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistEnvelope'
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      tags: [playlists]
+      operationId: updatePlaylist
+      summary: Rename a playlist or flip its visibility
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaylistRequest'
+      responses:
+        '200':
+          description: Playlist updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [playlists]
+      operationId: deletePlaylist
+      summary: Delete a playlist
+      description: Cascades to its tracks.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Playlist deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: deleted }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /playlists/{id}/tracks:
+    parameters:
+      - $ref: '#/components/parameters/PlaylistID'
+    post:
+      tags: [playlists]
+      operationId: addPlaylistTrack
+      summary: Append a track to the queue
+      description: The new track lands at the end; its `position` is assigned by the server.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTrackRequest'
+      responses:
+        '201':
+          description: Track appended.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Track' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      tags: [playlists]
+      operationId: reorderPlaylistTracks
+      summary: Reorder the queue
+      description: |
+        Rewrites the whole ordering in one transaction. `track_ids` must list
+        **every** track of the playlist, exactly once, in the desired order —
+        a partial or duplicated list is rejected with 400.
+
+        This is what persists the mobile player's queue across devices.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderTracksRequest'
+      responses:
+        '200':
+          description: Queue reordered; the full playlist comes back.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistEnvelope'
+        '400':
+          description: Malformed body, non-UUID track id, or a list that does not match the playlist exactly.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: BAD_REQUEST, message: 'invalid track id: not-a-uuid' }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /playlists/{id}/tracks/{trackId}:
+    parameters:
+      - $ref: '#/components/parameters/PlaylistID'
+      - name: trackId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [playlists]
+      operationId: removePlaylistTrack
+      summary: Remove a track from the queue
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Track removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: removed }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400': { $ref: '#/components/responses/InvalidID' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: listUsers
+      summary: List every user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/users/{id}/role:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin]
+      operationId: updateUserRole
+      summary: Change a user's role
+      description: |
+        Promotes or demotes a user. No self-demotion guard: an admin can
+        remove their own admin role and lock themselves out.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/Role' }
+      responses:
+        '200':
+          description: Role updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: updated }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400':
+          description: Invalid user id, malformed body, or unknown role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: BAD_REQUEST, message: invalid role }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        `Authorization: Bearer <access_token>`, HS256, 15 minutes by default
+        (`JWT_EXPIRY`). Claims carry `user_id`, `username` and `role`.
+        Renew with `POST /auth/refresh`.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: 1-based page number. Anything below 1 falls back to 1.
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      description: Page size. Anything below 1 falls back to 20.
+      schema: { type: integer, minimum: 1, default: 20 }
+    Query:
+      name: q
+      in: query
+      required: true
+      description: Search terms. Required — an empty value is a 400.
+      schema: { type: string, minLength: 1 }
+    StreamID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MusicID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PlaylistID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Malformed body. Unknown JSON fields are rejected.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            error: { code: BAD_REQUEST, message: invalid request body }
+            meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+    InvalidID:
+      description: A path parameter is not a valid UUID.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            error: { code: BAD_REQUEST, message: invalid stream id }
+            meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+    NotFound:
+      description: No such resource.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            error: { code: NOT_FOUND, message: stream not found }
+            meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+    NotOwner:
+      description: Authenticated and correctly roled, but not the owner of this resource.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            error: { code: FORBIDDEN, message: not the owner of this stream }
+            meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+    InternalError:
+      description: Unexpected server-side failure.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            error: { code: INTERNAL_ERROR, message: failed to list streams }
+            meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+    MiddlewareUnauthorized:
+      description: |
+        Missing, malformed or expired `Authorization` header. Written by the
+        authentication middleware: bare `error` object, `text/plain` content type.
+      content:
+        text/plain:
+          schema: { $ref: '#/components/schemas/BareError' }
+          example:
+            error: { code: UNAUTHORIZED, message: invalid or expired token }
+    MiddlewareForbidden:
+      description: |
+        Role below the endpoint's minimum. Written by the RBAC middleware:
+        bare `error` object, `text/plain` content type.
+      content:
+        text/plain:
+          schema: { $ref: '#/components/schemas/BareError' }
+          example:
+            error: { code: FORBIDDEN, message: insufficient permissions }
+    RateLimited:
+      description: |
+        Per-IP token bucket exhausted (`RATE_LIMIT_RPS`, burst
+        `RATE_LIMIT_BURST`). Written by the rate-limit middleware: bare
+        `error` object, `text/plain` content type.
+      content:
+        text/plain:
+          schema: { $ref: '#/components/schemas/BareError' }
+          example:
+            error: { code: RATE_LIMITED, message: too many requests }
+
+  schemas:
+
+    Meta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Generated per response. Correlates with the OTEL trace and the structured logs.
+        timestamp:
+          type: string
+          format: date-time
+          description: UTC, RFC 3339.
+        page:
+          type: integer
+          description: Present on list endpoints only.
+        perPage:
+          type: integer
+          description: Present on list endpoints only.
+        total:
+          type: integer
+          description: |
+            Total row count, present on list endpoints only. Serialized with
+            `omitempty`, so it is **absent** rather than `0` when the result
+            set is empty — treat a missing `total` as zero.
+
+    Envelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data: true
+        meta: { $ref: '#/components/schemas/Meta' }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable code.
+          enum:
+            - BAD_REQUEST
+            - INVALID_ID
+            - INVALID_BODY
+            - INVALID_INPUT
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - STREAM_NOT_LIVE
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Human-readable, English, not meant to be shown as-is to end users.
+
+    ErrorEnvelope:
+      type: object
+      required: [error, meta]
+      properties:
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+
+    BareError:
+      type: object
+      description: Error shape emitted by the middleware chain, without the `meta` envelope.
+      required: [error]
+      properties:
+        error: { $ref: '#/components/schemas/Error' }
+
+    StatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string }
+
+    Role:
+      type: string
+      description: Ordered from least to most privileged.
+      enum: [anonymous, user, broadcaster, admin]
+
+    StreamStatus:
+      type: string
+      enum: [idle, live, ended]
+
+    User:
+      type: object
+      required: [id, email, username, role]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_at, user]
+      properties:
+        access_token:
+          type: string
+          description: 'JWT HS256. Send it as the `Authorization: Bearer …` header.'
+        refresh_token:
+          type: string
+          description: Opaque, single use, 168 h by default (`JWT_REFRESH_EXPIRY`).
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiry of the access token, not of the refresh token.
+        user: { $ref: '#/components/schemas/User' }
+
+    RegisterRequest:
+      type: object
+      required: [email, username, password]
+      properties:
+        email: { type: string, format: email }
+        username: { type: string }
+        password:
+          type: string
+          format: password
+          description: Hashed with bcrypt server-side; never stored or logged in clear.
+      example:
+        email: ada@streampulse.local
+        username: ada
+        password: correct-horse-battery-staple
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    Stream:
+      type: object
+      required: [id, title, owner_id, status, listener_count, format, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        owner_id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/StreamStatus' }
+        listener_count:
+          type: integer
+          description: Persisted counter, refreshed on connect/disconnect. For a live snapshot use `/streams/{id}/listeners`.
+        format:
+          type: string
+          description: Declared audio format. Stored, but not yet used to transcode.
+          example: mp3
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateStreamRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        format: { type: string, example: mp3 }
+
+    UpdateStreamRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+
+    ListenerInfo:
+      type: object
+      required: [client_id, user_id, username]
+      properties:
+        client_id:
+          type: string
+          format: uuid
+          description: One per connection — the same user listening twice appears twice.
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+
+    Music:
+      type: object
+      required: [id, title, artist, duration, url, uploaded_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        artist: { type: string }
+        album: { type: string }
+        duration:
+          type: integer
+          description: Seconds.
+        url:
+          type: string
+          description: Absolute URL, or a `/uploads/…` path when the file was uploaded to this server.
+        cover_url: { type: string }
+        uploaded_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    AddMusicURLRequest:
+      type: object
+      required: [title, url]
+      properties:
+        title: { type: string }
+        artist: { type: string }
+        album: { type: string }
+        duration: { type: integer, description: Seconds. }
+        url: { type: string, format: uri }
+
+    UpdateMusicRequest:
+      type: object
+      properties:
+        title: { type: string }
+        artist: { type: string }
+        album: { type: string }
+        cover_url: { type: string }
+
+    SearchResult:
+      type: object
+      required: [streams, music]
+      properties:
+        streams:
+          type: array
+          items: { $ref: '#/components/schemas/Stream' }
+        music:
+          type: array
+          items: { $ref: '#/components/schemas/Music' }
+
+    Track:
+      type: object
+      required: [id, title, url, duration, position]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        url: { type: string }
+        duration: { type: integer, description: Seconds. }
+        position:
+          type: integer
+          description: 0-based rank in the queue. Rewritten by `PUT /playlists/{id}/tracks`.
+
+    Playlist:
+      type: object
+      required: [id, name, owner_id, is_public, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        owner_id: { type: string, format: uuid }
+        is_public:
+          type: boolean
+          description: A public playlist is readable by any authenticated user; only the owner can write.
+        tracks:
+          type: array
+          description: Ordered by `position`. Omitted on list endpoints.
+          items: { $ref: '#/components/schemas/Track' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreatePlaylistRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        is_public: { type: boolean, default: false }
+
+    UpdatePlaylistRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        is_public: { type: boolean }
+
+    AddTrackRequest:
+      type: object
+      required: [title, url]
+      properties:
+        title: { type: string }
+        url: { type: string }
+        duration: { type: integer, description: Seconds. }
+
+    ReorderTracksRequest:
+      type: object
+      required: [track_ids]
+      properties:
+        track_ids:
+          type: array
+          description: Every track of the playlist, exactly once, in the desired order.
+          items: { type: string, format: uuid }
+      example:
+        track_ids:
+          - 9b2f4c1e-0000-4000-8000-000000000001
+          - 9b2f4c1e-0000-4000-8000-000000000003
+          - 9b2f4c1e-0000-4000-8000-000000000002
+
+    TokenEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TokenPair' }
+
+    StreamEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Stream' }
+
+    StreamListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Stream' }
+
+    MusicEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Music' }
+
+    MusicListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Music' }
+
+    PlaylistEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Playlist' }
+
+    PlaylistListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Playlist' }
+
+    UserListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/User' }

@@ -54,6 +54,7 @@ app/             Router, Theme, Constants
 | Streaming | SSE (fan-out Hub) |
 | Mobile | Flutter 3.x, Riverpod, Dio |
 | Observabilite | OpenTelemetry, Prometheus, Grafana |
+| Contrat API | OpenAPI 3.1 (Redocly lint) |
 | CI/CD | GitHub Actions |
 | Conteneurisation | Docker, Docker Compose |
 
@@ -133,15 +134,34 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 
 ## API
 
-Documentation complete : [docs/api.md](docs/api.md)
+Le contrat REST est decrit en **OpenAPI 3.1** : [backend/api/openapi.yaml](backend/api/openapi.yaml).
+C'est la source de verite unique — un test Go casse le build si le routeur et
+la description divergent.
+
+| Ou | Quoi |
+|----|------|
+| [backend/api/openapi.yaml](backend/api/openapi.yaml) | La description, dans le depot |
+| http://localhost:8080/openapi.yaml | La meme, embarquee dans le binaire qui tourne |
+| http://localhost:8080/docs | Swagger UI |
+| [docs/api.md](docs/api.md) | Guide narratif : conventions, flux d'auth, quickstart |
+
+```bash
+# Valider la description
+cd backend && make openapi-lint
+
+# Verifier qu'elle correspond aux routes reellement servies
+cd backend && go test ./internal/transport/http/
+```
 
 Endpoints principaux :
 - `POST /auth/register` - Inscription
 - `POST /auth/login` - Connexion
 - `GET /streams` - Liste des streams
 - `GET /streams/:id/listen` - Ecouter un stream (SSE)
+- `GET /streams/:id/audio` - Ecouter un stream (flux audio brut)
 - `POST /streams` - Creer un stream (broadcaster)
-- `GET/POST/PUT/DELETE /playlists` - CRUD playlists
+- `GET/POST/PUT/DELETE /playlists` - CRUD playlists + file d'attente
+- `GET /search` - Recherche globale streams + musiques
 
 ## Roles
 
