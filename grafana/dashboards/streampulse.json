@@ -74,6 +74,27 @@
           "legendFormat": "Error Rate"
         }
       ]
+    },
+    {
+      "id": 6,
+      "title": "Metriques metier",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 7,
+      "title": "Stream Disconnections/s",
+      "type": "timeseries",
+      "description": "Deconnexions brutales d'auditeurs (stream_disconnections_total). Metrique metier : distincte des erreurs techniques (Error Rate), elle mesure l'experience d'ecoute reelle.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "targets": [
+        {
+          "expr": "rate(stream_disconnections_total[5m])",
+          "legendFormat": "Disconnections/s"
+        }
+      ]
     }
   ],
   "time": { "from": "now-1h", "to": "now" },
