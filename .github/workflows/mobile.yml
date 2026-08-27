@@ -66,6 +66,40 @@ jobs:
           name: release-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
 
+  build-ios:
+    # macos-latest : xcodebuild est indispensable, aucun runner Linux ne peut
+    # produire un .ipa.
+    runs-on: macos-latest
+    needs: [analyze, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          cache: true
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+      # Le script archive puis assemble le .ipa lui-meme : sans certificat,
+      # `flutter build ipa --no-codesign` s'arrete a la .xcarchive. Il verifie
+      # la structure de l'archive produite et echoue si elle est invalide.
+      - name: Build unsigned IPA
+        working-directory: mobile
+        run: ./scripts/build_ipa.sh
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ipa
+          path: mobile/build/ios/ipa/*.ipa
+          if-no-files-found: error
+      # Sans les dSYMs, un crash report de release est illisible.
+      - name: Upload dSYMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-dsyms
+          path: mobile/build/ios/archive/Runner.xcarchive/dSYMs
+          if-no-files-found: error
+
   build-web:
     runs-on: ubuntu-latest
     needs: [analyze, test]
