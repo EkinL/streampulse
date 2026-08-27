@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type responseWriter struct {
@@ -49,15 +51,32 @@ func Logging(logger zerolog.Logger) func(http.Handler) http.Handler {
 
 			duration := time.Since(start)
 
-			logger.Info().
+			event := logger.Info().
 				Str("method", r.Method).
 				Str("path", r.URL.Path).
 				Int("status", rw.status).
 				Int("size", rw.size).
 				Dur("duration", duration).
 				Str("remote_addr", r.RemoteAddr).
-				Str("user_agent", r.UserAgent()).
-				Msg("http request")
+				Str("user_agent", r.UserAgent())
+
+			// request_id est le meme identifiant que celui renvoye au client
+			// dans meta.requestId : c'est ce qui rend un rapport de bug
+			// retrouvable dans les logs.
+			if reqID := chimiddleware.GetReqID(r.Context()); reqID != "" {
+				event = event.Str("request_id", reqID)
+			}
+
+			// trace_id relie la ligne de log a la trace distribuee. Absent si
+			// le tracer n'est pas initialise (OTEL indisponible au demarrage)
+			// ou si ce middleware est enregistre avant OTELTracing.
+			if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
+				event = event.
+					Str("trace_id", sc.TraceID().String()).
+					Str("span_id", sc.SpanID().String())
+			}
+
+			event.Msg("http request")
 		})
 	}
 }

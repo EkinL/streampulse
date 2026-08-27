@@ -7,6 +7,9 @@ services:
       - "8080:8080"
     environment:
       APP_ENV: development
+      # Format des logs, independant de APP_ENV : la stack locale doit
+      # produire les memes logs indexables que la production.
+      LOG_FORMAT: json
       PORT: 8080
       METRICS_PORT: 9091
       DATABASE_URL: postgres://streampulse:streampulse@postgres:5432/streampulse?sslmode=disable
