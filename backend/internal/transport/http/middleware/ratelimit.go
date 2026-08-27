@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"sync"
 
@@ -34,14 +35,25 @@ func (rl *RateLimiter) getLimiter(ip string) *rate.Limiter {
 	return limiter
 }
 
+// clientKey identifie le client a limiter.
+//
+// r.RemoteAddr vaut "IP:port" et le port source change a chaque connexion
+// TCP : indexer dessus donnait un compteur neuf, avec son burst complet, a
+// chaque requete (anomalie A-01 du cahier de recette). Seul l'hote compte.
+// Derriere un proxy, X-Forwarded-For porte l'adresse reelle du client.
+func clientKey(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		return forwarded
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
 func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			ip = forwarded
-		}
-
-		limiter := rl.getLimiter(ip)
+		limiter := rl.getLimiter(clientKey(r))
 		if !limiter.Allow() {
 			http.Error(w, `{"error":{"code":"RATE_LIMITED","message":"too many requests"}}`, http.StatusTooManyRequests)
 			return

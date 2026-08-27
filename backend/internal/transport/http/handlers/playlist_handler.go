@@ -213,6 +213,10 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this playlist")
 			return
 		}
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "playlist not found")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to add track")
 		return
 	}
