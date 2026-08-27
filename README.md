@@ -187,6 +187,20 @@ cd mobile && flutter test
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
+- [ADR 004 - Observabilite : OTEL, Prometheus, logs correles](docs/ADR/004-observabilite-otel.md)
+- [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
+- [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
+
+## Scalabilite
+
+[docs/scalability.md](docs/scalability.md) chiffre ce que la plateforme
+encaisse et ou se situe le mur, a partir de mesures reproductibles
+(`make bench`, `make load-test`).
+
+En resume, a 100 flux simultanes et 50 auditeurs par flux : **le reseau sature
+en premier** (856 Mbit/s en SSE, soit 86 % d'une carte 1 Gbit/s) alors que le
+serveur tourne a 20 % de sa capacite. Le facteur limitant est la bande
+passante sortante, pas le code.
 
 ## Contribution
 
