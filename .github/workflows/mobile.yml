@@ -40,6 +40,18 @@ jobs:
       - name: Run tests
         working-directory: mobile
         run: flutter test --coverage
+      # Seuil de couverture : la PR echoue en dessous (valeur dans le script).
+      # Le script ecrit aussi le chiffre dans le resume du job, pour suivre
+      # son evolution d'un run a l'autre.
+      - name: Coverage gate
+        working-directory: mobile
+        run: ./scripts/coverage_check.sh
+      - name: Upload coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-mobile
+          path: mobile/coverage/lcov.info
 
   build-apk:
     runs-on: ubuntu-latest

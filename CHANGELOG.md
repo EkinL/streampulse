@@ -30,6 +30,9 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   `/docs`, avec un test qui echoue si le routeur et la description divergent
 - AppBundle iOS (`.ipa`) produit par la CI, et `make ipa` en local
 - Console web pour les roles diffuseur et administrateur
+- Seuil de couverture mobile en CI (15 %, `mobile/scripts/coverage_check.sh`,
+  `make test-mobile-cover`) ; le chiffre est ecrit dans le resume du job
+  GitHub Actions et le rapport `lcov.info` est publie en artefact de PR
 - File d'attente de playlist persistee cote serveur : `PUT /playlists/{id}/tracks`
 - Preuve de charge du Hub de fan-out : benchmarks et tests a 1000 auditeurs
 - Documentation de scalabilite chiffree, ADR 004 a 006, cahier de recette, SLO
