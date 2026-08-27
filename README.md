@@ -181,6 +181,17 @@ cd backend && go test -race ./...
 cd mobile && flutter test
 ```
 
+## Documentation
+
+| Document | Pour quoi |
+|----------|-----------|
+| [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
+| [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
+| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | Strategie de test et 48 cas de recette executes |
+| [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
+| [docs/deployment.md](docs/deployment.md) | Deploiement |
+| [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+
 ## Decisions architecturales
 
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
