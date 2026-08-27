@@ -1,6 +1,7 @@
 # Go
 backend/bin/
 backend/coverage.out
+backend/openapi.bundled.yaml
 backend/.env
 backend/uploads/
 *.exe

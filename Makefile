@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-mobile dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-mobile openapi-lint dart-define mobile-devices mobile-run mobile-run-debug
 
 up:
 	docker compose up -d --build
@@ -18,6 +18,9 @@ test-backend:
 
 test-mobile:
 	cd mobile && flutter test
+
+openapi-lint:
+	cd backend && make openapi-lint
 
 restart:
 	docker compose restart api
