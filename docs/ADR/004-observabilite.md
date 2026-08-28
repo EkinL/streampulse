@@ -67,5 +67,5 @@ otel-collector --[traces]--> Tempo --[datasource]--> Grafana
 ### Negatif / limites connues
 - Le mobile ne cree pas de vrai span : il transmet un ID, il n'apparait pas comme un span a part entiere dans Tempo. Suffisant pour suivre une requete de bout en bout, insuffisant pour mesurer une latence cote client.
 - Pas d'agregation de logs (Loki) : les logs JSON sortent correctement mais ne sont indexes/cherchables nulle part pour l'instant.
-- Le seuil de l'alerte "deconnexions brutales" (`> 0.5/s`) est une valeur indicative posee sans trafic reel — a recalibrer une fois l'app utilisee.
+- Le seuil de l'alerte "deconnexions brutales" (`increase() > 3` sur 5 minutes) reste une estimation : pense pour l'echelle reelle du projet (poignee d'auditeurs en demo/soutenance, pas de la production a grande echelle) plutot que pour un vrai historique de trafic, qui n'existe pas encore.
 - Chaque developpeur doit recreer son propre `.env` (`DISCORD_WEBHOOK_URL`) apres un `git clone` : sans ca, Grafana demarre avec un webhook vide et les alertes ne notifient personne, silencieusement.

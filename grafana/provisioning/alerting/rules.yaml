@@ -54,7 +54,7 @@ groups:
       - uid: streampulse-disconnections-spike
         title: Pic de deconnexions brutales
         condition: C
-        for: 2m
+        for: 1m
         noDataState: OK
         execErrState: Alerting
         labels:
@@ -62,7 +62,7 @@ groups:
           category: metier
         annotations:
           summary: "Deconnexions brutales anormalement elevees"
-          description: "rate(stream_disconnections_total[5m]) > 0.5/s pendant plus de 2 minutes. Seuil indicatif, a recalibrer avec du trafic reel."
+          description: "Plus de 3 deconnexions brutales sur une fenetre glissante de 5 minutes. Seuil pense pour l'echelle reelle du projet (poignee d'auditeurs en demo/soutenance) plutot que pour de la production : un rate() par seconde n'aurait jamais pu se declencher a ce volume."
         data:
           - refId: A
             datasourceUid: PBFA97CFB590B2093
@@ -70,7 +70,7 @@ groups:
               from: 300
               to: 0
             model:
-              expr: rate(stream_disconnections_total[5m])
+              expr: increase(stream_disconnections_total[5m])
               instant: true
               refId: A
           - refId: B
@@ -88,5 +88,5 @@ groups:
               conditions:
                 - evaluator:
                     type: gt
-                    params: [0.5]
+                    params: [3]
               refId: C
