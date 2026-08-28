@@ -1,3 +1,6 @@
+# Secrets locaux (webhooks, etc. - voir .env.example)
+/.env
+
 # Go
 backend/bin/
 backend/coverage.out
