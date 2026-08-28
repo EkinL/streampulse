@@ -194,8 +194,8 @@ make test-integration
 # Tout, avec le seuil de couverture de la CI
 make cover-check
 
-# Mobile
-cd mobile && flutter test
+# Mobile, avec le seuil de couverture de la CI
+make test-mobile-cover
 ```
 
 Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](docs/plan-de-tests.md).
