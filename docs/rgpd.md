@@ -92,9 +92,10 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 1. **Rectification** : pas de modification self-service de l'email ou du nom
    d'utilisateur. A ajouter (`PATCH /users/me`).
 2. **Fichiers audio** : la suppression d'un compte efface les lignes `music`
-   mais laisse les fichiers deposes dans `uploads/`. Ils ne contiennent pas de
-   donnees personnelles, mais un nettoyage des fichiers orphelins est a
-   prevoir (meme limite que `DELETE /music/{id}`).
+   mais laisse les fichiers deposes dans `uploads/`, qui restent servis a
+   leur URL par `/uploads/{fichier}` pour qui la connait. Ils ne contiennent
+   pas de donnees personnelles, mais un nettoyage des fichiers orphelins est
+   a prevoir (meme limite que `DELETE /music/{id}`).
 3. **Consentement et information** : l'application ne presente pas encore de
    conditions d'utilisation ni de lien vers ce document a l'inscription.
 4. **Delai de retractation** : l'effacement est immediat et irreversible. Un

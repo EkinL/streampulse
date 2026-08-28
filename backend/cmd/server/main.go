@@ -84,8 +84,10 @@ func main() {
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
 
-	// Initialize file store
-	fileStore := filestore.NewFileStore("./uploads", "http://localhost"+cfg.Addr()+"/uploads")
+	// Initialize file store. L'URL publique suit PUBLIC_BASE_URL, ou a defaut
+	// le port et l'activation de TLS : un fichier uploade doit rester
+	// joignable quand le serveur passe en HTTPS.
+	fileStore := filestore.NewFileStore("./uploads", cfg.PublicBaseURL()+"/uploads")
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry, cfg.JWTRefreshExpiry)
@@ -105,15 +107,22 @@ func main() {
 		}()
 	}
 
+	// Contexte de base des requetes HTTP et des taches de fond qui touchent
+	// la base : annule explicitement a l'arret, AVANT pool.Close (differe),
+	// pour liberer les connexions longues (SSE, audio, broadcast) et arreter
+	// la purge sans qu'elle tombe sur un pool ferme.
+	requestsCtx, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+
 	// Politique de retention (docs/rgpd.md) : les refresh tokens expires
 	// sont purges a intervalle regulier au lieu de s'accumuler en base.
-	go application.PurgeExpiredRefreshTokens(ctx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
+	go application.PurgeExpiredRefreshTokens(requestsCtx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
 
 	// Initialize services
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
-	userService := application.NewUserService(userRepo)
+	userService := application.NewUserService(userRepo, streamRepo, hub)
 	musicService := application.NewMusicService(musicRepo, fileStore)
 
 	// Initialize router
@@ -136,13 +145,6 @@ func main() {
 		RateLimitBurst:    cfg.RateLimitBurst,
 		ServiceName:       cfg.OTELServiceName,
 	})
-
-	// Contexte de base de toutes les requetes HTTP : l'annuler a l'arret
-	// libere les connexions longues (SSE, audio, broadcast) qui, elles, ne se
-	// terminent jamais d'elles-memes. Sans ca srv.Shutdown attendrait les 30s
-	// puis couperait brutalement.
-	requestsCtx, cancelRequests := context.WithCancel(ctx)
-	defer cancelRequests()
 
 	// Start server. Les timeouts sont globaux ; les trois handlers de flux
 	// les levent pour leur seule connexion via http.ResponseController

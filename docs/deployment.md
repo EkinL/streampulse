@@ -35,6 +35,8 @@ Variables critiques pour la production :
 - `APP_ENV` : mettre `production`
 - `CORS_ALLOWED_ORIGINS` : restreindre aux domaines autorises
 - `TLS_CERT_FILE` / `TLS_KEY_FILE` : voir [HTTPS](#https) ci-dessous
+- `PUBLIC_BASE_URL` : l'URL que les clients utilisent (`https://api.example.com`),
+  sinon les liens des fichiers uploades pointent sur `localhost`
 - `REFRESH_TOKEN_PURGE_INTERVAL` : purge des jetons expires (1 h par defaut,
   voir [rgpd.md](rgpd.md))
 
@@ -117,6 +119,12 @@ services:
       TLS_KEY_FILE: /certs/privkey.pem
     volumes:
       - /etc/letsencrypt/live/api.example.com:/certs:ro
+    # Le HEALTHCHECK de l'image interroge http://localhost:8080/health : en
+    # TLS natif il faut le remplacer, sinon le conteneur reste `unhealthy`.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --no-check-certificate https://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 3s
 ```
 
 Verification :

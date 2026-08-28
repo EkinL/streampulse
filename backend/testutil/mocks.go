@@ -189,6 +189,18 @@ func (m *MockStreamRepo) UpdateListenerCount(_ context.Context, id uuid.UUID, co
 	return nil
 }
 
+func (m *MockStreamRepo) ListByOwner(_ context.Context, ownerID uuid.UUID) ([]domain.Stream, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []domain.Stream
+	for _, s := range m.streams {
+		if s.OwnerID == ownerID {
+			out = append(out, *s)
+		}
+	}
+	return out, nil
+}
+
 func (m *MockStreamRepo) Delete(_ context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -139,6 +139,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
 | `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
 | `TLS_CERT_FILE` / `TLS_KEY_FILE` | - | Renseignes ensemble, le serveur sert en HTTPS (TLS 1.2 min.) ; vides, il reste en clair derriere un reverse proxy, voir [deployment.md](docs/deployment.md#https) |
+| `PUBLIC_BASE_URL` | déduit | URL publique de l'API pour les liens des fichiers uploades ; vide = `http(s)://localhost:PORT` selon TLS |
 | `REFRESH_TOKEN_PURGE_INTERVAL` | 1h | Purge des refresh tokens expires (retention, voir [rgpd.md](docs/rgpd.md)) |
 
 Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent

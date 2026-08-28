@@ -18,7 +18,11 @@ import (
 // la passe suivante rattrapera.
 func PurgeExpiredRefreshTokens(ctx context.Context, repo domain.RefreshTokenRepository, interval time.Duration, logger zerolog.Logger) {
 	purge := func() {
-		if err := repo.DeleteExpired(ctx); err != nil {
+		// Deadline par passe : une base qui ne repond plus ne doit pas bloquer
+		// la boucle, la passe suivante retentera.
+		c, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		if err := repo.DeleteExpired(c); err != nil {
 			logger.Warn().Err(err).Msg("failed to purge expired refresh tokens")
 		}
 	}

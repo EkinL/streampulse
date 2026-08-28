@@ -26,6 +26,9 @@ type StreamRepository interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status StreamStatus) error
 	UpdateListenerCount(ctx context.Context, id uuid.UUID, count int) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	// ListByOwner rend tous les flux d'un diffuseur, sans pagination : sert a
+	// fermer ses directs quand son compte est supprime.
+	ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Stream, error)
 }
 
 type PlaylistRepository interface {

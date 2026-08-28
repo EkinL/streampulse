@@ -207,16 +207,18 @@ extension on AppScaffold {
     );
     if (confirmed != true) return;
 
+    // On ferme la feuille avant d'appeler le serveur : un message d'erreur
+    // affiche sous une feuille modale est invisible.
+    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
     try {
       await ref.read(authProvider.notifier).deleteAccount();
     } catch (e) {
-      if (!sheetCtx.mounted) return;
-      ScaffoldMessenger.of(sheetCtx).showSnackBar(
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not delete account: $e')),
       );
       return;
     }
-    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
     if (context.mounted) context.go('/login');
   }
 }

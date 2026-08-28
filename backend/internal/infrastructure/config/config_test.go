@@ -185,3 +185,29 @@ func TestLoadRejectsNonPositivePurgeInterval(t *testing.T) {
 		t.Fatalf("Load doit refuser un intervalle nul, obtenu %+v", cfg)
 	}
 }
+
+func TestPublicBaseURLFollowsTLSAndPort(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("PORT", "8443")
+	t.Setenv("TLS_CERT_FILE", "/certs/fullchain.pem")
+	t.Setenv("TLS_KEY_FILE", "/certs/privkey.pem")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.PublicBaseURL(); got != "https://localhost:8443" {
+		t.Errorf("PublicBaseURL = %q, attendu https://localhost:8443", got)
+	}
+}
+
+func TestPublicBaseURLOverride(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("PUBLIC_BASE_URL", "https://api.example.com/")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.PublicBaseURL(); got != "https://api.example.com" {
+		t.Errorf("PublicBaseURL = %q, attendu https://api.example.com sans barre finale", got)
+	}
+}

@@ -27,6 +27,7 @@ services:
       # terminer TLS sur un reverse proxy (docs/deployment.md).
       TLS_CERT_FILE: ""
       TLS_KEY_FILE: ""
+      PUBLIC_BASE_URL: ""
       REFRESH_TOKEN_PURGE_INTERVAL: 1h
     depends_on:
       postgres:

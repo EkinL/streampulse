@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -21,6 +22,28 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 	musicID := s.addMusicByURL(t, bc, "Morceau a effacer", "Artiste")
 	s.do(t, http.MethodPost, "/playlists", bc.Access, map[string]any{"name": "Playlist a effacer", "is_public": false}).expect(t, http.StatusCreated, "")
 	s.do(t, http.MethodPost, "/favorites/"+streamID, bc.Access, nil).expect(t, http.StatusCreated, "")
+
+	// Le flux est en direct avec un auditeur connecte : la suppression du
+	// compte doit le couper, pas seulement effacer la ligne en base.
+	s.do(t, http.MethodPost, "/streams/"+streamID+"/start", bc.Access, nil).expect(t, http.StatusOK, "")
+	listener := s.newAccount(t, domain.RoleUser)
+	listenCtx, stopListening := context.WithCancel(context.Background())
+	defer stopListening()
+	req, err := http.NewRequestWithContext(listenCtx, http.MethodGet, s.srv.URL+"/streams/"+streamID+"/listen", nil)
+	if err != nil {
+		t.Fatalf("requete listen: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+listener.Access)
+	resp, err := s.client.Do(req)
+	if err != nil {
+		t.Fatalf("connexion listen: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("listen: status %d", resp.StatusCode)
+	}
+	sid, _ := uuid.Parse(streamID)
+	waitFor(t, 2*time.Second, func() bool { return s.hub.ListenerCount(sid) == 1 }, "auditeur non enregistre dans le hub")
 
 	t.Run("droit d'acces : GET /users/me", func(t *testing.T) {
 		d := s.do(t, http.MethodGet, "/users/me", bc.Access, nil).expect(t, http.StatusOK, "").data(t)
@@ -57,6 +80,8 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 		s.do(t, http.MethodPost, "/auth/refresh", "", map[string]any{"refresh_token": bc.Refresh}).expect(t, http.StatusUnauthorized, "UNAUTHORIZED")
 		// Et plus de connexion possible.
 		s.do(t, http.MethodPost, "/auth/login", "", map[string]any{"email": bc.Email, "password": password}).expect(t, http.StatusUnauthorized, "UNAUTHORIZED")
+		// Le direct est coupe : plus personne n'ecoute le flux du compte efface.
+		waitFor(t, 2*time.Second, func() bool { return s.hub.ListenerCount(sid) == 0 }, "le direct du compte supprime a encore des auditeurs")
 	})
 
 	t.Run("plus rien en base", func(t *testing.T) {

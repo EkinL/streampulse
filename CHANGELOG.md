@@ -36,6 +36,8 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   et guide de terminaison TLS par reverse proxy dans `docs/deployment.md`
 - `docs/rgpd.md` (registre des traitements, retention, droits, mesures de
   securite, FR + resume EN) et ADR 007 (effacement physique en cascade)
+- `PUBLIC_BASE_URL` : URL publique des fichiers uploades, deduite du port et
+  de TLS par defaut au lieu d'un `http://localhost` en dur
 - Description OpenAPI 3.1 de l'API, servie sur `/openapi.yaml` et rendue sur
   `/docs`, avec un test qui echoue si le routeur et la description divergent
 - AppBundle iOS (`.ipa`) produit par la CI, et `make ipa` en local

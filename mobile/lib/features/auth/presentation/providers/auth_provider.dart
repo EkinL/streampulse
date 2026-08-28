@@ -132,7 +132,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// serveur refuse, la session reste ouverte et l'erreur remonte a
   /// l'appelant, qui l'affiche.
   Future<void> deleteAccount() async {
-    await _authRepository.deleteAccount();
+    try {
+      await _authRepository.deleteAccount();
+    } on ApiException catch (e) {
+      // 404 : le compte a deja ete supprime (par un admin, ou depuis un
+      // autre appareil). 401 : la session ne peut plus etre prolongee, le
+      // refresh token est parti avec le compte. Dans les deux cas il n'y a
+      // plus rien a garder localement.
+      if (e.statusCode != 404 && e.statusCode != 401) rethrow;
+    }
     await _authLocalSource.clearTokens();
     state = const AuthUnauthenticated();
   }

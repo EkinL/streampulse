@@ -126,7 +126,7 @@ func buildSuite(t *testing.T) *suite {
 		AuthService:       application.NewAuthService(userRepo, refreshTokenRepo, jwtManager),
 		StreamService:     application.NewStreamService(streamRepo, hub),
 		PlaylistService:   application.NewPlaylistService(playlistRepo),
-		UserService:       application.NewUserService(userRepo),
+		UserService:       application.NewUserService(userRepo, streamRepo, hub),
 		MusicService:      application.NewMusicService(musicRepo, filestore.NewFileStore(uploadDir, uploadsBaseURL)),
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,

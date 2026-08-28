@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sethvargo/go-envconfig"
@@ -41,6 +42,12 @@ type Config struct {
 	TLSCertFile string `env:"TLS_CERT_FILE"`
 	TLSKeyFile  string `env:"TLS_KEY_FILE"`
 
+	// URL publique de l'API, telle que les clients la joignent : sert a
+	// construire les URL des fichiers uploades. Vide, elle est deduite du
+	// port et de l'activation de TLS (http(s)://localhost:PORT), ce qui
+	// convient au simulateur et a la stack locale.
+	PublicBaseURLOverride string `env:"PUBLIC_BASE_URL"`
+
 	// Intervalle de purge des refresh tokens expires. Politique de retention
 	// (docs/rgpd.md) : un jeton expire ne sert plus a rien, on ne le garde pas.
 	RefreshTokenPurgeInterval time.Duration `env:"REFRESH_TOKEN_PURGE_INTERVAL,default=1h"`
@@ -67,6 +74,18 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: load: REFRESH_TOKEN_PURGE_INTERVAL must be positive")
 	}
 	return &cfg, nil
+}
+
+// PublicBaseURL rend l'URL publique de l'API sans barre finale.
+func (c *Config) PublicBaseURL() string {
+	if c.PublicBaseURLOverride != "" {
+		return strings.TrimRight(c.PublicBaseURLOverride, "/")
+	}
+	scheme := "http"
+	if c.TLSEnabled() {
+		scheme = "https"
+	}
+	return scheme + "://localhost" + c.Addr()
 }
 
 // TLSEnabled dit si le serveur principal doit servir en HTTPS.
