@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sethvargo/go-envconfig"
+	"github.com/streampulse/backend/internal/infrastructure/observability"
 )
 
 type Config struct {
@@ -20,6 +21,7 @@ type Config struct {
 	OTELEndpoint       string        `env:"OTEL_ENDPOINT,default=localhost:4317"`
 	OTELServiceName    string        `env:"OTEL_SERVICE_NAME,default=streampulse-api"`
 	LogLevel           string        `env:"LOG_LEVEL,default=info"`
+	LogFormat          string        `env:"LOG_FORMAT,default=json"`
 	CORSAllowedOrigins string        `env:"CORS_ALLOWED_ORIGINS,default=*"`
 	RateLimitRPS       float64       `env:"RATE_LIMIT_RPS,default=10"`
 	RateLimitBurst     int           `env:"RATE_LIMIT_BURST,default=20"`
@@ -36,6 +38,12 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := envconfig.Process(context.Background(), &cfg); err != nil {
 		return nil, fmt.Errorf("config: load: %w", err)
+	}
+	// On echoue au demarrage plutot que de retomber silencieusement sur un
+	// defaut : une faute de frappe dans LOG_FORMAT donnerait des logs non
+	// indexables en production sans que personne ne le remarque.
+	if !observability.IsValidLogFormat(cfg.LogFormat) {
+		return nil, fmt.Errorf("config: load: %w", observability.FormatError(cfg.LogFormat))
 	}
 	return &cfg, nil
 }

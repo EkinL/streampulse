@@ -336,6 +336,10 @@ func (h *StreamHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 
 	ownerID, _ := uuid.Parse(claims.UserID)
 	if err := h.streamService.StartStream(r.Context(), streamID, ownerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "stream not found")
+			return
+		}
 		if errors.Is(err, domain.ErrNotOwner) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this stream")
 			return
@@ -442,6 +446,10 @@ func (h *StreamHandler) StopStream(w http.ResponseWriter, r *http.Request) {
 
 	ownerID, _ := uuid.Parse(claims.UserID)
 	if err := h.streamService.StopStream(r.Context(), streamID, ownerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "stream not found")
+			return
+		}
 		if errors.Is(err, domain.ErrNotOwner) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this stream")
 			return
