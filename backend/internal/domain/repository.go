@@ -12,6 +12,10 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	List(ctx context.Context, page, perPage int) ([]User, int, error)
 	UpdateRole(ctx context.Context, id uuid.UUID, role Role) error
+	// Delete efface le compte et, par cascade en base, tout ce qui s'y
+	// rattache (jetons, flux, playlists, favoris, morceaux). C'est le droit
+	// a l'effacement du RGPD, voir docs/rgpd.md.
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type StreamRepository interface {

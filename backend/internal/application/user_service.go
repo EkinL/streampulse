@@ -47,3 +47,13 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, 
 	}
 	return user, nil
 }
+
+// DeleteUser efface un compte et tout ce qui s'y rattache. Utilise a la fois
+// par la personne elle-meme (DELETE /users/me) et par un administrateur qui
+// traite une demande d'effacement (DELETE /admin/users/{id}).
+func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	if err := s.userRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("user: delete: %w", err)
+	}
+	return nil
+}

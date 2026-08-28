@@ -10,6 +10,10 @@ import (
 	"github.com/streampulse/backend/internal/domain"
 )
 
+// Garde-fou de compilation : si domain.UserRepository gagne une methode,
+// c'est ici que ca casse, et pas au milieu d'un fichier de test.
+var _ domain.UserRepository = (*MockUserRepo)(nil)
+
 // MockUserRepo is a mock implementation of domain.UserRepository
 type MockUserRepo struct {
 	mu      sync.RWMutex
@@ -82,6 +86,18 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 		return domain.ErrNotFound
 	}
 	u.Role = role
+	return nil
+}
+
+func (m *MockUserRepo) Delete(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	delete(m.users, id)
+	delete(m.byEmail, u.Email)
 	return nil
 }
 

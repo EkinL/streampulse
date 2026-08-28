@@ -91,3 +91,39 @@ func TestUserService_GetUserNotFound(t *testing.T) {
 		t.Fatalf("attendu ErrNotFound, obtenu %v", err)
 	}
 }
+
+func TestUserService_DeleteUser(t *testing.T) {
+	repo := testutil.NewMockUserRepo()
+	svc := application.NewUserService(repo)
+	ctx := context.Background()
+	user := testutil.NewTestUser(domain.RoleUser)
+	if err := repo.Create(ctx, user); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	t.Run("utilisateur inconnu", func(t *testing.T) {
+		if err := svc.DeleteUser(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("attendu ErrNotFound, obtenu %v", err)
+		}
+	})
+
+	t.Run("suppression effective", func(t *testing.T) {
+		if err := svc.DeleteUser(ctx, user.ID); err != nil {
+			t.Fatalf("DeleteUser: %v", err)
+		}
+		if _, err := svc.GetUser(ctx, user.ID); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("le compte doit avoir disparu, obtenu %v", err)
+		}
+		// L'email redevient disponible : une nouvelle inscription avec la
+		// meme adresse ne doit pas heurter l'ancien compte.
+		if _, err := repo.FindByEmail(ctx, user.Email); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("l'email doit etre libere, obtenu %v", err)
+		}
+	})
+
+	t.Run("double suppression", func(t *testing.T) {
+		if err := svc.DeleteUser(ctx, user.ID); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("attendu ErrNotFound, obtenu %v", err)
+		}
+	})
+}

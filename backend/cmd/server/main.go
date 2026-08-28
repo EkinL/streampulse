@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"os"
@@ -104,6 +105,10 @@ func main() {
 		}()
 	}
 
+	// Politique de retention (docs/rgpd.md) : les refresh tokens expires
+	// sont purges a intervalle regulier au lieu de s'accumuler en base.
+	go application.PurgeExpiredRefreshTokens(ctx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
+
 	// Initialize services
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
@@ -150,6 +155,9 @@ func main() {
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,
 		BaseContext:       func(net.Listener) context.Context { return requestsCtx },
+		// N'a d'effet qu'avec ListenAndServeTLS : TLS 1.0 et 1.1 sont
+		// obsoletes (RFC 8996).
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 	}
 
 	// Internal metrics server. Prometheus scrapes this listener from
@@ -169,9 +177,18 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// TLS natif si TLS_CERT_FILE et TLS_KEY_FILE sont renseignes, sinon en
+	// clair derriere un reverse proxy qui termine TLS (docs/deployment.md).
 	go func() {
-		logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if cfg.TLSEnabled() {
+			logger.Info().Str("addr", cfg.Addr()).Msg("https server started")
+			err = srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+		} else {
+			logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			logger.Fatal().Err(err).Msg("http server error")
 		}
 	}()

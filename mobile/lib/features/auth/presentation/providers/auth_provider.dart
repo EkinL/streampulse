@@ -127,4 +127,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _authLocalSource.clearTokens();
     state = const AuthUnauthenticated();
   }
+
+  /// Supprime le compte sur le serveur puis ferme la session locale. Si le
+  /// serveur refuse, la session reste ouverte et l'erreur remonte a
+  /// l'appelant, qui l'affiche.
+  Future<void> deleteAccount() async {
+    await _authRepository.deleteAccount();
+    await _authLocalSource.clearTokens();
+    state = const AuthUnauthenticated();
+  }
 }

@@ -82,3 +82,25 @@ func (h *AdminHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
+
+// DeleteUser traite une demande d'effacement recue hors application (mail,
+// courrier) : l'administrateur supprime le compte a la place de la personne.
+// Meme effet que DELETE /users/me, voir docs/rgpd.md.
+func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid user id")
+		return
+	}
+
+	if err := h.userService.DeleteUser(r.Context(), userID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "user not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete user")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}

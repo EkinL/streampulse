@@ -32,6 +32,18 @@ type Config struct {
 	HTTPReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT,default=30s"`
 	HTTPWriteTimeout time.Duration `env:"HTTP_WRITE_TIMEOUT,default=30s"`
 	HTTPIdleTimeout  time.Duration `env:"HTTP_IDLE_TIMEOUT,default=60s"`
+
+	// TLS natif du serveur HTTP principal. Les deux fichiers renseignes
+	// activent HTTPS (TLS 1.2 minimum). Vides, le serveur reste en clair :
+	// c'est le cas derriere un reverse proxy qui termine TLS, voir
+	// docs/deployment.md. Le listener interne METRICS_PORT n'est jamais
+	// chiffre, il ne sort pas du reseau Docker.
+	TLSCertFile string `env:"TLS_CERT_FILE"`
+	TLSKeyFile  string `env:"TLS_KEY_FILE"`
+
+	// Intervalle de purge des refresh tokens expires. Politique de retention
+	// (docs/rgpd.md) : un jeton expire ne sert plus a rien, on ne le garde pas.
+	RefreshTokenPurgeInterval time.Duration `env:"REFRESH_TOKEN_PURGE_INTERVAL,default=1h"`
 }
 
 func Load() (*Config, error) {
@@ -45,7 +57,21 @@ func Load() (*Config, error) {
 	if !observability.IsValidLogFormat(cfg.LogFormat) {
 		return nil, fmt.Errorf("config: load: %w", observability.FormatError(cfg.LogFormat))
 	}
+	// Un seul des deux fichiers TLS, c'est forcement une erreur de
+	// deploiement : mieux vaut refuser de demarrer que servir en clair en
+	// croyant servir en HTTPS.
+	if (cfg.TLSCertFile == "") != (cfg.TLSKeyFile == "") {
+		return nil, fmt.Errorf("config: load: TLS_CERT_FILE and TLS_KEY_FILE must be set together")
+	}
+	if cfg.RefreshTokenPurgeInterval <= 0 {
+		return nil, fmt.Errorf("config: load: REFRESH_TOKEN_PURGE_INTERVAL must be positive")
+	}
 	return &cfg, nil
+}
+
+// TLSEnabled dit si le serveur principal doit servir en HTTPS.
+func (c *Config) TLSEnabled() bool {
+	return c.TLSCertFile != "" && c.TLSKeyFile != ""
 }
 
 func (c *Config) IsDevelopment() bool {

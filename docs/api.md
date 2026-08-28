@@ -96,9 +96,31 @@ reachable by an `admin`.
 | Role | Level | Permissions |
 |------|-------|-------------|
 | anonymous | 0 | Public endpoints only: browse streams and music, search |
-| user | 1 | + listen, favorites, playlists |
+| user | 1 | + listen, favorites, playlists, own account (`/users/me`) |
 | broadcaster | 2 | + create and run streams, upload music |
-| admin | 3 | + user management, `/metrics` |
+| admin | 3 | + user management (roles, deletion), `/metrics` |
+
+## Account and personal data
+
+Any authenticated account, whatever its role, can read and erase its own
+data — the two GDPR rights the API exposes directly
+(see [rgpd.md](rgpd.md)):
+
+- `GET /users/me` — everything held on the account, read from the database,
+  never the password hash. This JSON is the data export.
+- `DELETE /users/me` — erases the account and, by cascade, its refresh
+  tokens, streams, playlists, favorites and uploaded tracks. Irreversible.
+  The access token you still hold stays cryptographically valid until it
+  expires (15 minutes) but `GET /users/me` now answers `404`, the refresh
+  token is gone, and the email can be registered again.
+- `DELETE /admin/users/{id}` — same effect, performed by an admin for a
+  request received outside the app.
+
+```bash
+curl -s http://localhost:8080/users/me -H "Authorization: Bearer $TOKEN"
+curl -s -X DELETE http://localhost:8080/users/me -H "Authorization: Bearer $TOKEN"
+# {"data":{"status":"deleted"},"meta":{...}}
+```
 
 ## Error codes
 

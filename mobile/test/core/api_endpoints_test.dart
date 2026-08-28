@@ -17,6 +17,13 @@ void main() {
       expect(ApiEndpoints.streamListeners('s1'), '/streams/s1/listeners');
     });
 
+    test('own account and admin deletion paths (GDPR)', () {
+      // GET/DELETE /users/me for the caller, DELETE /admin/users/{id} for an
+      // admin acting on a request - not the /role sub-resource.
+      expect(ApiEndpoints.usersMe, '/users/me');
+      expect(ApiEndpoints.adminUser('abc'), '/admin/users/abc');
+    });
+
     test('playlist track paths', () {
       expect(ApiEndpoints.playlistTracks('p1'), '/playlists/p1/tracks');
       expect(ApiEndpoints.playlistTrack('p1', 't1'), '/playlists/p1/tracks/t1');
