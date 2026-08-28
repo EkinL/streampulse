@@ -1,14 +1,13 @@
-# ADR 004: Stack d'observabilite (OTEL, Prometheus, Grafana, Tempo, Discord)
+# ADR 007: Dashboard Grafana, traces distribuees et alertes
 
 ## Statut
 Accepted
 
 ## Contexte
-Le Bloc 3 du RNCP 38822 evalue explicitement la capacite a superviser une solution en production : logs structures, traces distribuees, dashboard Grafana distinguant metriques metier et techniques, et alertes sur anomalies (criteres Ce3.3.x et Ce3.5.x).
+Le Bloc 3 du RNCP 38822 evalue explicitement la capacite a superviser une solution en production : dashboard Grafana distinguant metriques metier et techniques, traces distribuees de bout en bout, et alertes sur anomalies (criteres Ce3.3.x et Ce3.5.x). L'[ADR 004](004-observabilite-otel.md) couvre le socle (OTEL, Prometheus, format des logs) ; celui-ci couvre ce qui est construit dessus : visualisation, traces mobile -> base de donnees, et alertes.
 
 A l'etat initial, la stack existait sur le papier (Prometheus scrape configure, un dashboard JSON, un exporteur OTLP) mais rien n'etait reellement operationnel :
 - le dashboard Grafana n'etait pas provisionne (import manuel a chaque `docker compose up`, datasource a reconfigurer a la main) ;
-- les logs ne sortaient en JSON que si `APP_ENV != development`, or `docker-compose.yml` force `APP_ENV=development` ;
 - aucune trace ne partait du mobile (le client Flutter ne propageait pas `traceparent`) ni n'atteignait la base de donnees (aucun span sur les requetes pgx) ;
 - aucune alerte n'existait, et les traces exportees n'avaient aucune destination visualisable (juste un exporteur `logging` qui dump du texte).
 
@@ -19,9 +18,6 @@ Construire une stack d'observabilite **entierement provisionnee par fichiers** (
 
 ### Provisioning par fichier plutot que configuration UI
 Reproductible par n'importe quel membre de l'equipe via `docker compose up`, versionnable, et coherent avec le principe 12-Factor deja applique au reste du projet (zero configuration manuelle qui ne survivrait pas a un `docker compose down -v`).
-
-### `LOG_FORMAT` separe d'`APP_ENV`
-Le format de sortie des logs (JSON vs console lisible) et le nom de l'environnement sont deux preoccupations distinctes. Fusionner les deux (en mettant `APP_ENV=production` dans le compose de dev) aurait ete trompeur et risque de casser un futur comportement qui se fierait a `APP_ENV` pour un vrai sens "environnement de prod" (CORS strict, TLS obligatoire, etc.). Une variable dediee (`LOG_FORMAT`, defaut `console`) garde chaque variable a un seul sens.
 
 ### `otelpgx` pinne a v0.6.2 plutot que `@latest`
 `go get @latest` a fait remonter en cascade tout le SDK OTel (v1.24.0 -> v1.43.0) et pgx (v5.5.5 -> v5.9.2) pour une simple feature d'instrumentation DB. v0.6.2 s'integre sans deplacer aucune version deja pinnee dans `go.mod` — un changement mesure plutot qu'une mise a jour globale non maitrisee a quelques semaines de la soutenance.

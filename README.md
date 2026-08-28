@@ -136,6 +136,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `JWT_REFRESH_EXPIRY` | 168h | Duree refresh token |
 | `OTEL_ENDPOINT` | localhost:4317 | Endpoint OTEL Collector |
 | `LOG_LEVEL` | info | Niveau de log |
+| `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
 
@@ -188,12 +189,37 @@ cd backend && go test -race ./...
 cd mobile && flutter test
 ```
 
+## Documentation
+
+| Document | Pour quoi |
+|----------|-----------|
+| [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
+| [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
+| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | Strategie de test et 48 cas de recette executes |
+| [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
+| [docs/deployment.md](docs/deployment.md) | Deploiement |
+| [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+
 ## Decisions architecturales
 
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
-- [ADR 004 - Observabilite](docs/ADR/004-observabilite.md)
+- [ADR 004 - Observabilite : OTEL, Prometheus, logs correles](docs/ADR/004-observabilite-otel.md)
+- [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
+- [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
+- [ADR 007 - Dashboard Grafana, traces distribuees et alertes](docs/ADR/007-dashboard-alertes-grafana.md)
+
+## Scalabilite
+
+[docs/scalability.md](docs/scalability.md) chiffre ce que la plateforme
+encaisse et ou se situe le mur, a partir de mesures reproductibles
+(`make bench`, `make load-test`).
+
+En resume, a 100 flux simultanes et 50 auditeurs par flux : **le reseau sature
+en premier** (856 Mbit/s en SSE, soit 86 % d'une carte 1 Gbit/s) alors que le
+serveur tourne a 20 % de sa capacite. Le facteur limitant est la bande
+passante sortante, pas le code.
 
 ## Contribution
 

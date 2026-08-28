@@ -41,10 +41,17 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Global middleware
 	r.Use(chimiddleware.RequestID)
+	// Juste apres RequestID, et avant tout middleware qui ecrit une reponse :
+	// un header pose apres WriteHeader est ignore.
+	r.Use(middleware.RequestIDHeader)
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Recoverer)
-	r.Use(middleware.Logging(cfg.Logger))
+	// L'ordre compte : OTELTracing cree le span et le place dans le contexte
+	// qu'il passe au handler suivant. Un middleware enregistre AVANT lui ne
+	// verrait pas ce span (un contexte ne remonte pas la chaine), donc Logging
+	// doit venir apres pour pouvoir loguer le trace_id.
 	r.Use(middleware.OTELTracing(cfg.ServiceName))
+	r.Use(middleware.Logging(cfg.Logger))
 	r.Use(middleware.CORSHandler(cfg.CORSOrigins).Handler)
 
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)

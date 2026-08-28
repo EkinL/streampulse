@@ -33,13 +33,15 @@ func main() {
 		panic("failed to load config: " + err.Error())
 	}
 
-	// Initialize logger
-	var logger = observability.NewLogger(cfg.LogLevel, cfg.OTELServiceName)
-	if cfg.LogFormat == "json" {
-		logger = observability.NewProductionLogger(cfg.LogLevel, cfg.OTELServiceName)
-	}
+	// Initialize logger. Le format vient de LOG_FORMAT, pas de APP_ENV :
+	// voir observability.NewLogger.
+	logger := observability.NewLogger(cfg.LogLevel, cfg.LogFormat, cfg.OTELServiceName)
 
-	logger.Info().Str("env", cfg.AppEnv).Int("port", cfg.Port).Msg("starting streampulse api")
+	logger.Info().
+		Str("env", cfg.AppEnv).
+		Str("log_format", cfg.LogFormat).
+		Int("port", cfg.Port).
+		Msg("starting streampulse api")
 
 	// Initialize OpenTelemetry tracer
 	tp, err := observability.InitTracer(ctx, cfg.OTELEndpoint, cfg.OTELServiceName)
