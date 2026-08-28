@@ -25,6 +25,13 @@ type Config struct {
 	CORSAllowedOrigins string        `env:"CORS_ALLOWED_ORIGINS,default=*"`
 	RateLimitRPS       float64       `env:"RATE_LIMIT_RPS,default=10"`
 	RateLimitBurst     int           `env:"RATE_LIMIT_BURST,default=20"`
+
+	// Timeouts du serveur HTTP principal. Ils s'appliquent a toutes les routes
+	// sauf les connexions longues (SSE, audio, broadcast) qui les levent
+	// elles-memes, voir docs/ADR/005-http-timeouts.md.
+	HTTPReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT,default=30s"`
+	HTTPWriteTimeout time.Duration `env:"HTTP_WRITE_TIMEOUT,default=30s"`
+	HTTPIdleTimeout  time.Duration `env:"HTTP_IDLE_TIMEOUT,default=60s"`
 }
 
 func Load() (*Config, error) {

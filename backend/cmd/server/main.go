@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -91,8 +92,15 @@ func main() {
 	// Initialize streaming hub
 	hub := streaming.NewHub(logger)
 	hub.OnListenerChange = func(streamID uuid.UUID, count int) {
+		// Hors requete (le hub appelle ca depuis Broadcast/Unregister), donc pas
+		// de contexte parent : on en pose un borne, sinon une base qui ne
+		// repond plus laisserait s'accumuler une goroutine par changement.
 		go func() {
-			_ = streamRepo.UpdateListenerCount(context.Background(), streamID, count)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := streamRepo.UpdateListenerCount(ctx, streamID, count); err != nil {
+				logger.Warn().Err(err).Str("stream_id", streamID.String()).Msg("failed to update listener count")
+			}
 		}()
 	}
 
@@ -105,32 +113,43 @@ func main() {
 
 	// Initialize router
 	router := transport.NewRouter(transport.RouterConfig{
-		AuthService:     authService,
-		StreamService:   streamService,
-		PlaylistService: playlistService,
-		UserService:     userService,
-		MusicService:    musicService,
-		FavoriteRepo:         favoriteRepo,
-		MusicFavoriteRepo:   musicFavoriteRepo,
-		StreamRepo:           streamRepo,
-		MusicRepo:            musicRepo,
-		JWTManager:      jwtManager,
-		Hub:             hub,
-		Logger:          logger,
-		Metrics:         metrics,
-		CORSOrigins:     cfg.CORSAllowedOrigins,
-		RateLimitRPS:    cfg.RateLimitRPS,
-		RateLimitBurst:  cfg.RateLimitBurst,
-		ServiceName:     cfg.OTELServiceName,
+		AuthService:       authService,
+		StreamService:     streamService,
+		PlaylistService:   playlistService,
+		UserService:       userService,
+		MusicService:      musicService,
+		FavoriteRepo:      favoriteRepo,
+		MusicFavoriteRepo: musicFavoriteRepo,
+		StreamRepo:        streamRepo,
+		MusicRepo:         musicRepo,
+		JWTManager:        jwtManager,
+		Hub:               hub,
+		Logger:            logger,
+		Metrics:           metrics,
+		CORSOrigins:       cfg.CORSAllowedOrigins,
+		RateLimitRPS:      cfg.RateLimitRPS,
+		RateLimitBurst:    cfg.RateLimitBurst,
+		ServiceName:       cfg.OTELServiceName,
 	})
 
-	// Start server
+	// Contexte de base de toutes les requetes HTTP : l'annuler a l'arret
+	// libere les connexions longues (SSE, audio, broadcast) qui, elles, ne se
+	// terminent jamais d'elles-memes. Sans ca srv.Shutdown attendrait les 30s
+	// puis couperait brutalement.
+	requestsCtx, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+
+	// Start server. Les timeouts sont globaux ; les trois handlers de flux
+	// les levent pour leur seule connexion via http.ResponseController
+	// (voir handlers/deadline.go et docs/ADR/005-http-timeouts.md).
 	srv := &http.Server{
-		Addr:         cfg.Addr(),
-		Handler:      router,
-		ReadTimeout:  0, // Disabled for broadcast + SSE streaming
-		WriteTimeout: 0, // Disabled for SSE streaming
-		IdleTimeout:  60 * time.Second,
+		Addr:              cfg.Addr(),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second, // slowloris
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
+		BaseContext:       func(net.Listener) context.Context { return requestsCtx },
 	}
 
 	// Internal metrics server. Prometheus scrapes this listener from
@@ -174,6 +193,10 @@ func main() {
 		logger.Error().Err(err).Msg("metrics server forced to shutdown")
 	}
 
+	// On coupe le contexte des requetes en cours avant Shutdown : les boucles
+	// SSE / audio / broadcast sortent sur r.Context().Done(), les connexions
+	// passent idle et Shutdown rend la main tout de suite.
+	cancelRequests()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal().Err(err).Msg("server forced to shutdown")
 	}

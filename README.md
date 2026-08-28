@@ -99,6 +99,9 @@ flutter pub get
 flutter run
 ```
 
+Lecture en arriere-plan et controles ecran verrouille via `audio_service`,
+voir [ADR 004](docs/ADR/004-background-audio.md).
+
 ## Livrables
 
 | Livrable | Commande | Sortie |
@@ -132,6 +135,12 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
+| `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
+| `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
+| `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
+
+Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent
+ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeouts.md).
 
 ## API
 
@@ -208,6 +217,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
+- [ADR 004 - Lecture en arriere-plan et session media](docs/ADR/004-background-audio.md)
 - [ADR 004 - Observabilite : OTEL, Prometheus, logs correles](docs/ADR/004-observabilite-otel.md)
 - [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
 - [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
