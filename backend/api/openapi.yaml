@@ -526,6 +526,7 @@ paths:
               example:
                 error: { code: CONFLICT, message: stream is already live }
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -550,6 +551,7 @@ paths:
         '400': { $ref: '#/components/responses/InvalidID' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -1120,6 +1122,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
     put:
@@ -1255,6 +1258,7 @@ paths:
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -71,6 +72,10 @@ func (h *AdminHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userService.UpdateUserRole(r.Context(), userID, role); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "user not found")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update role")
 		return
 	}

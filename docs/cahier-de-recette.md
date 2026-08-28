@@ -10,21 +10,29 @@ code HTTP et le corps de reponse ci-dessous sont ceux que le serveur a renvoyes.
 
 ## 1. Strategie de test
 
+La strategie complete — niveaux, cartographie cas d'usage → tests, campagne
+de securite, iterations et seuils — est dans le
+[plan de tests iteratifs](plan-de-tests.md). Ce cahier n'en garde que le
+resume et consigne les resultats **reellement observes** de la recette
+manuelle.
+
 ### Ce qui est teste, et a quel niveau
 
 | Niveau | Perimetre | Outillage | Ou |
 |--------|-----------|-----------|-----|
-| Unitaire | Regles metier pures, sans I/O : services applicatifs, validation, hierarchie de roles, parsing d'erreurs | `testing`, mocks de repository | `internal/application`, `internal/infrastructure` |
-| Composant | Un middleware ou un handler isole, avec un vrai `http.ResponseWriter` | `net/http/httptest` | `internal/transport/http` |
-| Integration | Le routeur complet, chaine de middlewares comprise : JWT, RBAC, rate-limit, enveloppe de reponse | `httptest.Server` | `internal/transport/http` |
-| Charge | Le Hub de fan-out sous concurrence reelle | benchmarks Go, `-race` | `internal/infrastructure/streaming` |
+| Unitaire | Regles metier pures, sans I/O : services applicatifs, validation, hierarchie de roles, JWT, middlewares, parsing d'erreurs | `testing`, mocks de repository | `internal/application`, `internal/infrastructure`, `internal/transport/http/middleware` |
+| Contrat | Le routeur et la description OpenAPI : routes documentees, 401 sur les operations `bearerAuth`, correlation des requetes | `chi.Walk`, `httptest` | `internal/transport/http` |
+| Integration base | Les repositories contre un vrai PostgreSQL : unicite, cascades, expiration, plein texte, transactions | `DATABASE_URL`, schema isole par paquet | `internal/infrastructure/postgres/repos_integration_test.go` |
+| Integration API | Le serveur complet, middlewares compris, par HTTP reel et par role | `httptest.Server` + PostgreSQL | `internal/integration` |
+| Securite | Jetons forges, injection SQL, mass assignment, matrice RBAC, propriete, rate limiting, secrets haches | memes outils | `auth/jwt_test.go`, `middleware/*_test.go`, `integration/security_test.go` |
+| Charge | Le Hub de fan-out sous concurrence reelle | benchmarks Go, `-race` | branche `test/hub-load-proof` |
 | Recette | L'API telle qu'un client la consomme, par role | ce document | — |
 
 ### Principes
 
 **Les tests sont ecrits avec le code, pas apres.** Chaque PR qui ajoute un
-comportement ajoute le test qui le decrit. La regle est verifiable : le seuil de
-couverture en CI echoue si une PR fait baisser la couverture.
+comportement ajoute le test qui le decrit. La regle est verifiable : la CI
+echoue sous le seuil de couverture (`COVERAGE_MIN`, voir le plan de tests).
 
 **Les cas d'echec comptent autant que les cas nominaux.** Sur les 48 cas
 ci-dessous, 21 verifient un refus : mauvais mot de passe, role insuffisant,
@@ -210,6 +218,10 @@ correct, c'est **la cle qui est fausse**.
 
 **Correctif.** Extraire l'hote seul avec `net.SplitHostPort(r.RemoteAddr)`.
 
+**Statut : corrigee.** `middleware/ratelimit.go` indexe desormais sur l'hote
+seul ; le test `TestRateLimiterKeyIgnoresSourcePort` (deux ports, meme hote,
+meme compteur) etait rouge avant le correctif et garde le comportement.
+
 **Remarque connexe.** `X-Forwarded-For` est utilise sans condition. Tant que la
 stack n'a pas de reverse-proxy de confiance, n'importe quel client peut en
 envoyer un arbitraire pour obtenir un compteur vierge, ou usurper l'adresse d'un
@@ -230,7 +242,7 @@ service est mort.
 |---|---:|---|
 | Executes | **48** | |
 | Conformes | **46** | 96 % |
-| En echec | **2** | A-01 (haute), A-02 (faible) |
+| En echec | **2** | A-01 (haute, corrigee depuis), A-02 (faible) |
 | Dont cas de refus attendu | 21 | 44 % des cas |
 
 Les 46 cas conformes couvrent les quatre roles, les six domaines fonctionnels et
@@ -253,5 +265,6 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $API/auth/refresh \
   -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$TOK\"}"   # 401
 ```
 
-Les cas automatises correspondants vivent dans `backend/internal/transport/http`
-et se lancent avec `cd backend && make test`.
+Les cas automatises correspondants vivent dans `backend/internal/integration`
+et `backend/internal/transport/http` ; ils se lancent avec
+`cd backend && make test-integration` (voir le [plan de tests](plan-de-tests.md)).

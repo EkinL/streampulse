@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-backend-integration test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
 
 up:
 	docker compose up -d --build
@@ -18,6 +18,11 @@ build-all:
 
 test-backend:
 	cd backend && make test
+
+# Tests d'integration backend : exige une base PostgreSQL jetable dans
+# DATABASE_URL (voir docs/plan-de-tests.md).
+test-backend-integration:
+	cd backend && make test-integration
 
 test-mobile:
 	cd mobile && flutter test

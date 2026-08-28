@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,8 +12,8 @@ import (
 
 // MockUserRepo is a mock implementation of domain.UserRepository
 type MockUserRepo struct {
-	mu    sync.RWMutex
-	users map[uuid.UUID]*domain.User
+	mu      sync.RWMutex
+	users   map[uuid.UUID]*domain.User
 	byEmail map[string]*domain.User
 }
 
@@ -378,4 +379,112 @@ func (m *MockPlaylistRepo) ReorderTracks(_ context.Context, playlistID uuid.UUID
 	}
 	p.Tracks = reordered
 	return nil
+}
+
+// MockMusicRepo is an in-memory implementation of domain.MusicRepository.
+var _ domain.MusicRepository = (*MockMusicRepo)(nil)
+
+type MockMusicRepo struct {
+	mu    sync.RWMutex
+	items []*domain.Music
+}
+
+func NewMockMusicRepo() *MockMusicRepo {
+	return &MockMusicRepo{}
+}
+
+func (m *MockMusicRepo) Create(_ context.Context, music *domain.Music) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if music.ID == uuid.Nil {
+		music.ID = uuid.New()
+	}
+	music.CreatedAt = time.Now().UTC()
+	cp := *music
+	m.items = append(m.items, &cp)
+	return nil
+}
+
+func (m *MockMusicRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Music, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, it := range m.items {
+		if it.ID == id {
+			cp := *it
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) List(_ context.Context, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.filter(func(*domain.Music) bool { return true }, page, perPage)
+}
+
+// Search imite plainto_tsquery de facon volontairement simple : un mot de la
+// requete present dans le titre ou l'artiste suffit.
+func (m *MockMusicRepo) Search(_ context.Context, query string, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	words := strings.Fields(strings.ToLower(query))
+	return m.filter(func(it *domain.Music) bool {
+		haystack := strings.ToLower(it.Title + " " + it.Artist)
+		for _, w := range words {
+			if strings.Contains(haystack, w) {
+				return true
+			}
+		}
+		return false
+	}, page, perPage)
+}
+
+func (m *MockMusicRepo) ListByUploader(_ context.Context, uploaderID uuid.UUID, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.filter(func(it *domain.Music) bool { return it.UploadedBy == uploaderID }, page, perPage)
+}
+
+func (m *MockMusicRepo) Update(_ context.Context, music *domain.Music) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, it := range m.items {
+		if it.ID == music.ID {
+			it.Title, it.Artist, it.Album, it.CoverURL = music.Title, music.Artist, music.Album, music.CoverURL
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) Delete(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, it := range m.items {
+		if it.ID == id {
+			m.items = append(m.items[:i], m.items[i+1:]...)
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) filter(keep func(*domain.Music) bool, page, perPage int) ([]domain.Music, int, error) {
+	var all []domain.Music
+	for _, it := range m.items {
+		if keep(it) {
+			all = append(all, *it)
+		}
+	}
+	total := len(all)
+	start := (page - 1) * perPage
+	if start >= total {
+		return nil, total, nil
+	}
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+	return all[start:end], total, nil
 }
