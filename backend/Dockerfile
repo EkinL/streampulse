@@ -5,8 +5,13 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
 
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates tzdata
+FROM alpine:3.22
+# `upgrade` avant `add` : l'etiquette alpine:3.22 est figee a la date de
+# sa publication, alors que les correctifs de securite de ses paquets
+# (libssl, libcrypto) sortent en continu. Sans cette ligne, l'image
+# embarque les versions du jour de la release d'alpine, pas les versions
+# corrigees. Le scan Trivy de la CI echouerait dessus.
+RUN apk --no-cache upgrade && apk --no-cache add ca-certificates tzdata
 COPY --from=builder /server /server
 COPY config.yaml /config.yaml
 EXPOSE 8080

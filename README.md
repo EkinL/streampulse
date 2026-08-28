@@ -1,5 +1,9 @@
 # StreamPulse
 
+[![Backend CI](https://github.com/EkinL/streampulse/actions/workflows/backend.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/backend.yml)
+[![Mobile CI](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml)
+[![Security](https://github.com/EkinL/streampulse/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/security.yml)
+
 Plateforme de streaming audio en temps reel avec backend Go et application mobile Flutter.
 
 ## Architecture
@@ -202,6 +206,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
 | [docs/deployment.md](docs/deployment.md) | Deploiement |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [docs/operations.md](docs/operations.md) | Cycle de livraison, publication d'une version, boucle surveillance -> feuille de route |
 
 ## Decisions architecturales
 

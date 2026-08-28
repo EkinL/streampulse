@@ -1,0 +1,79 @@
+# Surveillance automatique des dependances.
+#
+# Objectif : ne pas decouvrir une CVE le jour du rendu. Dependabot ouvre une PR
+# des qu'une mise a jour est disponible, la CI la valide, et la mise a jour est
+# relue comme n'importe quel changement.
+#
+# Cadence hebdomadaire et non quotidienne : sur un projet a quatre personnes,
+# une PR de dependance par jour finit ignoree, ce qui est pire que pas de PR
+# du tout.
+version: 2
+
+updates:
+  # --- Backend Go ---------------------------------------------------------
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Les modules OpenTelemetry doivent monter ensemble : leurs versions
+      # sont solidaires, les monter une par une casse la compilation.
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+      # Le reste des correctifs mineurs en une seule PR, pour limiter le bruit.
+      go-minor-patch:
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - "go.opentelemetry.io/*"
+
+  # --- Image de base du backend -------------------------------------------
+  # C'est la source de CVE la plus frequente et la moins visible : personne ne
+  # pense a regarder la version d'alpine.
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    commit-message:
+      prefix: "chore(deps)"
+
+  # --- Actions GitHub ------------------------------------------------------
+  # Une action compromise s'execute avec les droits du workflow. Les garder a
+  # jour fait partie de la chaine d'approvisionnement.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    commit-message:
+      prefix: "chore(ci)"
+
+  # --- Mobile Flutter ------------------------------------------------------
+  - package-ecosystem: pub
+    directory: /mobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # Le SDK Flutter est epingle par la CI (flutter-action) et par
+      # `environment:` dans pubspec.yaml : le faire monter par Dependabot
+      # desynchroniserait les deux.
+      - dependency-name: flutter

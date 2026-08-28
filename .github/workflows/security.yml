@@ -1,0 +1,112 @@
+name: Security
+
+# Trois declencheurs, pour trois raisons distinctes.
+#
+# - pull_request : ne pas introduire de vulnerabilite connue.
+# - push : verifier l'etat reel des branches de reference.
+# - schedule : c'est le declencheur essentiel. Une CVE publiee demain concerne
+#   du code fusionne aujourd'hui. Un scan qui ne tourne qu'a la PR ne verra
+#   jamais rien apparaitre apres coup.
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: Vulnerabilites Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # '1.26' sans patch, deliberement : setup-go resout vers la derniere
+      # 1.26.x publiee. Une part importante des vulnerabilites atteignables
+      # vient de la bibliotheque standard, et le seul correctif est une montee
+      # de toolchain. Figer '1.26.7' ici ferait echouer le job a la CVE
+      # suivante.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: backend/go.sum
+      # govulncheck ne signale que les vulnerabilites REELLEMENT ATTEIGNABLES
+      # depuis le code : il analyse les appels, pas seulement les versions de
+      # go.mod. Beaucoup moins de faux positifs qu'un simple diff de versions.
+      - name: govulncheck
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+
+  trivy-image:
+    name: Vulnerabilites de l'image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image a scanner
+        working-directory: backend
+        run: docker build -t streampulse-api:scan .
+      # govulncheck couvre le code Go, pas le systeme de base. alpine et ses
+      # paquets sont la source de CVE la plus frequente et la moins visible.
+      - name: Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: streampulse-api:scan
+          format: table
+          severity: HIGH,CRITICAL
+          # Seules les vulnerabilites corrigeables font echouer : bloquer sur
+          # une CVE sans correctif disponible n'apporte rien et apprend a
+          # ignorer le job.
+          ignore-unfixed: true
+          exit-code: '1'
+
+  trivy-fs:
+    name: Secrets et configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Detecte un secret commite par inadvertance et les erreurs de
+      # configuration des Dockerfile et manifestes.
+      - name: Trivy (systeme de fichiers)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  # Un scan qui echoue en silence ne sert a rien. Sur les executions
+  # planifiees il n'y a pas de PR pour porter le resultat : on ouvre une issue.
+  notify:
+    name: Signaler l'echec
+    runs-on: ubuntu-latest
+    needs: [govulncheck, trivy-image, trivy-fs]
+    if: failure() && github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Scan de securite hebdomadaire en echec';
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            // Une seule issue ouverte a la fois : on commente au lieu d'en
+            // creer une nouvelle chaque lundi.
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'securite',
+            });
+            const existing = open.find(i => i.title === title);
+            const body = `Le scan planifie a echoue.\n\nExecution : ${url}\n\nUne vulnerabilite corrigeable de severite HIGH ou CRITICAL a ete detectee, ou un secret a ete trouve dans le depot.`;
+            if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body, labels: ['securite'] });
+            }

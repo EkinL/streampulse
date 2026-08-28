@@ -1,0 +1,267 @@
+name: Release
+
+# Se declenche sur un tag de version, et sur rien d'autre.
+#
+# L'ancien job `docker` de backend.yml portait bien `if: startsWith(github.ref,
+# 'refs/tags/')`, mais le workflow ne se declenchait que sur `push` vers
+# main/develop et sur `pull_request`. Un tag ne l'a donc jamais reveille : ce
+# job n'avait jamais pu s'executer. Il vit maintenant ici, avec le bon
+# declencheur.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag a publier (ex. v1.0.0)'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Le tag est la source de verite. Si les versions embarquees dans les
+  # livrables ne correspondent pas, l'utilisateur installe une version qui ment
+  # sur son propre numero. On echoue avant de publier quoi que ce soit.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Coherence des versions
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      image: ${{ steps.v.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Extraire la version du tag et le nom d'image
+        run: |
+          ref="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${ref#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # ghcr.io refuse les majuscules dans le nom du depot.
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=${{ env.REGISTRY }}/$owner/streampulse-api" >> "$GITHUB_OUTPUT"
+          echo "version publiee : $version"
+          echo "image : ${{ env.REGISTRY }}/$owner/streampulse-api"
+
+      - name: pubspec.yaml doit porter la meme version
+        run: |
+          version="${{ steps.v.outputs.version }}"
+          # `version: 1.0.0+1` -> on ne compare que la partie SemVer.
+          pubspec=$(grep '^version:' mobile/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          if [ "$pubspec" != "$version" ]; then
+            echo "::error::mobile/pubspec.yaml declare $pubspec, le tag dit $version"
+            exit 1
+          fi
+
+      - name: openapi.yaml doit porter la meme version
+        run: |
+          version="${{ steps.v.outputs.version }}"
+          api=$(grep -m1 '^  version:' backend/api/openapi.yaml | awk '{print $2}')
+          if [ "$api" != "$version" ]; then
+            echo "::error::backend/api/openapi.yaml declare $api, le tag dit $version"
+            exit 1
+          fi
+
+      - name: Le CHANGELOG doit decrire cette version
+        run: |
+          version="${{ steps.v.outputs.version }}"
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md n'a pas de section [## $version]"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Distribution de l'API : image publiee sur le registre du depot.
+  # GITHUB_TOKEN suffit, aucun secret a configurer.
+  # ---------------------------------------------------------------------------
+  image:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    needs: [verify]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Connexion au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Trois etiquettes : la version exacte pour reproduire un incident,
+      # la mineure pour suivre les correctifs, `latest` pour demarrer vite.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.verify.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.verify.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.verify.outputs.version }}
+            type=raw,value=latest
+
+      # amd64 et arm64 : les postes de developpement du projet sont sur Apple
+      # Silicon, les cibles de deploiement sont en x86.
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Ce qui est publie doit etre scanne : c'est cette image que les gens
+      # vont reellement executer.
+      - name: Trivy sur l'image publiee
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # ---------------------------------------------------------------------------
+  # Distribution des clients : APK, IPA et console web attaches a la release.
+  # ---------------------------------------------------------------------------
+  android:
+    name: APK Android
+    runs-on: ubuntu-latest
+    needs: [verify]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          cache: true
+      - working-directory: mobile
+        run: flutter pub get
+      - working-directory: mobile
+        run: flutter build apk --release
+      - name: Renommer avec la version
+        run: |
+          mv mobile/build/app/outputs/flutter-apk/app-release.apk \
+             streampulse-${{ needs.verify.outputs.version }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: streampulse-*.apk
+          if-no-files-found: error
+
+  ios:
+    name: AppBundle iOS
+    runs-on: macos-latest
+    needs: [verify]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          cache: true
+      - working-directory: mobile
+        run: flutter pub get
+      # Non signe : voir mobile/README.md. Livrable d'archive, a re-signer
+      # avant toute installation sur appareil.
+      - working-directory: mobile
+        run: ./scripts/build_ipa.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: mobile/build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+  web:
+    name: Console web
+    runs-on: ubuntu-latest
+    needs: [verify]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          cache: true
+      - working-directory: mobile
+        run: flutter pub get
+      - working-directory: mobile
+        run: flutter build web --release -t lib/main_web.dart
+      - name: Archiver la console
+        run: |
+          cd mobile/build/web
+          zip -qr "$GITHUB_WORKSPACE/streampulse-console-${{ needs.verify.outputs.version }}.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: streampulse-console-*.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # La release GitHub : le point unique ou un utilisateur recupere la version.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publier la release
+    runs-on: ubuntu-latest
+    needs: [verify, image, android, ios, web]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+          merge-multiple: true
+
+      # Les notes viennent du CHANGELOG, pas d'une liste de commits : c'est
+      # ecrit pour des humains et deja relu en PR.
+      - name: Extraire les notes du CHANGELOG
+        run: |
+          version="${{ needs.verify.outputs.version }}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { p = 1; next }
+            p && /^## \[/          { exit }
+            p                      { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Image Docker"
+            echo ""
+            echo '```bash'
+            echo "docker pull ${{ needs.verify.outputs.image }}:$version"
+            echo '```'
+            echo ""
+            echo "### Livrables clients"
+            echo ""
+            echo "| Fichier | Pour |"
+            echo "|---------|------|"
+            echo "| \`streampulse-$version.apk\` | Android |"
+            echo "| \`StreamPulse-*.ipa\` | iOS — **non signe**, a re-signer avant installation |"
+            echo "| \`streampulse-console-$version.zip\` | Console web, a servir en statique |"
+          } >> notes.md
+          cat notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: StreamPulse ${{ needs.verify.outputs.version }}
+          body_path: notes.md
+          files: artefacts/*
+          fail_on_unmatched_files: true
