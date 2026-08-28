@@ -67,6 +67,10 @@ app/             Router, Theme, Constants
 ## Demarrage rapide
 
 ```bash
+# Secrets locaux (webhook Discord des alertes Grafana) - voir .env.example
+cp .env.example .env
+# puis remplir DISCORD_WEBHOOK_URL
+
 # Lancer toute la stack
 make up
 
@@ -75,11 +79,14 @@ curl http://localhost:8080/health
 # {"data":{"status":"ok"},"meta":{...}}
 ```
 
+Sans ce `.env`, la stack demarre quand meme mais les alertes Grafana n'ont nulle part ou notifier (webhook vide, echec silencieux).
+
 | Service | URL |
 |---------|-----|
 | API | http://localhost:8080 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Prometheus | http://localhost:9090 |
+| Tempo (traces) | http://localhost:3200 |
 
 ## Developpement
 
@@ -186,6 +193,7 @@ cd mobile && flutter test
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
+- [ADR 004 - Observabilite](docs/ADR/004-observabilite.md)
 
 ## Contribution
 
