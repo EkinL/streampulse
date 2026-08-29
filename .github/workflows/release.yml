@@ -126,7 +126,7 @@ jobs:
       # Ce qui est publie doit etre scanne : c'est cette image que les gens
       # vont reellement executer.
       - name: Trivy sur l'image publiee
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }}
           format: table

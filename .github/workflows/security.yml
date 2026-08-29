@@ -54,7 +54,7 @@ jobs:
       # govulncheck couvre le code Go, pas le systeme de base. alpine et ses
       # paquets sont la source de CVE la plus frequente et la moins visible.
       - name: Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: streampulse-api:scan
           format: table
@@ -73,7 +73,7 @@ jobs:
       # Detecte un secret commite par inadvertance et les erreurs de
       # configuration des Dockerfile et manifestes.
       - name: Trivy (systeme de fichiers)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .

@@ -65,6 +65,8 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   OpenTelemetry 1.24.0 -> 1.44.0
 - Image de base `alpine` 3.19 -> 3.22, avec `apk upgrade` au build : sans lui
   l'image embarque les paquets figes a la date de publication de l'etiquette
+- Le conteneur ne tourne plus en **root** : compte de service `streampulse`
+  (uid 10001), `WORKDIR /app`, et `/app/uploads` cree et attribue a ce compte
 - Scans automatises : `govulncheck` (code Go), Trivy (image et systeme de
   fichiers), Dependabot hebdomadaire. Executes aussi le lundi par
   `schedule`, une CVE publiee apres un merge etant invisible d'un scan de PR
