@@ -17,6 +17,9 @@ func TestRBAC_EndpointMatrix(t *testing.T) {
 	admin := s.newAccount(t, domain.RoleAdmin)
 	streamID := s.createStream(t, bc, "Flux matrice")
 	musicID := s.addMusicByURL(t, bc, "Morceau matrice", "Artiste")
+	// Compte jetable : la ligne DELETE /admin/users/{id} le supprime pour de
+	// bon quand c'est l'admin qui appelle.
+	doomed := s.newAccount(t, domain.RoleUser)
 
 	tokens := map[string]string{
 		"anonymous": "", "user": user.Access, "broadcaster": bc.Access, "admin": admin.Access,
@@ -46,6 +49,8 @@ func TestRBAC_EndpointMatrix(t *testing.T) {
 		{http.MethodGet, "/favorites", nil, authenticated},
 		{http.MethodGet, "/music/favorites", nil, authenticated},
 		{http.MethodGet, "/music/favorites/ids", nil, authenticated},
+		// Tout compte connecte lit ses propres donnees (RGPD, docs/rgpd.md)
+		{http.MethodGet, "/users/me", nil, authenticated},
 		// Diffuseur : flux et sources audio (exigence 1.4)
 		{http.MethodPost, "/streams", map[string]any{"title": "Nouveau flux"}, broadcasterOnly},
 		{http.MethodPost, "/music", map[string]any{"title": "Nouveau", "url": "https://cdn.test/n.mp3"}, broadcasterOnly},
@@ -57,6 +62,7 @@ func TestRBAC_EndpointMatrix(t *testing.T) {
 		{http.MethodGet, "/admin/users", nil, adminOnly},
 		{http.MethodPut, "/admin/users/" + user.ID + "/role", map[string]any{"role": "user"}, adminOnly},
 		{http.MethodGet, "/metrics", nil, adminOnly},
+		{http.MethodDelete, "/admin/users/" + doomed.ID, nil, adminOnly},
 	}
 
 	for _, tc := range cases {

@@ -12,6 +12,10 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	List(ctx context.Context, page, perPage int) ([]User, int, error)
 	UpdateRole(ctx context.Context, id uuid.UUID, role Role) error
+	// Delete efface le compte et, par cascade en base, tout ce qui s'y
+	// rattache (jetons, flux, playlists, favoris, morceaux). C'est le droit
+	// a l'effacement du RGPD, voir docs/rgpd.md.
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type StreamRepository interface {
@@ -22,6 +26,9 @@ type StreamRepository interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status StreamStatus) error
 	UpdateListenerCount(ctx context.Context, id uuid.UUID, count int) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	// ListByOwner rend tous les flux d'un diffuseur, sans pagination : sert a
+	// fermer ses directs quand son compte est supprime.
+	ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Stream, error)
 }
 
 type PlaylistRepository interface {

@@ -99,6 +99,9 @@ ne s'applique pas.
 | UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart` | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) | guide utilisateur |
 | UC-18 | Console web diffuseur / admin | `console_*_test.dart` (roles admin, destinations par role, ecran de connexion, shell) | — | destinations filtrees par role | guide utilisateur |
 | UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | — (iteration 2) | — | — | guide utilisateur, recette manuelle sur simulateur |
+| UC-20 | Droits RGPD : acces et effacement de son compte (Ce3.1.4) | `TestUserService_DeleteUser`, `TestPurgeExpiredRefreshTokens` | `TestUsers_AccessAndErasure` (profil sans hash, cascade sur 6 tables, refresh et login refuses, email libere), `TestCascadeOnUserDelete` | `TestRBAC_EndpointMatrix` (`/users/me` authentifie) ; jeton encore valide → 404 | R-80 a R-85 |
+| UC-21 | Admin : effacement sur demande (Ce3.1.4) | `TestUserService_DeleteUser` | `TestAdmin_DeleteUser` (id invalide, inconnu, disparition de la liste) | `TestRBAC_EndpointMatrix` (`adminOnly`), user → 403 | R-86, R-87 |
+| UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul) | — | TLS 1.2 minimum | R-88 |
 
 ## 4. Campagne de securite
 
@@ -112,7 +115,8 @@ est un test automatise qui s'execute a chaque PR.
 | API3 — autorisation au niveau propriete (mass assignment) | Tout champ hors contrat est refuse : `role` a l'inscription, `owner_id`, `status`, `position`, `id`, `uploaded_by` | `TestSecurity_UnknownFieldsRejected`, `TestAuth_RegisterValidation` | OK |
 | API4 — consommation de ressources | Rate limiting par hote, burst puis 429, recharge, `X-Forwarded-For` derriere un proxy | `middleware/ratelimit_test.go` | OK apres correctif A-01 ; taille des corps non bornee → O-2 |
 | API5 — autorisation au niveau fonction | Matrice 4 roles x 16 routes ; hierarchie `anonymous < user < broadcaster < admin` ; role inconnu jamais accepte | `TestRBAC_EndpointMatrix`, `TestRequireRoleMatrix`, `TestRequireRoleRejectsUnknownRole`, `TestMetricsAccess` | OK |
-| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; `X-Request-ID` expose au navigateur | `middleware/cors_test.go` | OK ; `*` en dev → O-3 ; TLS hors perimetre (deploiement) |
+| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; `X-Request-ID` expose au navigateur ; TLS natif refuse une configuration a moitie renseignee | `middleware/cors_test.go`, `config_test.go` (`TestLoadRejectsHalfTLSConfig`) | OK ; `*` en dev → O-3 ; terminaison TLS documentee dans [deployment.md](deployment.md#https) |
+| Donnees personnelles (RGPD) | Une personne lit tout ce qui la concerne et efface son compte ; rien ne subsiste dans les six tables liees ; ses anciens jetons ne donnent plus acces a rien ; les refresh tokens expires sont purges | `TestUsers_AccessAndErasure`, `TestAdmin_DeleteUser`, `TestCascadeOnUserDelete`, `TestPurgeExpiredRefreshTokens` | OK ; registre et retention dans [rgpd.md](rgpd.md) |
 | Injection | Charges SQL a l'inscription, a la connexion, dans la recherche, dans un identifiant de chemin : stockees telles quelles ou rejetees, tables intactes | `TestSecurity_SQLInjectionIsNeutralised` | OK (requetes parametrees pgx, ADR 005) |
 | Fuite d'information | Mot de passe et hash jamais renvoyes ; playlist privee d'autrui → 404 et non 403 ; erreurs correlables sans detail interne | `TestAuth_RegisterLoginRefresh`, `TestAdmin_UsersAndRoles`, `TestPlaylists_VisibilityAndOwnership`, `TestSecurity_EveryResponseIsCorrelated` | OK ; ecritures sur playlist privee → O-4 |
 
@@ -178,6 +182,9 @@ Travaux de l'iteration :
    l'ecran diffuseur (start/stop) et des gardes de routes par role ; relever
    le seuil mobile (`COVERAGE_MIN` de `coverage_check.sh`) en consequence.
 5. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
+6. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
+   (rectification) et nettoyage des fichiers audio orphelins, chacun avec
+   son test d'integration.
 
 ### Iteration 3 — planifiee
 

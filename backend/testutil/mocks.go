@@ -10,6 +10,10 @@ import (
 	"github.com/streampulse/backend/internal/domain"
 )
 
+// Garde-fou de compilation : si domain.UserRepository gagne une methode,
+// c'est ici que ca casse, et pas au milieu d'un fichier de test.
+var _ domain.UserRepository = (*MockUserRepo)(nil)
+
 // MockUserRepo is a mock implementation of domain.UserRepository
 type MockUserRepo struct {
 	mu      sync.RWMutex
@@ -82,6 +86,18 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 		return domain.ErrNotFound
 	}
 	u.Role = role
+	return nil
+}
+
+func (m *MockUserRepo) Delete(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	delete(m.users, id)
+	delete(m.byEmail, u.Email)
 	return nil
 }
 
@@ -171,6 +187,18 @@ func (m *MockStreamRepo) UpdateListenerCount(_ context.Context, id uuid.UUID, co
 	}
 	s.ListenerCount = count
 	return nil
+}
+
+func (m *MockStreamRepo) ListByOwner(_ context.Context, ownerID uuid.UUID) ([]domain.Stream, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []domain.Stream
+	for _, s := range m.streams {
+		if s.OwnerID == ownerID {
+			out = append(out, *s)
+		}
+	}
+	return out, nil
 }
 
 func (m *MockStreamRepo) Delete(_ context.Context, id uuid.UUID) error {

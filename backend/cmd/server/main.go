@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"os"
@@ -83,8 +84,10 @@ func main() {
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
 
-	// Initialize file store
-	fileStore := filestore.NewFileStore("./uploads", "http://localhost"+cfg.Addr()+"/uploads")
+	// Initialize file store. L'URL publique suit PUBLIC_BASE_URL, ou a defaut
+	// le port et l'activation de TLS : un fichier uploade doit rester
+	// joignable quand le serveur passe en HTTPS.
+	fileStore := filestore.NewFileStore("./uploads", cfg.PublicBaseURL()+"/uploads")
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry, cfg.JWTRefreshExpiry)
@@ -104,11 +107,22 @@ func main() {
 		}()
 	}
 
+	// Contexte de base des requetes HTTP et des taches de fond qui touchent
+	// la base : annule explicitement a l'arret, AVANT pool.Close (differe),
+	// pour liberer les connexions longues (SSE, audio, broadcast) et arreter
+	// la purge sans qu'elle tombe sur un pool ferme.
+	requestsCtx, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+
+	// Politique de retention (docs/rgpd.md) : les refresh tokens expires
+	// sont purges a intervalle regulier au lieu de s'accumuler en base.
+	go application.PurgeExpiredRefreshTokens(requestsCtx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
+
 	// Initialize services
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
-	userService := application.NewUserService(userRepo)
+	userService := application.NewUserService(userRepo, streamRepo, hub)
 	musicService := application.NewMusicService(musicRepo, fileStore)
 
 	// Initialize router
@@ -132,13 +146,6 @@ func main() {
 		ServiceName:       cfg.OTELServiceName,
 	})
 
-	// Contexte de base de toutes les requetes HTTP : l'annuler a l'arret
-	// libere les connexions longues (SSE, audio, broadcast) qui, elles, ne se
-	// terminent jamais d'elles-memes. Sans ca srv.Shutdown attendrait les 30s
-	// puis couperait brutalement.
-	requestsCtx, cancelRequests := context.WithCancel(ctx)
-	defer cancelRequests()
-
 	// Start server. Les timeouts sont globaux ; les trois handlers de flux
 	// les levent pour leur seule connexion via http.ResponseController
 	// (voir handlers/deadline.go et docs/ADR/005-http-timeouts.md).
@@ -150,6 +157,9 @@ func main() {
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,
 		BaseContext:       func(net.Listener) context.Context { return requestsCtx },
+		// N'a d'effet qu'avec ListenAndServeTLS : TLS 1.0 et 1.1 sont
+		// obsoletes (RFC 8996).
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 	}
 
 	// Internal metrics server. Prometheus scrapes this listener from
@@ -169,9 +179,18 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// TLS natif si TLS_CERT_FILE et TLS_KEY_FILE sont renseignes, sinon en
+	// clair derriere un reverse proxy qui termine TLS (docs/deployment.md).
 	go func() {
-		logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if cfg.TLSEnabled() {
+			logger.Info().Str("addr", cfg.Addr()).Msg("https server started")
+			err = srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+		} else {
+			logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			logger.Fatal().Err(err).Msg("http server error")
 		}
 	}()

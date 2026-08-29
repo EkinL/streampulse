@@ -138,6 +138,9 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
 | `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
 | `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
+| `TLS_CERT_FILE` / `TLS_KEY_FILE` | - | Renseignes ensemble, le serveur sert en HTTPS (TLS 1.2 min.) ; vides, il reste en clair derriere un reverse proxy, voir [deployment.md](docs/deployment.md#https) |
+| `PUBLIC_BASE_URL` | déduit | URL publique de l'API pour les liens des fichiers uploades ; vide = `http(s)://localhost:PORT` selon TLS |
+| `REFRESH_TOKEN_PURGE_INTERVAL` | 1h | Purge des refresh tokens expires (retention, voir [rgpd.md](docs/rgpd.md)) |
 
 Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent
 ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeouts.md).
@@ -172,14 +175,15 @@ Endpoints principaux :
 - `POST /streams` - Creer un stream (broadcaster)
 - `GET/POST/PUT/DELETE /playlists` - CRUD playlists + file d'attente
 - `GET /search` - Recherche globale streams + musiques
+- `GET/DELETE /users/me` - Consulter et supprimer son propre compte (RGPD)
 
 ## Roles
 
 | Role | Permissions |
 |------|-------------|
-| user | Ecouter, playlists, favoris |
+| user | Ecouter, playlists, favoris, consulter et supprimer son compte |
 | broadcaster | + creer/gerer des streams |
-| admin | + gestion des utilisateurs |
+| admin | + gestion des utilisateurs (roles, suppression) |
 
 ## Tests
 
@@ -207,8 +211,9 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
 | [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
-| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 48 cas de recette executes |
+| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
+| [docs/rgpd.md](docs/rgpd.md) | Donnees personnelles : registre, retention, droits (acces, effacement), mesures de securite |
 | [docs/deployment.md](docs/deployment.md) | Deploiement |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
 
@@ -221,6 +226,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 - [ADR 004 - Observabilite : OTEL, Prometheus, logs correles](docs/ADR/004-observabilite-otel.md)
 - [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
 - [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
+- [ADR 007 - Effacement physique en cascade (RGPD)](docs/ADR/007-effacement-compte-rgpd.md)
 
 ## Scalabilite
 
