@@ -91,6 +91,11 @@ jobs:
           echo "couverture totale : ${total} % (minimum 70 %)"
           echo "Couverture backend : **${total} %** (minimum 70 %)" >> "$GITHUB_STEP_SUMMARY"
           awk -v t="$total" -v m=70 'BEGIN { exit (t + 0 < m + 0) ? 1 : 0 }'
+      # Une seule iteration : verifie que les benchmarks du Hub restent
+      # executables. Les chiffres de reference sont dans docs/ADR/003.
+      - name: Hub benchmarks (smoke)
+        working-directory: backend
+        run: go test -run '^$' -bench 'Hub' -benchtime=1x ./internal/infrastructure/streaming/
       - name: Upload coverage
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4

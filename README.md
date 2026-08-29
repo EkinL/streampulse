@@ -190,6 +190,8 @@ Endpoints principaux :
 ```bash
 # Backend, suite unitaire (sans base)
 cd backend && make test-unit
+cd backend && make load-test   # 1000 auditeurs sur le Hub + 500 clients SSE reels
+cd backend && make bench       # cout d'un chunk pour 10 a 10 000 auditeurs
 
 # Backend, suite d'integration : repositories et API bout en bout contre PostgreSQL
 export DATABASE_URL=postgres://localhost:5432/streampulse_test?sslmode=disable

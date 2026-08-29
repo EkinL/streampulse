@@ -132,7 +132,11 @@ func (m *MockStreamRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Stre
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-	return s, nil
+	// Copie, comme une ligne lue en base : StreamService.GetStream ecrit
+	// ListenerCount sur le resultat, et des lectures concurrentes ne doivent
+	// pas se partager le meme pointeur.
+	cp := *s
+	return &cp, nil
 }
 
 func (m *MockStreamRepo) List(_ context.Context, page, perPage int) ([]domain.Stream, int, error) {
