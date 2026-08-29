@@ -88,6 +88,8 @@ TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
 curl -s http://localhost:8080/playlists -H "Authorization: Bearer $TOKEN"
 ```
 
+Prometheus does not go through this route: it scrapes an internal listener on `METRICS_PORT` (default `9091`), which is only reachable inside the Docker network and is never published on the host.
+
 ## Roles
 
 Roles are ordered. An endpoint that requires `broadcaster` is therefore also
