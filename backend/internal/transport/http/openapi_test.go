@@ -16,27 +16,39 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/streampulse/backend/api"
+	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
+	"github.com/streampulse/backend/internal/infrastructure/streaming"
+	"github.com/streampulse/backend/testutil"
 )
 
 // observability.NewMetrics registers its collectors on the global Prometheus
 // registry, so building a second router in the same test binary panics on a
 // duplicate registration. Every test in this package shares one router.
 var (
-	testRouterOnce sync.Once
-	testRouterMux  *chi.Mux
-	testRouterJWT  *auth.JWTManager
+	testRouterOnce    sync.Once
+	testRouterMux     *chi.Mux
+	testRouterJWT     *auth.JWTManager
+	testRouterHub     *streaming.Hub
+	testRouterStreams *testutil.MockStreamRepo
+	testRouterMetrics *observability.Metrics
 )
 
 func testRouter(t *testing.T) (*chi.Mux, *auth.JWTManager) {
 	t.Helper()
 	testRouterOnce.Do(func() {
 		testRouterJWT = auth.NewJWTManager("test-secret", time.Minute, time.Hour)
+		testRouterHub = streaming.NewHub(zerolog.Nop())
+		testRouterStreams = testutil.NewMockStreamRepo()
+		testRouterMetrics = observability.NewMetrics()
 		testRouterMux = NewRouter(RouterConfig{
+			StreamService:  application.NewStreamService(testRouterStreams, testRouterHub),
+			StreamRepo:     testRouterStreams,
+			Hub:            testRouterHub,
 			JWTManager:     testRouterJWT,
 			Logger:         zerolog.Nop(),
-			Metrics:        observability.NewMetrics(),
+			Metrics:        testRouterMetrics,
 			CORSOrigins:    "*",
 			RateLimitRPS:   1000,
 			RateLimitBurst: 1000,
