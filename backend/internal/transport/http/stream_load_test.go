@@ -81,7 +81,7 @@ func listenSSE(ctx context.Context, client *nethttp.Client, url, token string, w
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != nethttp.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("status %d: %s", resp.StatusCode, body)
@@ -198,7 +198,7 @@ func TestStreamFanOutOverSSE(t *testing.T) {
 			broadcastDone <- err
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != nethttp.StatusOK {
 			broadcastDone <- fmt.Errorf("broadcast status %d", resp.StatusCode)
 			return
@@ -215,7 +215,7 @@ func TestStreamFanOutOverSSE(t *testing.T) {
 			t.Fatalf("broadcaster write: %v", err)
 		}
 	}
-	pw.Close()
+	_ = pw.Close()
 	if err := <-broadcastDone; err != nil {
 		t.Fatalf("broadcaster: %v", err)
 	}
