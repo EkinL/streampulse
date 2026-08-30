@@ -30,7 +30,7 @@ jobs:
       # vient de la bibliotheque standard, et le seul correctif est une montee
       # de toolchain. Figer '1.26.7' ici ferait echouer le job a la CVE
       # suivante.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.26'
           cache-dependency-path: backend/go.sum
