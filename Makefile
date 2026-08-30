@@ -73,3 +73,17 @@ mobile-run: dart-define
 
 mobile-run-debug: dart-define
 	cd mobile && flutter run $(TARGET) --dart-define-from-file=dart_define.json
+
+# --- Production ----------------------------------------------------------
+# Stack de dev + surcouche de production (Caddy termine TLS, API non
+# publiee, CORS explicite, ports internes fermes). Variables attendues dans
+# un .env a la racine : API_DOMAIN, CORS_ALLOWED_ORIGINS, JWT_SECRET.
+# Voir docs/deployment.md, section HTTPS.
+PROD_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.prod.yml
+
+.PHONY: up-prod down-prod
+up-prod:
+	$(PROD_COMPOSE) up -d --build
+
+down-prod:
+	$(PROD_COMPOSE) down

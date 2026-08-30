@@ -129,6 +129,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_ENV` | development | `production` durcit la configuration : le joker CORS est refuse au demarrage |
 | `PORT` | 8080 | Port du serveur |
 | `DATABASE_URL` | - | URL PostgreSQL |
 | `JWT_SECRET` | - | Secret JWT (changer en prod) |
@@ -137,7 +138,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `OTEL_ENDPOINT` | localhost:4317 | Endpoint OTEL Collector |
 | `LOG_LEVEL` | info | Niveau de log |
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
-| `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
+| `CORS_ALLOWED_ORIGINS` | * | Origines CORS, separees par des virgules. `*` n'est accepte qu'en dehors de `APP_ENV=production` ; avec le joker, `Allow-Credentials` n'est pas annonce |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
 | `TRUSTED_PROXIES` | (vide) | Reverse-proxies dont `X-Forwarded-For` est accepte, en CIDR ou adresse. Vide = aucun en-tete de transmission n'est cru |
 | `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |

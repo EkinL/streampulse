@@ -186,7 +186,8 @@ une liste partielle est refusee plutot que d'etre appliquee a moitie.
 
 Executee le 2026-08-28 contre le serveur lance en local (`make run`) sur une
 base PostgreSQL jetable ; R-88 et R-89 contre un second serveur demarre avec
-un certificat auto-signe (voir [deployment.md](deployment.md#https)).
+un certificat auto-signe (voir [deployment.md](deployment.md#https)) ; R-90
+le 2026-08-30, binaire lance directement avec les variables d'environnement.
 
 | Cas | Requete | Role | Attendu | Obtenu | |
 |-----|---------|------|---------|--------|---|
@@ -200,6 +201,7 @@ un certificat auto-signe (voir [deployment.md](deployment.md#https)).
 | R-87 | `DELETE /admin/users/{id}`, puis rejeu, puis id `pas-un-uuid` | admin | 200, 404, 400 | 200 `status: deleted`, 404, 400 | OK |
 | R-88 | `GET /health` sur le serveur demarre avec `TLS_CERT_FILE` / `TLS_KEY_FILE` | anonyme | 200 en HTTPS, refus du HTTP en clair | 200, `TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256` ; 400 en HTTP clair | OK |
 | R-89 | Demarrage avec `TLS_CERT_FILE` seul | — | refus de demarrer | `TLS_CERT_FILE and TLS_KEY_FILE must be set together`, exit 2 | OK |
+| R-90 | Demarrage avec `APP_ENV=production` et `CORS_ALLOWED_ORIGINS=*` ; puis avec `CORS_ALLOWED_ORIGINS=https://console.example.com` | — | refus de demarrer, puis demarrage normal | `CORS_ALLOWED_ORIGINS must list explicit origins when APP_ENV=production`, exit 2 ; puis `starting streampulse api env=production` | OK |
 
 R-83 a R-85 sont les cas qui prouvent l'effacement : rien d'utilisable ne
 subsiste pour l'ancien detenteur du compte, et l'adresse est immediatement

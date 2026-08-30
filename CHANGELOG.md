@@ -26,6 +26,16 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ## [Non publie]
 
 ### Ajoute
+- Reverse proxy de production dans la stack : `docker-compose.prod.yml` +
+  `caddy/Caddyfile` (`make up-prod`). Caddy termine TLS (Let's Encrypt),
+  l'API n'est plus publiee, PostgreSQL et le collecteur OTEL non plus,
+  Prometheus et Grafana ne repondent que sur l'interface locale, et
+  `TRUSTED_PROXIES` designe le reseau Docker pour que le rate limiting voie
+  l'adresse du client
+- `APP_ENV=production` refuse de demarrer avec `CORS_ALLOWED_ORIGINS=*` ou
+  vide : les origines de la console web doivent etre nommees. Avec le joker,
+  `Access-Control-Allow-Credentials` n'est plus annonce (observation O-3 du
+  plan de tests)
 - Droits RGPD (Ce3.1.4) : `GET /users/me` renvoie toutes les donnees du
   compte, `DELETE /users/me` l'efface avec tout ce qui s'y rattache (cascade
   en base), `DELETE /admin/users/{id}` pour une demande traitee par un
