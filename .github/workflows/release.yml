@@ -102,7 +102,7 @@ jobs:
       # Trois etiquettes : la version exacte pour reproduire un incident,
       # la mineure pour suivre les correctifs, `latest` pour demarrer vite.
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ needs.verify.outputs.image }}
           tags: |
