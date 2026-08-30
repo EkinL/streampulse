@@ -17,6 +17,8 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../app/constants.dart';
 import '../../../music/data/music_repository.dart';
 import '../../../music/domain/music_model.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/auth_state.dart';
 
 class BroadcasterScreen extends ConsumerStatefulWidget {
   const BroadcasterScreen({super.key});
@@ -661,10 +663,18 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
     return Consumer(
       builder: (context, ref, _) {
         final streamsAsync = ref.watch(streamListProvider);
+        final authState = ref.watch(authProvider);
+        final currentUserId =
+            authState is AuthAuthenticated ? authState.user.id : '';
         return streamsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
           error: (error, _) => Text('Error: $error', style: const TextStyle(color: SP.error)),
-          data: (streams) {
+          data: (allStreams) {
+            // Le backend renvoie tous les streams : on ne garde que ceux
+            // du broadcaster connecte (seul lui peut les demarrer/arreter).
+            final streams = allStreams
+                .where((s) => s.ownerId == currentUserId)
+                .toList();
             if (streams.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(24),
