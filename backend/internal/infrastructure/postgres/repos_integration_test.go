@@ -216,15 +216,31 @@ func TestRefreshTokenRepo_Expired(t *testing.T) {
 func TestCascadeOnUserDelete(t *testing.T) {
 	pool := db(t)
 	ctx := context.Background()
+	users := postgres.NewUserRepo(pool)
 	u := newUser(t, pool, domain.RoleBroadcaster)
 	s := newStream(t, pool, u.ID)
 	tokens := postgres.NewRefreshTokenRepo(pool)
 	if err := tokens.Store(ctx, u.ID, "hash-cascade", time.Now().Add(time.Hour)); err != nil {
 		t.Fatalf("Store: %v", err)
 	}
+	p := testutil.NewTestPlaylist(u.ID)
+	if err := postgres.NewPlaylistRepo(pool).Create(ctx, p); err != nil {
+		t.Fatalf("Create playlist: %v", err)
+	}
+	if err := postgres.NewFavoriteRepo(pool).Add(ctx, u.ID, s.ID); err != nil {
+		t.Fatalf("Add favorite: %v", err)
+	}
 
-	if _, err := pool.Exec(ctx, "DELETE FROM users WHERE id = $1", u.ID); err != nil {
-		t.Fatalf("suppression du compte: %v", err)
+	// Le droit a l'effacement passe par UserRepo.Delete : c'est lui, et non
+	// un DELETE ecrit a la main, qui doit declencher les cascades.
+	if err := users.Delete(ctx, u.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if err := users.Delete(ctx, u.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("seconde suppression: attendu ErrNotFound, obtenu %v", err)
+	}
+	if _, err := users.FindByID(ctx, u.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("compte encore present: %v", err)
 	}
 
 	if _, err := tokens.FindByHash(ctx, "hash-cascade"); !errors.Is(err, domain.ErrNotFound) {
@@ -232,6 +248,16 @@ func TestCascadeOnUserDelete(t *testing.T) {
 	}
 	if _, err := postgres.NewStreamRepo(pool).FindByID(ctx, s.ID); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("flux orphelin: %v", err)
+	}
+	if _, err := postgres.NewPlaylistRepo(pool).FindByID(ctx, p.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("playlist orpheline: %v", err)
+	}
+	var favorites int
+	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM favorites WHERE user_id = $1", u.ID).Scan(&favorites); err != nil {
+		t.Fatalf("comptage favoris: %v", err)
+	}
+	if favorites != 0 {
+		t.Fatalf("%d favori(s) orphelin(s)", favorites)
 	}
 }
 

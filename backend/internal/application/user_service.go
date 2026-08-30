@@ -8,12 +8,20 @@ import (
 	"github.com/streampulse/backend/internal/domain"
 )
 
-type UserService struct {
-	userRepo domain.UserRepository
+// StreamCloser deconnecte les auditeurs d'un flux. Satisfait par
+// *streaming.Hub ; une interface pour que le service reste testable sans Hub.
+type StreamCloser interface {
+	CloseStream(streamID uuid.UUID)
 }
 
-func NewUserService(userRepo domain.UserRepository) *UserService {
-	return &UserService{userRepo: userRepo}
+type UserService struct {
+	userRepo   domain.UserRepository
+	streamRepo domain.StreamRepository
+	closer     StreamCloser
+}
+
+func NewUserService(userRepo domain.UserRepository, streamRepo domain.StreamRepository, closer StreamCloser) *UserService {
+	return &UserService{userRepo: userRepo, streamRepo: streamRepo, closer: closer}
 }
 
 func (s *UserService) GetUsers(ctx context.Context, page, perPage int) ([]domain.User, int, error) {
@@ -46,4 +54,28 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, 
 		return nil, fmt.Errorf("user: get: %w", err)
 	}
 	return user, nil
+}
+
+// DeleteUser efface un compte et tout ce qui s'y rattache. Utilise a la fois
+// par la personne elle-meme (DELETE /users/me) et par un administrateur qui
+// traite une demande d'effacement (DELETE /admin/users/{id}).
+//
+// Les flux du compte disparaissent de la base par cascade, mais le Hub ne
+// lit pas la base : sans cet appel, un diffuseur en direct qui supprime son
+// compte continuerait d'etre entendu jusqu'a la coupure de sa connexion.
+// On liste ses flux avant l'effacement, on efface, puis on ferme le direct.
+func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	streams, err := s.streamRepo.ListByOwner(ctx, id)
+	if err != nil {
+		return fmt.Errorf("user: delete: list streams: %w", err)
+	}
+	if err := s.userRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("user: delete: %w", err)
+	}
+	for _, st := range streams {
+		if st.Status == domain.StreamStatusLive {
+			s.closer.CloseStream(st.ID)
+		}
+	}
+	return nil
 }

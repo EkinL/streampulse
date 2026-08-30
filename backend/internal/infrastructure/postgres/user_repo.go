@@ -99,6 +99,21 @@ func (r *UserRepo) UpdateRole(ctx context.Context, id uuid.UUID, role domain.Rol
 	return nil
 }
 
+// Delete supprime la ligne users. Les tables liees (refresh_tokens, streams,
+// playlists, favorites, music, music_favorites) declarent toutes
+// ON DELETE CASCADE vers users(id) : une seule requete efface l'ensemble des
+// donnees de la personne, sans risque d'oublier une table.
+func (r *UserRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		return fmt.Errorf("user_repo: delete: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user_repo: delete: %w", domain.ErrNotFound)
+	}
+	return nil
+}
+
 func (r *UserRepo) scanUser(ctx context.Context, query string, args ...interface{}) (*domain.User, error) {
 	var u domain.User
 	var role string

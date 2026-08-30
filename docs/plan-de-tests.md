@@ -17,6 +17,7 @@ automatise et rejouable par `make`.
 |----------|--------|--------------------|
 | Chaque cas d'usage du sujet a au moins un test automatise a chaque niveau applicable | cartographie de la section 3 | 19/19 cas couverts |
 | Couverture de code du module Go | `make cover-check` | **75,6 %** (77,8 % hors `cmd/server`) — cible 80 % |
+| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **19,7 %** (54 tests) — seuil 15 %, releve avec l'iteration 2 |
 | Aucun test rouge sur `develop` | CI `backend.yml` / `mobile.yml` | vert |
 | Tout defaut trouve donne d'abord un test rouge, puis un correctif | section 6 | 4 defauts, 4 corriges |
 
@@ -24,7 +25,10 @@ Regles appliquees a chaque PR :
 
 - **Le test est ecrit avec le code, pas apres.** Une PR qui ajoute un
   comportement ajoute le test qui le decrit ; la CI echoue sous le seuil de
-  couverture (`COVERAGE_MIN`, 70 % aujourd'hui, releve a chaque iteration).
+  couverture (`COVERAGE_MIN` : 70 % backend, 15 % mobile aujourd'hui, releve
+  a chaque iteration). Le chiffre de chaque run est ecrit dans le resume du
+  job GitHub Actions et le rapport (`coverage.out`, `lcov.info`) est publie
+  en artefact de PR : la trajectoire se lit d'une PR a l'autre.
 - **Un defaut commence par un test rouge.** Les quatre anomalies de la
   section 6 ont chacune un test qui echouait avant le correctif.
 - **Les cas de refus comptent autant que les cas nominaux.** Chaque endpoint
@@ -46,7 +50,7 @@ Regles appliquees a chaque PR :
 | **Integration API** | Le serveur complet — request id, tracing, CORS, rate-limit, JWT, RBAC, services, repositories, Hub — vu par un client HTTP, scenario par scenario et role par role | Tout est reel sauf l'exporteur OTEL (muet) et le dossier d'upload (temporaire) ; schema dedie `it_api` | `internal/integration/` | `make test-integration` |
 | **Securite** | Jetons forges (payload modifie, autre secret, `alg=none`, expire), rejeu de refresh token, injection SQL, mass assignment, matrice role x endpoint, propriete distincte du role, rate limiting, secrets haches, correlation des erreurs | Unitaire et integration | `auth/jwt_test.go`, `middleware/*_test.go`, `integration/security_test.go`, `integration/rbac_test.go` | les deux commandes |
 | **Charge** | Le Hub encaisse N auditeurs sans bloquer ni fuir | Hub reel, 1000 clients | branche `test/hub-load-proof` (PR ouverte) | `make bench`, `make load-test` a la fusion |
-| **Mobile** | Demarrage et redirection vers la connexion sans session, routes API attendues par le client, stockage securise des jetons, console web (roles admin, destinations, ecran de connexion) | `flutter_test`, sources natives remplacees par des faux | `mobile/test/` | `make test-mobile` |
+| **Mobile** | Demarrage et redirection vers la connexion sans session, routes API attendues par le client, stockage securise des jetons, console web (roles admin, destinations, ecran de connexion) | `flutter_test`, sources natives remplacees par des faux | `mobile/test/` | `make test-mobile-cover` |
 | **Recette manuelle** | L'API telle qu'un client la consomme, avec les codes et corps reellement observes | Stack `docker compose` | [cahier-de-recette.md](cahier-de-recette.md) | `curl` |
 
 ### Isolation des tests d'integration
@@ -95,6 +99,9 @@ ne s'applique pas.
 | UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart` | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) | guide utilisateur |
 | UC-18 | Console web diffuseur / admin | `console_*_test.dart` (roles admin, destinations par role, ecran de connexion, shell) | — | destinations filtrees par role | guide utilisateur |
 | UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | — (iteration 2) | — | — | guide utilisateur, recette manuelle sur simulateur |
+| UC-20 | Droits RGPD : acces et effacement de son compte (Ce3.1.4) | `TestUserService_DeleteUser`, `TestPurgeExpiredRefreshTokens` | `TestUsers_AccessAndErasure` (profil sans hash, cascade sur 6 tables, refresh et login refuses, email libere), `TestCascadeOnUserDelete` | `TestRBAC_EndpointMatrix` (`/users/me` authentifie) ; jeton encore valide → 404 | R-80 a R-85 |
+| UC-21 | Admin : effacement sur demande (Ce3.1.4) | `TestUserService_DeleteUser` | `TestAdmin_DeleteUser` (id invalide, inconnu, disparition de la liste) | `TestRBAC_EndpointMatrix` (`adminOnly`), user → 403 | R-86, R-87 |
+| UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul) | — | TLS 1.2 minimum | R-88 |
 
 ## 4. Campagne de securite
 
@@ -108,7 +115,8 @@ est un test automatise qui s'execute a chaque PR.
 | API3 — autorisation au niveau propriete (mass assignment) | Tout champ hors contrat est refuse : `role` a l'inscription, `owner_id`, `status`, `position`, `id`, `uploaded_by` | `TestSecurity_UnknownFieldsRejected`, `TestAuth_RegisterValidation` | OK |
 | API4 — consommation de ressources | Rate limiting par hote, burst puis 429, recharge, `X-Forwarded-For` derriere un proxy | `middleware/ratelimit_test.go` | OK apres correctif A-01 ; taille des corps non bornee → O-2 |
 | API5 — autorisation au niveau fonction | Matrice 4 roles x 16 routes ; hierarchie `anonymous < user < broadcaster < admin` ; role inconnu jamais accepte | `TestRBAC_EndpointMatrix`, `TestRequireRoleMatrix`, `TestRequireRoleRejectsUnknownRole`, `TestMetricsAccess` | OK |
-| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; `X-Request-ID` expose au navigateur | `middleware/cors_test.go` | OK ; `*` en dev → O-3 ; TLS hors perimetre (deploiement) |
+| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; `X-Request-ID` expose au navigateur ; TLS natif refuse une configuration a moitie renseignee | `middleware/cors_test.go`, `config_test.go` (`TestLoadRejectsHalfTLSConfig`) | OK ; `*` en dev → O-3 ; terminaison TLS documentee dans [deployment.md](deployment.md#https) |
+| Donnees personnelles (RGPD) | Une personne lit tout ce qui la concerne et efface son compte ; rien ne subsiste dans les six tables liees ; ses anciens jetons ne donnent plus acces a rien ; les refresh tokens expires sont purges | `TestUsers_AccessAndErasure`, `TestAdmin_DeleteUser`, `TestCascadeOnUserDelete`, `TestPurgeExpiredRefreshTokens` | OK ; registre et retention dans [rgpd.md](rgpd.md) |
 | Injection | Charges SQL a l'inscription, a la connexion, dans la recherche, dans un identifiant de chemin : stockees telles quelles ou rejetees, tables intactes | `TestSecurity_SQLInjectionIsNeutralised` | OK (requetes parametrees pgx, ADR 005) |
 | Fuite d'information | Mot de passe et hash jamais renvoyes ; playlist privee d'autrui → 404 et non 403 ; erreurs correlables sans detail interne | `TestAuth_RegisterLoginRefresh`, `TestAdmin_UsersAndRoles`, `TestPlaylists_VisibilityAndOwnership`, `TestSecurity_EveryResponseIsCorrelated` | OK ; ecritures sur playlist privee → O-4 |
 
@@ -132,6 +140,7 @@ Couverture par paquet : `postgres` 1,5 %, `handlers` 3,4 %, `auth` 0 %,
 | Integration base : 8 repositories + migrations, schema isole | 16 | `postgres/repos_integration_test.go`, `testutil/pgtest.go` |
 | Integration API et securite : auth, matrice RBAC, flux avec auditeur SSE, playlists, favoris, musique (URL et multipart), admin, securite | 21 (dont 4 de securite) et 71 sous-tests | `internal/integration/` |
 | Outillage | `make test-unit`, `make test-integration`, `make cover-check`, `-coverpkg` et seuil de couverture en CI | `Makefile`, `backend.yml` |
+| Outillage mobile | `make test-mobile-cover`, seuil de couverture en CI (`scripts/coverage_check.sh`), rapport `lcov.info` en artefact | `Makefile`, `mobile/scripts/`, `mobile.yml` |
 
 Resultat : 121 fonctions de test, couverture **75,6 %** (77,8 % hors
 `cmd/server`, qui n'est pas testable unitairement). Quatre defauts trouves et
@@ -170,8 +179,12 @@ Travaux de l'iteration :
    [slo.md](slo.md) ne sont pas mesurables.
 3. Traiter O-2 : `http.MaxBytesReader` sur les corps JSON, test a 413.
 4. Mobile : tests widget du lecteur (progression, volume, file d'attente), de
-   l'ecran diffuseur (start/stop) et des gardes de routes par role.
+   l'ecran diffuseur (start/stop) et des gardes de routes par role ; relever
+   le seuil mobile (`COVERAGE_MIN` de `coverage_check.sh`) en consequence.
 5. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
+6. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
+   (rectification) et nettoyage des fichiers audio orphelins, chacun avec
+   son test d'integration.
 
 ### Iteration 3 — planifiee
 
@@ -219,15 +232,19 @@ make test-integration
 # Tout, avec le seuil de couverture de la CI
 make cover-check                                # COVERAGE_MIN=80 make cover-check pour viser la cible
 
-# Mobile
-cd ../mobile && flutter test
+# Mobile, avec le seuil de couverture de la CI
+cd .. && make test-mobile-cover           # COVERAGE_MIN=20 make test-mobile-cover pour viser plus haut
 ```
 
 En CI (`.github/workflows/backend.yml`), le job `test` demarre un service
 PostgreSQL, exporte `DATABASE_URL`, execute `go test -race -coverpkg=./...`
 puis le seuil de couverture. Les jobs `lint` (golangci-lint) et `openapi`
 (redocly) tournent en parallele ; `build` n'est lance que si les trois sont
-verts.
+verts. Cote mobile (`mobile.yml`), le job `test` execute
+`flutter test --coverage` puis `scripts/coverage_check.sh` ; les builds APK,
+iOS et web n'ont lieu que s'il est vert. Dans les deux workflows, le chiffre
+de couverture apparait dans le resume du job et le rapport est telechargeable
+en artefact de la PR.
 
 ### Criteres d'entree et de sortie d'une iteration
 

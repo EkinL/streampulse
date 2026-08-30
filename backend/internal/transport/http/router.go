@@ -17,24 +17,24 @@ import (
 )
 
 type RouterConfig struct {
-	AuthService     *application.AuthService
-	StreamService   *application.StreamService
-	PlaylistService *application.PlaylistService
-	UserService     *application.UserService
-	MusicService    *application.MusicService
-	FavoriteRepo         domain.FavoriteRepository
-	MusicFavoriteRepo   domain.MusicFavoriteRepository
-	StreamRepo           domain.StreamRepository
-	MusicRepo            domain.MusicRepository
-	JWTManager      *auth.JWTManager
-	Hub             *streaming.Hub
-	Logger          zerolog.Logger
-	Metrics         *observability.Metrics
-	CORSOrigins     string
-	RateLimitRPS    float64
-	RateLimitBurst  int
-	TrustedProxies  []string
-	ServiceName     string
+	AuthService       *application.AuthService
+	StreamService     *application.StreamService
+	PlaylistService   *application.PlaylistService
+	UserService       *application.UserService
+	MusicService      *application.MusicService
+	FavoriteRepo      domain.FavoriteRepository
+	MusicFavoriteRepo domain.MusicFavoriteRepository
+	StreamRepo        domain.StreamRepository
+	MusicRepo         domain.MusicRepository
+	JWTManager        *auth.JWTManager
+	Hub               *streaming.Hub
+	Logger            zerolog.Logger
+	Metrics           *observability.Metrics
+	CORSOrigins       string
+	RateLimitRPS      float64
+	RateLimitBurst    int
+	TrustedProxies    []string
+	ServiceName       string
 }
 
 func NewRouter(cfg RouterConfig) *chi.Mux {
@@ -71,6 +71,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.Logger, cfg.Metrics)
 	playlistHandler := handlers.NewPlaylistHandler(cfg.PlaylistService)
 	adminHandler := handlers.NewAdminHandler(cfg.UserService)
+	userHandler := handlers.NewUserHandler(cfg.UserService)
 	favoritesHandler := handlers.NewFavoritesHandler(cfg.FavoriteRepo, cfg.StreamRepo)
 	musicHandler := handlers.NewMusicHandler(cfg.MusicService, cfg.StreamRepo)
 	musicFavHandler := handlers.NewMusicFavoritesHandler(cfg.MusicFavoriteRepo, cfg.MusicRepo)
@@ -113,6 +114,12 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Get("/streams/{id}/listen", streamHandler.Listen)
 		r.Get("/streams/{id}/audio", streamHandler.AudioStream)
 		r.Get("/streams/{id}/listeners", streamHandler.GetListeners)
+
+		// Compte de la personne connectee : droit d'acces et droit a
+		// l'effacement (RGPD, docs/rgpd.md). Ouvert a tout compte
+		// authentifie, quel que soit son role.
+		r.Get("/users/me", userHandler.Me)
+		r.Delete("/users/me", userHandler.DeleteMe)
 
 		// Streams - broadcaster only
 		r.Group(func(r chi.Router) {
@@ -159,6 +166,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Use(middleware.RequireRole(domain.RoleAdmin))
 			r.Get("/admin/users", adminHandler.ListUsers)
 			r.Put("/admin/users/{id}/role", adminHandler.UpdateUserRole)
+			r.Delete("/admin/users/{id}", adminHandler.DeleteUser)
 
 			// Prometheus metrics: admin only, as required by docs/api.md.
 			// Prometheus itself scrapes the internal listener started in

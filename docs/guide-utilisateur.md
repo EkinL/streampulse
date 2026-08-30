@@ -65,6 +65,15 @@ le serveur et suit le compte d'un appareil a l'autre.
 L'icone en forme de coeur, sur une carte de flux ou un morceau, l'ajoute a
 l'onglet **Favoris**.
 
+### 7. Consulter ou supprimer son compte
+Toucher l'avatar (onglet **Profil**) affiche les informations du compte.
+**Delete my account** supprime definitivement le compte, ses playlists, ses
+favoris et, pour un diffuseur, ses flux et morceaux, apres une confirmation.
+L'email redevient utilisable pour une nouvelle inscription.
+
+> Cette suppression est immediate et irreversible. Ce que la plateforme
+> conserve, et pourquoi, est detaille dans [rgpd.md](rgpd.md).
+
 ---
 
 ## Parcours 2 — Diffuseur
@@ -135,6 +144,13 @@ colonne role applique le changement immediatement.
 ### 3. Consulter les metriques
 `/metrics` expose les indicateurs Prometheus, reserves au role administrateur.
 Le tableau de bord Grafana en donne une lecture visuelle.
+
+### 4. Supprimer un compte sur demande
+Une personne qui demande l'effacement de ses donnees par un autre canal que
+l'application (courriel, courrier) est traitee par
+`DELETE /admin/users/{id}` : meme effet que si elle l'avait fait elle-meme,
+tout ce qui rattache le compte disparait. Verifier l'identite du demandeur
+avant d'agir ; l'operation est irreversible.
 
 ---
 

@@ -26,10 +26,25 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ## [Non publie]
 
 ### Ajoute
+- Droits RGPD (Ce3.1.4) : `GET /users/me` renvoie toutes les donnees du
+  compte, `DELETE /users/me` l'efface avec tout ce qui s'y rattache (cascade
+  en base), `DELETE /admin/users/{id}` pour une demande traitee par un
+  administrateur ; bouton **Delete my account** dans le profil mobile
+- Politique de retention : purge automatique des refresh tokens expires
+  (`REFRESH_TOKEN_PURGE_INTERVAL`, 1 h)
+- HTTPS natif optionnel (`TLS_CERT_FILE` / `TLS_KEY_FILE`, TLS 1.2 minimum)
+  et guide de terminaison TLS par reverse proxy dans `docs/deployment.md`
+- `docs/rgpd.md` (registre des traitements, retention, droits, mesures de
+  securite, FR + resume EN) et ADR 007 (effacement physique en cascade)
+- `PUBLIC_BASE_URL` : URL publique des fichiers uploades, deduite du port et
+  de TLS par defaut au lieu d'un `http://localhost` en dur
 - Description OpenAPI 3.1 de l'API, servie sur `/openapi.yaml` et rendue sur
   `/docs`, avec un test qui echoue si le routeur et la description divergent
 - AppBundle iOS (`.ipa`) produit par la CI, et `make ipa` en local
 - Console web pour les roles diffuseur et administrateur
+- Seuil de couverture mobile en CI (15 %, `mobile/scripts/coverage_check.sh`,
+  `make test-mobile-cover`) ; le chiffre est ecrit dans le resume du job
+  GitHub Actions et le rapport `lcov.info` est publie en artefact de PR
 - File d'attente de playlist persistee cote serveur : `PUT /playlists/{id}/tracks`
 - Preuve de charge du Hub de fan-out : benchmarks et tests a 1000 auditeurs
 - Documentation de scalabilite chiffree, ADR 004 a 006, cahier de recette, SLO
@@ -58,6 +73,8 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ### Modifie
 - Identifiant d'application : `com.example.streampulse` -> `dev.streampulse.app`
   sur iOS et Android
+- Seeds de developpement : comptes fictifs `@streampulse.io` uniquement, plus
+  aucune adresse personnelle dans le depot
 
 ### Securite
 - Dependances montees pour corriger **29 vulnerabilites HIGH/CRITICAL**

@@ -27,6 +27,12 @@ test-backend-integration:
 test-mobile:
 	cd mobile && flutter test
 
+# Tests mobile avec le seuil de couverture de la CI (COVERAGE_MIN, voir
+# mobile/scripts/coverage_check.sh).
+.PHONY: test-mobile-cover
+test-mobile-cover:
+	cd mobile && flutter test --coverage && ./scripts/coverage_check.sh
+
 # AppBundle iOS non signe (livrable). Necessite Xcode : impossible sur Linux.
 # Le .ipa atterrit dans mobile/build/ios/ipa/.
 ipa:

@@ -107,6 +107,10 @@ func (h *MusicHandler) UploadMusic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Multipart form for file upload
+	if err := extendDeadlines(w, uploadReadTimeout); err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to prepare upload")
+		return
+	}
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		respondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to parse multipart form")
 		return

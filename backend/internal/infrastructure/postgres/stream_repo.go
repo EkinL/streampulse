@@ -140,3 +140,27 @@ func (r *StreamRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	return nil
 }
+
+func (r *StreamRepo) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Stream, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, title, description, owner_id, status, listener_count, format, created_at, updated_at
+		 FROM streams WHERE owner_id = $1 ORDER BY created_at DESC`, ownerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("stream_repo: list_by_owner: %w", err)
+	}
+	defer rows.Close()
+
+	var streams []domain.Stream
+	for rows.Next() {
+		var s domain.Stream
+		var status string
+		if err := rows.Scan(&s.ID, &s.Title, &s.Description, &s.OwnerID, &status,
+			&s.ListenerCount, &s.Format, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("stream_repo: list_by_owner scan: %w", err)
+		}
+		s.Status = domain.StreamStatus(status)
+		streams = append(streams, s)
+	}
+	return streams, nil
+}

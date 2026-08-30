@@ -1,4 +1,4 @@
-.PHONY: build run test lint migrate docker-build openapi-lint openapi-bundle
+.PHONY: build run test bench load-test lint migrate docker-build openapi-lint openapi-bundle
 
 build:
 	go build -o bin/server ./cmd/server
@@ -14,6 +14,17 @@ test:
 
 test-cover: test
 	go tool cover -html=coverage.out
+
+# Preuve de charge du Hub de fan-out (cf. docs/ADR/003-streaming-sse.md).
+# bench : cout d'un chunk diffuse a 10 / 100 / 1000 / 10000 auditeurs.
+bench:
+	go test -run '^$$' -bench 'Hub' -benchmem ./internal/infrastructure/streaming/
+
+# load-test : 1000 auditeurs sur le Hub seul, puis 500 vrais clients SSE
+# a travers le routeur complet (JWT, RBAC, rate-limit).
+load-test:
+	go test -race -count=1 -v -run 'TestHubFanOutNListeners|TestStreamFanOutOverSSE' \
+		./internal/infrastructure/streaming/ ./internal/transport/http/
 
 lint:
 	golangci-lint run ./...
