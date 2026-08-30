@@ -85,16 +85,16 @@ jobs:
           JWT_SECRET: test-secret
         run: go test -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
       # Seuil de couverture : la PR echoue en dessous. Valeur et trajectoire
-      # dans docs/plan-de-tests.md (cible du sujet : 80 %). Le chiffre est
-      # aussi ecrit dans le resume du job, pour suivre son evolution d'un run
-      # a l'autre.
+      # dans docs/plan-de-tests.md (cible du sujet : 80 %, seuil aligne
+      # dessus). Le chiffre est aussi ecrit dans le resume du job, pour
+      # suivre son evolution d'un run a l'autre.
       - name: Coverage gate
         working-directory: backend
         run: |
           total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
-          echo "couverture totale : ${total} % (minimum 70 %)"
-          echo "Couverture backend : **${total} %** (minimum 70 %)" >> "$GITHUB_STEP_SUMMARY"
-          awk -v t="$total" -v m=70 'BEGIN { exit (t + 0 < m + 0) ? 1 : 0 }'
+          echo "couverture totale : ${total} % (minimum 80 %)"
+          echo "Couverture backend : **${total} %** (minimum 80 %)" >> "$GITHUB_STEP_SUMMARY"
+          awk -v t="$total" -v m=80 'BEGIN { exit (t + 0 < m + 0) ? 1 : 0 }'
       # Une seule iteration : verifie que les benchmarks du Hub restent
       # executables. Les chiffres de reference sont dans docs/ADR/003.
       - name: Hub benchmarks (smoke)
