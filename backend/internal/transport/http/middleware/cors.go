@@ -17,16 +17,24 @@ func CORS(allowedOrigins string) func(next interface{}) interface{} {
 
 func CORSHandler(allowedOrigins string) *cors.Cors {
 	origins := strings.Split(allowedOrigins, ",")
+	wildcard := false
 	for i := range origins {
 		origins[i] = strings.TrimSpace(origins[i])
+		if origins[i] == "*" {
+			wildcard = true
+		}
 	}
 
 	return cors.New(cors.Options{
-		AllowedOrigins:   origins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
-		ExposedHeaders:   []string{"Link", "X-Request-ID"},
-		AllowCredentials: true,
+		AllowedOrigins: origins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		ExposedHeaders: []string{"Link", "X-Request-ID"},
+		// Les navigateurs refusent la paire `Allow-Origin: *` +
+		// `Allow-Credentials: true` : avec le joker, l'annoncer ne sert a rien
+		// et ressemble a une mauvaise configuration (observation O-3 du plan
+		// de tests). On ne l'annonce que pour des origines nommees.
+		AllowCredentials: !wildcard,
 		MaxAge:           300,
 	})
 }

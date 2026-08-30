@@ -83,7 +83,8 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 | Rate limiting par hote | `middleware/ratelimit.go` |
 | Requetes SQL parametrees (pgx), aucune concatenation | `infrastructure/postgres/*`, `TestSecurity_SQLInjectionIsNeutralised` |
 | Refus des champs JSON inconnus (pas de mass assignment) | `handlers/response.go` (`DisallowUnknownFields`), `TestSecurity_UnknownFieldsRejected` |
-| Origines CORS configurables, a restreindre en production | `CORS_ALLOWED_ORIGINS` |
+| Origines CORS nommees : le joker `*` est refuse au demarrage en production, et n'annonce jamais `Allow-Credentials` | `CORS_ALLOWED_ORIGINS`, `config/config.go`, `middleware/cors.go`, `TestLoadRejectsWildcardCORSInProduction` |
+| Reverse proxy Caddy en production : TLS termine, API non publiee, PostgreSQL et collecteur non exposes, `X-Forwarded-For` cru seulement depuis `TRUSTED_PROXIES` | `docker-compose.prod.yml`, `caddy/Caddyfile`, `middleware/ratelimit.go` |
 | Aucun secret dans le depot : tout passe par des variables d'environnement, `backend/.env` est ignore par git | `config/config.go`, `.env.example` |
 | Image Docker minimale (multi-stage, alpine, binaire `-s -w`) | `backend/Dockerfile` |
 

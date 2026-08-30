@@ -77,7 +77,28 @@ func Load() (*Config, error) {
 	if cfg.RefreshTokenPurgeInterval <= 0 {
 		return nil, fmt.Errorf("config: load: REFRESH_TOKEN_PURGE_INTERVAL must be positive")
 	}
+	// Le joker CORS convient au developpement (simulateur, Flutter web sur un
+	// port quelconque) mais pas a un serveur expose : n'importe quel site
+	// pourrait alors appeler l'API depuis le navigateur d'un utilisateur. En
+	// production, on exige la liste des origines de la console web.
+	if cfg.IsProduction() && !cfg.CORSOriginsAreExplicit() {
+		return nil, fmt.Errorf("config: load: CORS_ALLOWED_ORIGINS must list explicit origins when APP_ENV=production")
+	}
 	return &cfg, nil
+}
+
+// CORSOriginsAreExplicit dit si CORS_ALLOWED_ORIGINS ne contient que des
+// origines nommees. Un "*" seul ou dans la liste revient a tout accepter
+// (c'est ainsi que go-chi/cors l'interprete), une valeur vide n'autorise
+// personne : dans les deux cas ce n'est pas une configuration de production.
+func (c *Config) CORSOriginsAreExplicit() bool {
+	for _, origin := range strings.Split(c.CORSAllowedOrigins, ",") {
+		origin = strings.TrimSpace(origin)
+		if origin == "" || origin == "*" {
+			return false
+		}
+	}
+	return true
 }
 
 // PublicBaseURL rend l'URL publique de l'API sans barre finale.
@@ -99,6 +120,10 @@ func (c *Config) TLSEnabled() bool {
 
 func (c *Config) IsDevelopment() bool {
 	return c.AppEnv == "development"
+}
+
+func (c *Config) IsProduction() bool {
+	return c.AppEnv == "production"
 }
 
 func (c *Config) Addr() string {
