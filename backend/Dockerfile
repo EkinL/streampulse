@@ -5,7 +5,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 # `upgrade` avant `add` : l'etiquette alpine:3.22 est figee a la date de sa
 # publication, alors que les correctifs de securite de ses paquets (libssl,
