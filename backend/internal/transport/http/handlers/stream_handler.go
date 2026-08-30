@@ -181,6 +181,11 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Connexion longue : on leve les timeouts globaux du serveur pour cette
+	// connexion uniquement. La sortie reste pilotee par r.Context() (client
+	// parti, serveur en arret) et client.Done() (stream ferme).
+	keepConnectionOpen(w, h.logger)
+
 	userID, _ := uuid.Parse(claims.UserID)
 	client := streaming.NewClient(userID, claims.Username)
 	h.hub.Register(streamID, client)
@@ -268,6 +273,11 @@ func (h *StreamHandler) AudioStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Connexion longue : on leve les timeouts globaux du serveur pour cette
+	// connexion uniquement. La sortie reste pilotee par r.Context() (client
+	// parti, serveur en arret) et client.Done() (stream ferme).
+	keepConnectionOpen(w, h.logger)
+
 	userID, _ := uuid.Parse(claims.UserID)
 	client := streaming.NewClient(userID, claims.Username)
 	h.hub.Register(streamID, client)
@@ -326,6 +336,10 @@ func (h *StreamHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 
 	ownerID, _ := uuid.Parse(claims.UserID)
 	if err := h.streamService.StartStream(r.Context(), streamID, ownerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "stream not found")
+			return
+		}
 		if errors.Is(err, domain.ErrNotOwner) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this stream")
 			return
@@ -378,6 +392,13 @@ func (h *StreamHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Le diffuseur pousse son audio dans le corps de la requete pendant
+	// toute la duree du live : le ReadTimeout global ne peut pas s'appliquer.
+	// En contrepartie on rattache la lecture au contexte, sinon un diffuseur
+	// silencieux bloquerait l'arret du serveur.
+	keepConnectionOpen(w, h.logger)
+	defer unblockReadOnCancel(r.Context(), w)()
+
 	h.logger.Info().
 		Str("stream_id", streamID.String()).
 		Msg("broadcaster connected, reading audio chunks")
@@ -395,7 +416,7 @@ func (h *StreamHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 			h.metrics.StreamBytesSentTotal.Add(float64(n))
 		}
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && r.Context().Err() == nil {
 				h.logger.Error().Err(err).Str("stream_id", streamID.String()).Msg("broadcast read error")
 			}
 			break
@@ -425,6 +446,10 @@ func (h *StreamHandler) StopStream(w http.ResponseWriter, r *http.Request) {
 
 	ownerID, _ := uuid.Parse(claims.UserID)
 	if err := h.streamService.StopStream(r.Context(), streamID, ownerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "stream not found")
+			return
+		}
 		if errors.Is(err, domain.ErrNotOwner) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this stream")
 			return

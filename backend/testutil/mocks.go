@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -9,10 +10,14 @@ import (
 	"github.com/streampulse/backend/internal/domain"
 )
 
+// Garde-fou de compilation : si domain.UserRepository gagne une methode,
+// c'est ici que ca casse, et pas au milieu d'un fichier de test.
+var _ domain.UserRepository = (*MockUserRepo)(nil)
+
 // MockUserRepo is a mock implementation of domain.UserRepository
 type MockUserRepo struct {
-	mu    sync.RWMutex
-	users map[uuid.UUID]*domain.User
+	mu      sync.RWMutex
+	users   map[uuid.UUID]*domain.User
 	byEmail map[string]*domain.User
 }
 
@@ -84,6 +89,18 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 	return nil
 }
 
+func (m *MockUserRepo) Delete(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	delete(m.users, id)
+	delete(m.byEmail, u.Email)
+	return nil
+}
+
 // Garde-fou de compilation : si domain.StreamRepository gagne une methode,
 // c'est ici que ca casse, et pas au milieu d'un fichier de test.
 var _ domain.StreamRepository = (*MockStreamRepo)(nil)
@@ -115,7 +132,11 @@ func (m *MockStreamRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Stre
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-	return s, nil
+	// Copie, comme une ligne lue en base : StreamService.GetStream ecrit
+	// ListenerCount sur le resultat, et des lectures concurrentes ne doivent
+	// pas se partager le meme pointeur.
+	cp := *s
+	return &cp, nil
 }
 
 func (m *MockStreamRepo) List(_ context.Context, page, perPage int) ([]domain.Stream, int, error) {
@@ -170,6 +191,18 @@ func (m *MockStreamRepo) UpdateListenerCount(_ context.Context, id uuid.UUID, co
 	}
 	s.ListenerCount = count
 	return nil
+}
+
+func (m *MockStreamRepo) ListByOwner(_ context.Context, ownerID uuid.UUID) ([]domain.Stream, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []domain.Stream
+	for _, s := range m.streams {
+		if s.OwnerID == ownerID {
+			out = append(out, *s)
+		}
+	}
+	return out, nil
 }
 
 func (m *MockStreamRepo) Delete(_ context.Context, id uuid.UUID) error {
@@ -229,6 +262,8 @@ type MockPlaylistRepo struct {
 	mu        sync.RWMutex
 	playlists map[uuid.UUID]*domain.Playlist
 }
+
+var _ domain.PlaylistRepository = (*MockPlaylistRepo)(nil)
 
 func NewMockPlaylistRepo() *MockPlaylistRepo {
 	return &MockPlaylistRepo{playlists: make(map[uuid.UUID]*domain.Playlist)}
@@ -341,8 +376,147 @@ func (m *MockPlaylistRepo) RemoveTrack(_ context.Context, playlistID, trackID uu
 	for i, t := range p.Tracks {
 		if t.ID == trackID {
 			p.Tracks = append(p.Tracks[:i], p.Tracks[i+1:]...)
+			// Mirror the real repo: positions are compacted after a removal.
+			for j := range p.Tracks {
+				p.Tracks[j].Position = j
+			}
 			return nil
 		}
 	}
 	return domain.ErrNotFound
+}
+
+func (m *MockPlaylistRepo) ReorderTracks(_ context.Context, playlistID uuid.UUID, trackIDs []uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.playlists[playlistID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if len(trackIDs) != len(p.Tracks) {
+		return domain.ErrInvalidInput
+	}
+	byID := make(map[uuid.UUID]domain.Track, len(p.Tracks))
+	for _, t := range p.Tracks {
+		byID[t.ID] = t
+	}
+	reordered := make([]domain.Track, 0, len(trackIDs))
+	for i, id := range trackIDs {
+		t, ok := byID[id]
+		if !ok {
+			return domain.ErrNotFound
+		}
+		t.Position = i
+		reordered = append(reordered, t)
+	}
+	p.Tracks = reordered
+	return nil
+}
+
+// MockMusicRepo is an in-memory implementation of domain.MusicRepository.
+var _ domain.MusicRepository = (*MockMusicRepo)(nil)
+
+type MockMusicRepo struct {
+	mu    sync.RWMutex
+	items []*domain.Music
+}
+
+func NewMockMusicRepo() *MockMusicRepo {
+	return &MockMusicRepo{}
+}
+
+func (m *MockMusicRepo) Create(_ context.Context, music *domain.Music) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if music.ID == uuid.Nil {
+		music.ID = uuid.New()
+	}
+	music.CreatedAt = time.Now().UTC()
+	cp := *music
+	m.items = append(m.items, &cp)
+	return nil
+}
+
+func (m *MockMusicRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Music, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, it := range m.items {
+		if it.ID == id {
+			cp := *it
+			return &cp, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) List(_ context.Context, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.filter(func(*domain.Music) bool { return true }, page, perPage)
+}
+
+// Search imite plainto_tsquery de facon volontairement simple : un mot de la
+// requete present dans le titre ou l'artiste suffit.
+func (m *MockMusicRepo) Search(_ context.Context, query string, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	words := strings.Fields(strings.ToLower(query))
+	return m.filter(func(it *domain.Music) bool {
+		haystack := strings.ToLower(it.Title + " " + it.Artist)
+		for _, w := range words {
+			if strings.Contains(haystack, w) {
+				return true
+			}
+		}
+		return false
+	}, page, perPage)
+}
+
+func (m *MockMusicRepo) ListByUploader(_ context.Context, uploaderID uuid.UUID, page, perPage int) ([]domain.Music, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.filter(func(it *domain.Music) bool { return it.UploadedBy == uploaderID }, page, perPage)
+}
+
+func (m *MockMusicRepo) Update(_ context.Context, music *domain.Music) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, it := range m.items {
+		if it.ID == music.ID {
+			it.Title, it.Artist, it.Album, it.CoverURL = music.Title, music.Artist, music.Album, music.CoverURL
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) Delete(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, it := range m.items {
+		if it.ID == id {
+			m.items = append(m.items[:i], m.items[i+1:]...)
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (m *MockMusicRepo) filter(keep func(*domain.Music) bool, page, perPage int) ([]domain.Music, int, error) {
+	var all []domain.Music
+	for _, it := range m.items {
+		if keep(it) {
+			all = append(all, *it)
+		}
+	}
+	total := len(all)
+	start := (page - 1) * perPage
+	if start >= total {
+		return nil, total, nil
+	}
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+	return all[start:end], total, nil
 }

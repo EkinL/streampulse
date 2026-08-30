@@ -64,4 +64,15 @@ class AuthRepository {
       throw e.toApiException();
     }
   }
+
+  /// Efface le compte connecte et tout ce qui s'y rattache, cote serveur
+  /// (droit a l'effacement, docs/rgpd.md). Le jeton est pose par
+  /// l'intercepteur du client HTTP.
+  Future<void> deleteAccount() async {
+    try {
+      await _dio.delete(ApiEndpoints.usersMe);
+    } on DioException catch (e) {
+      throw e.toApiException();
+    }
+  }
 }

@@ -123,13 +123,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                               onTap: () => context.push('/streams/${stream.id}'),
                               onFavorite: () {
                                 ref.read(streamListProvider.notifier).toggleFavorite(stream.id).then((_) {
-                                  if (context.mounted) {
-                                    context.showSnackBar('Added to favorites');
-                                  }
+                                  if (!context.mounted) return;
+                                  context.showSnackBar('Added to favorites');
                                 }).catchError((_) {
-                                  if (context.mounted) {
-                                    context.showSnackBar('Failed', isError: true);
-                                  }
+                                  if (!context.mounted) return;
+                                  context.showSnackBar('Failed', isError: true);
                                 });
                               },
                               onEdit: stream.ownerId == currentUserId

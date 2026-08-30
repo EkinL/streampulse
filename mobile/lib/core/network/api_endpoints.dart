@@ -7,6 +7,7 @@ class ApiEndpoints {
   static const String streams = '/streams';
   static const String playlists = '/playlists';
   static const String adminUsers = '/admin/users';
+  static const String usersMe = '/users/me';
   static const String favorites = '/favorites';
   static const String music = '/music';
   static const String musicSearch = '/music/search';
@@ -22,6 +23,7 @@ class ApiEndpoints {
   static String playlistTrack(String playlistId, String trackId) =>
       '/playlists/$playlistId/tracks/$trackId';
   static String favorite(String streamId) => '/favorites/$streamId';
+  static String adminUserRole(String userId) => '/admin/users/$userId/role';
   static String adminUser(String userId) => '/admin/users/$userId';
   static String musicItem(String id) => '/music/$id';
   static const String musicFavorites = '/music/favorites';

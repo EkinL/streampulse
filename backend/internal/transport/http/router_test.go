@@ -5,13 +5,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/streampulse/backend/internal/domain"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
-	"github.com/streampulse/backend/internal/infrastructure/observability"
 )
 
 func testToken(t *testing.T, m *auth.JWTManager, role domain.Role) string {
@@ -29,20 +26,11 @@ func testToken(t *testing.T, m *auth.JWTManager, role domain.Role) string {
 }
 
 func TestMetricsAccess(t *testing.T) {
-	jwtManager := auth.NewJWTManager("test-secret", time.Minute, time.Hour)
-
-	// The router is built once for every case below: observability.NewMetrics
-	// registers its collectors on the global Prometheus registry, so calling
-	// it a second time in the same test binary would panic.
-	router := NewRouter(RouterConfig{
-		JWTManager:     jwtManager,
-		Logger:         zerolog.Nop(),
-		Metrics:        observability.NewMetrics(),
-		CORSOrigins:    "*",
-		RateLimitRPS:   1000,
-		RateLimitBurst: 1000,
-		ServiceName:    "test",
-	})
+	// Shared with the rest of the package: observability.NewMetrics registers
+	// its collectors on the global Prometheus registry, so building a second
+	// router in the same test binary would panic. See testRouter in
+	// openapi_test.go.
+	router, jwtManager := testRouter(t)
 
 	tests := []struct {
 		name       string

@@ -4,7 +4,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.10.0 <4.0.0'
+  sdk: '>=3.11.0 <4.0.0'
+  flutter: '>=3.41.0'
 
 dependencies:
   flutter:
@@ -15,7 +16,8 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   just_audio: ^0.9.36
   flutter_sound: ^9.16.0
-  audio_session: ^0.1.25 # categorie AVAudioSession du lecteur live (deja resolu via just_audio)
+  audio_session: ^0.1.25
+  audio_service: ^0.18.19 # lecture en arriere-plan + controles systeme
   json_annotation: ^4.8.0
   freezed_annotation: ^2.4.0
   cached_network_image: ^3.3.0

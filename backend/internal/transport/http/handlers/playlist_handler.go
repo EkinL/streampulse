@@ -83,13 +83,20 @@ func (h *PlaylistHandler) CreatePlaylist(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *PlaylistHandler) GetPlaylist(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid playlist id")
 		return
 	}
 
-	playlist, err := h.playlistService.GetPlaylist(r.Context(), id)
+	requesterID, _ := uuid.Parse(claims.UserID)
+	playlist, err := h.playlistService.GetPlaylist(r.Context(), id, requesterID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			respondError(w, http.StatusNotFound, "NOT_FOUND", "playlist not found")
@@ -206,6 +213,10 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this playlist")
 			return
 		}
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "playlist not found")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to add track")
 		return
 	}
@@ -217,6 +228,61 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 		Duration: track.Duration,
 		Position: track.Position,
 	})
+}
+
+func (h *PlaylistHandler) ReorderTracks(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	playlistID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid playlist id")
+		return
+	}
+
+	var req dto.ReorderTracksRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+		return
+	}
+
+	trackIDs := make([]uuid.UUID, 0, len(req.TrackIDs))
+	for _, raw := range req.TrackIDs {
+		trackID, err := uuid.Parse(raw)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid track id: "+raw)
+			return
+		}
+		trackIDs = append(trackIDs, trackID)
+	}
+
+	ownerID, _ := uuid.Parse(claims.UserID)
+	playlist, err := h.playlistService.ReorderTracks(r.Context(), application.ReorderTracksInput{
+		PlaylistID: playlistID,
+		OwnerID:    ownerID,
+		TrackIDs:   trackIDs,
+	})
+	if err != nil {
+		if errors.Is(err, domain.ErrNotOwner) {
+			respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this playlist")
+			return
+		}
+		if errors.Is(err, domain.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "playlist or track not found")
+			return
+		}
+		if errors.Is(err, domain.ErrInvalidInput) {
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to reorder tracks")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, toPlaylistResponse(playlist))
 }
 
 func (h *PlaylistHandler) RemoveTrack(w http.ResponseWriter, r *http.Request) {

@@ -93,6 +93,22 @@ class PlaylistNotifier
     }
   }
 
+  Future<void> reorderTracks({
+    required String playlistId,
+    required List<String> trackIds,
+  }) async {
+    try {
+      await _repository.reorderTracks(
+        playlistId: playlistId,
+        trackIds: trackIds,
+      );
+      // No fetch() here: the order doesn't change anything on the list
+      // screen (names/counts), only the detail screen cares.
+    } on ApiException {
+      rethrow;
+    }
+  }
+
   Future<void> removeTrack({
     required String playlistId,
     required String trackId,

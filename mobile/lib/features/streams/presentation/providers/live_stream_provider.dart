@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import '../../../../app/constants.dart';
+import '../../../../core/audio/audio_handler.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/secure_storage.dart';
-import '../../../../app/constants.dart';
+import '../../../../shared/providers/volume_provider.dart';
 
 class LiveStreamState {
   final String? streamId;
@@ -48,12 +51,22 @@ class LiveStreamState {
 class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
   final SecureStorageService _secureStorage;
 
+  final StreamPulseAudioHandler? _audioHandler;
+
   HttpClient? _httpClient;
   StreamSubscription? _dataSub;
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
   bool _playerReady = false;
+  double _volume;
 
-  LiveStreamNotifier(this._secureStorage) : super(const LiveStreamState()) {
+  LiveStreamNotifier(
+    this._secureStorage, {
+    StreamPulseAudioHandler? audioHandler,
+    double initialVolume = AppConstants.defaultVolume,
+  })  : _audioHandler = audioHandler,
+        _volume = initialVolume,
+        super(const LiveStreamState()) {
+    _audioHandler?.onLiveStop = _onSystemStop;
     _initPlayer();
   }
 
@@ -62,7 +75,20 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
     _playerReady = true;
   }
 
-  Future<void> connect(String streamId) async {
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    if (_playerReady && _player.isPlaying) {
+      await _player.setVolume(_volume);
+    }
+  }
+
+  void _onSystemStop() {
+    if (mounted && (state.isConnected || state.isConnecting)) {
+      disconnect(reason: 'Stopped');
+    }
+  }
+
+  Future<void> connect(String streamId, {String? title}) async {
     if (state.isConnecting || state.isConnected) return;
 
     if (!_playerReady) {
@@ -115,6 +141,17 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
         sampleRate: 16000,
         numChannels: 1,
         bufferSize: 8192,
+      );
+      await _player.setVolume(_volume);
+
+      // session media : l'OS garde l'app en vie en arriere-plan + bouton stop
+      await _audioHandler?.startLive(
+        MediaItem(
+          id: 'live:$streamId',
+          title: title ?? 'Live stream',
+          artist: 'StreamPulse - Live',
+          isLive: true,
+        ),
       );
 
       state = state.copyWith(
@@ -175,6 +212,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
     if (_playerReady && _player.isPlaying) {
       _player.stopPlayer();
     }
+    _audioHandler?.stopLive();
 
     if (mounted) {
       state = LiveStreamState(
@@ -208,6 +246,9 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
     if (_playerReady) {
       _player.closePlayer();
     }
+    if (_audioHandler?.onLiveStop == _onSystemStop) {
+      _audioHandler?.onLiveStop = null;
+    }
     super.dispose();
   }
 }
@@ -215,5 +256,11 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
 final liveStreamProvider =
     StateNotifierProvider<LiveStreamNotifier, LiveStreamState>((ref) {
   final secureStorage = ref.read(secureStorageProvider);
-  return LiveStreamNotifier(secureStorage);
+  final notifier = LiveStreamNotifier(
+    secureStorage,
+    audioHandler: ref.watch(audioHandlerProvider),
+    initialVolume: ref.read(volumeProvider),
+  );
+  ref.listen<double>(volumeProvider, (_, v) => notifier.setVolume(v));
+  return notifier;
 });

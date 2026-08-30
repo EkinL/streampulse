@@ -18,6 +18,11 @@ type AddTrackRequest struct {
 	Duration int    `json:"duration"`
 }
 
+// ReorderTracksRequest carries the complete track list in the desired order.
+type ReorderTracksRequest struct {
+	TrackIDs []string `json:"track_ids"`
+}
+
 type PlaylistResponse struct {
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`

@@ -104,6 +104,24 @@ class PlaylistRepository {
     }
   }
 
+  /// Persists a new play order. The backend expects the complete list of
+  /// track ids in the desired order and answers with the updated playlist.
+  Future<PlaylistModel> reorderTracks({
+    required String playlistId,
+    required List<String> trackIds,
+  }) async {
+    try {
+      final response = await _dio.put(
+        ApiEndpoints.playlistTracks(playlistId),
+        data: {'track_ids': trackIds},
+      );
+      final body = response.data as Map<String, dynamic>;
+      return PlaylistModel.fromJson(body['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw e.toApiException();
+    }
+  }
+
   Future<void> removeTrack({
     required String playlistId,
     required String trackId,

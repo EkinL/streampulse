@@ -39,7 +39,7 @@ class AdminNotifier extends StateNotifier<AsyncValue<List<UserModel>>> {
   }) async {
     try {
       await _dio.put(
-        ApiEndpoints.adminUser(userId),
+        ApiEndpoints.adminUserRole(userId),
         data: {'role': role},
       );
       await fetchUsers();
