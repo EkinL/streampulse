@@ -67,7 +67,7 @@ test-integration:
 # s'effondre de plusieurs points sans qu'aucun test n'ait change. La CI part
 # d'un runner vierge et n'a pas ce probleme ; en local, sans cette option, le
 # seuil se declenche a tort.
-COVERAGE_MIN ?= 70
+COVERAGE_MIN ?= 80
 cover-check:
 	go test -race -count=1 -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
 	@total=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | tr -d '%'); \

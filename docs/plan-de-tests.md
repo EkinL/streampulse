@@ -13,10 +13,10 @@ automatise et rejouable par `make`.
 
 ## 1. Objectifs et regles
 
-| Objectif | Mesure | Etat au 2026-08-27 |
+| Objectif | Mesure | Etat au 2026-08-30 |
 |----------|--------|--------------------|
 | Chaque cas d'usage du sujet a au moins un test automatise a chaque niveau applicable | cartographie de la section 3 | 19/19 cas couverts |
-| Couverture de code du module Go | `make cover-check` | **75,6 %** (77,8 % hors `cmd/server`) — cible 80 % |
+| Couverture de code du module Go | `make cover-check` | **91,1 %** (94,1 % hors `cmd/server`) — cible 80 % atteinte, seuil CI releve a 80 % |
 | Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **19,7 %** (54 tests) — seuil 15 %, releve avec l'iteration 2 |
 | Aucun test rouge sur `develop` | CI `backend.yml` / `mobile.yml` | vert |
 | Tout defaut trouve donne d'abord un test rouge, puis un correctif | section 6 | 4 defauts, 4 corriges |
@@ -25,7 +25,7 @@ Regles appliquees a chaque PR :
 
 - **Le test est ecrit avec le code, pas apres.** Une PR qui ajoute un
   comportement ajoute le test qui le decrit ; la CI echoue sous le seuil de
-  couverture (`COVERAGE_MIN` : 70 % backend, 15 % mobile aujourd'hui, releve
+  couverture (`COVERAGE_MIN` : 80 % backend, 15 % mobile aujourd'hui, releve
   a chaque iteration). Le chiffre de chaque run est ecrit dans le resume du
   job GitHub Actions et le rapport (`coverage.out`, `lcov.info`) est publie
   en artefact de PR : la trajectoire se lit d'une PR a l'autre.
@@ -158,21 +158,36 @@ Couverture par paquet apres l'iteration :
 | `transport/http/handlers` | 72,2 % | `infrastructure/streaming` | 68,2 % |
 | `infrastructure/observability` | 56,5 % | `cmd/server` | 0 % |
 
-### Iteration 2 — planifiee
+### Iteration 2 — seuil a 80 % atteint (2026-08-30)
 
-Branches ouvertes a fusionner, chacune avec ses tests :
+L'exigence du sujet « code testable unitairement a 80 % minimum » est
+couverte et verrouillee : `COVERAGE_MIN` passe de 70 a 80 dans le `Makefile`
+et dans `backend.yml`, la CI echoue desormais sous ce seuil.
 
-- `test/hub-load-proof` : preuve de charge du Hub (1000 auditeurs, 500 clients
-  SSE reels, benchmarks) → `streaming` au-dessus de 80 %.
-- `fix/http-timeouts` : timeouts HTTP actifs, upload borne, tests des
-  deadlines de handlers.
-- `feat/audio-3.1` : lecture en arriere-plan et volume sur mobile.
+| Ajout | Ou |
+|-------|----|
+| Branches d'erreur des handlers : requete sans claims (le middleware les pose toujours, seul l'appel direct les atteint), identifiant invalide, corps illisible, panne du depot simulee → `INTERNAL_ERROR` distinct des 404 | `handlers/*_unit_test.go` |
+| Flux audio brut de bout en bout (`AudioStream`) : enregistrement au Hub, reception des octets par un vrai client HTTP, desenregistrement a la coupure ; diffuseur dont la connexion casse en plein direct | `handlers/stream_handler_unit_test.go` |
+| Branches d'erreur des services (panne du depot sur chaque ecriture, relecture apres reordonnancement, refresh token orphelin, mot de passe > 72 octets refuse par bcrypt) et chemins restants (`ValidateToken`, `ListPublicPlaylists`, `UpdateStream`, `StopStream`, normalisation de pagination) | `application/service_errors_test.go` |
+| Deadlines de connexion : erreurs reelles de `SetReadDeadline`/`SetWriteDeadline` propagees, upload refuse si la connexion ne les supporte pas | `handlers/handlers_unit_test.go`, `music_handler_unit_test.go` |
+| Contrats des mocks aux bords (pagination au-dela du total, identifiants inconnus), regles du domaine (`StreamStatus`/`Role.IsValid`, hierarchie `AtLeast`), `MetricsAddr` | `testutil/mocks_pagination_test.go`, `domain/rules_test.go`, `config/addr_test.go` |
 
-Travaux de l'iteration :
+Resultat : couverture **91,1 %** (94,1 % hors `cmd/server`, qui n'est pas
+testable unitairement). Couverture par paquet :
 
-1. Relever `COVERAGE_MIN` a 80 une fois les branches fusionnees ; completer
-   `handlers` (chemins `INTERNAL_ERROR` via un repository en panne simule) et
-   `observability` (exporteur OTEL avec collecteur factice).
+| Paquet | Couverture | Paquet | Couverture |
+|--------|-----------:|--------|-----------:|
+| `transport/http` | 100 % | `infrastructure/auth` | 91,3 % |
+| `domain` | 100 % | `infrastructure/postgres` | 81,3 % |
+| `transport/http/handlers` | 98,8 % | `infrastructure/filestore` | 76,5 % |
+| `application` | 98,6 % | `infrastructure/observability` | 56,5 % |
+| `infrastructure/streaming` | 97,7 % | `cmd/server` | 0 % |
+| `infrastructure/config` | 96,2 % | `transport/http/middleware` | 93,5 % |
+
+### Iteration 3 — planifiee (suite des travaux)
+
+1. Completer `observability` (exporteur OTEL avec collecteur factice) et
+   extraire de `cmd/server` un assemblage testable.
 2. Traiter O-1 : alimenter `http_requests_total` et
    `http_request_duration_seconds` dans le middleware de logging, avec un test
    qui lit `/metrics` apres quelques requetes. Sans cela les SLO 1 et 2 de
@@ -186,7 +201,7 @@ Travaux de l'iteration :
    (rectification) et nettoyage des fichiers audio orphelins, chacun avec
    son test d'integration.
 
-### Iteration 3 — planifiee
+### Iteration 4 — planifiee
 
 - Tests d'integration mobile (`integration_test`) sur simulateur contre la
   stack `docker compose`, un scenario par role.
@@ -230,7 +245,7 @@ export DATABASE_URL=postgres://localhost:5432/streampulse_test?sslmode=disable
 make test-integration
 
 # Tout, avec le seuil de couverture de la CI
-make cover-check                                # COVERAGE_MIN=80 make cover-check pour viser la cible
+make cover-check                                # echoue sous 80 %, comme la CI
 
 # Mobile, avec le seuil de couverture de la CI
 cd .. && make test-mobile-cover           # COVERAGE_MIN=20 make test-mobile-cover pour viser plus haut
