@@ -21,6 +21,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          # go.sum est dans backend/, pas a la racine : sans ce chemin
+          # setup-go ne trouve pas de fichier de dependances et n'active
+          # aucun cache.
+          cache-dependency-path: backend/go.sum
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -103,6 +107,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache-dependency-path: backend/go.sum
       - name: Build
         working-directory: backend
         run: CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/server ./cmd/server

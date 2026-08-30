@@ -136,6 +136,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
+| `TRUSTED_PROXIES` | (vide) | Reverse-proxies dont `X-Forwarded-For` est accepte, en CIDR ou adresse. Vide = aucun en-tete de transmission n'est cru |
 
 ## API
 

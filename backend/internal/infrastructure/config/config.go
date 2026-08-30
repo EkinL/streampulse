@@ -25,6 +25,10 @@ type Config struct {
 	CORSAllowedOrigins string        `env:"CORS_ALLOWED_ORIGINS,default=*"`
 	RateLimitRPS       float64       `env:"RATE_LIMIT_RPS,default=10"`
 	RateLimitBurst     int           `env:"RATE_LIMIT_BURST,default=20"`
+	// Reverse-proxies dont on accepte X-Forwarded-For, en CIDR ou en
+	// adresse simple. Vide par defaut : un serveur expose directement ne
+	// doit faire confiance a aucun en-tete de transmission.
+	TrustedProxies []string `env:"TRUSTED_PROXIES"`
 }
 
 func Load() (*Config, error) {
