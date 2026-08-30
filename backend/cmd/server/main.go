@@ -143,6 +143,7 @@ func main() {
 		CORSOrigins:       cfg.CORSAllowedOrigins,
 		RateLimitRPS:      cfg.RateLimitRPS,
 		RateLimitBurst:    cfg.RateLimitBurst,
+		TrustedProxies:    cfg.TrustedProxies,
 		ServiceName:       cfg.OTELServiceName,
 	})
 

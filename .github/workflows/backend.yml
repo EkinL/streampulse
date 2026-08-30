@@ -21,6 +21,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          # go.sum est dans backend/, pas a la racine : sans ce chemin
+          # setup-go ne trouve pas de fichier de dependances et n'active
+          # aucun cache.
+          cache-dependency-path: backend/go.sum
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -111,16 +115,48 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          cache-dependency-path: backend/go.sum
       - name: Build
         working-directory: backend
         run: CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/server ./cmd/server
 
+  # Verifie que l'image se construit encore. La PUBLICATION est dans
+  # release.yml : ce workflow ne se declenche pas sur les tags, l'ancien job
+  # `docker` garde par `if: startsWith(github.ref, 'refs/tags/')` ne pouvait
+  # donc jamais s'executer.
   docker:
     runs-on: ubuntu-latest
     needs: [build]
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image
         working-directory: backend
-        run: docker build -t streampulse-api:${{ github.ref_name }} .
+        run: docker build -t streampulse-api:ci .
+
+  # Un echec sur une branche partagee doit etre visible sans surveiller
+  # l'onglet Actions. Restreint aux `push` : ouvrir une issue a chaque PR
+  # rouge serait du bruit, et la PR porte deja son propre statut.
+  notify:
+    name: Signaler l'echec
+    runs-on: ubuntu-latest
+    needs: [lint, openapi, test, build]
+    if: failure() && github.event_name == 'push'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Backend CI en echec sur ${context.ref.replace('refs/heads/', '')}`;
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `Commit : ${context.sha}\n\nExecution : ${url}`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'ci',
+            });
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body, labels: ['ci'] });
+            }

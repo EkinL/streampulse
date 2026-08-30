@@ -33,6 +33,7 @@ type RouterConfig struct {
 	CORSOrigins       string
 	RateLimitRPS      float64
 	RateLimitBurst    int
+	TrustedProxies    []string
 	ServiceName       string
 }
 
@@ -44,7 +45,12 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	// Juste apres RequestID, et avant tout middleware qui ecrit une reponse :
 	// un header pose apres WriteHeader est ignore.
 	r.Use(middleware.RequestIDHeader)
-	r.Use(chimiddleware.RealIP)
+	// chimiddleware.RealIP est deprecie : il reecrit r.RemoteAddr a partir de
+	// X-Forwarded-For / X-Real-IP sans verifier que l'infrastructure les pose
+	// reellement, ce qui permet a un client d'usurper son adresse
+	// (GHSA-3fxj-6jh8-hvhx). r.RemoteAddr reste donc l'adresse reelle du pair,
+	// et le seul composant qui a besoin de l'adresse client - le limiteur de
+	// debit - resout lui-meme la question via TRUSTED_PROXIES.
 	r.Use(chimiddleware.Recoverer)
 	// L'ordre compte : OTELTracing cree le span et le place dans le contexte
 	// qu'il passe au handler suivant. Un middleware enregistre AVANT lui ne
@@ -54,7 +60,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	r.Use(middleware.Logging(cfg.Logger))
 	r.Use(middleware.CORSHandler(cfg.CORSOrigins).Handler)
 
-	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst, cfg.TrustedProxies...)
 	r.Use(rateLimiter.Limit)
 
 	// Handlers

@@ -61,8 +61,15 @@ test-integration:
 
 # Seuil de couverture, identique a celui de la CI. Valeur et trajectoire dans
 # docs/plan-de-tests.md.
+#
+# -count=1 est indispensable : un paquet dont le resultat vient du cache ne
+# reemet pas sa couverture inter-paquets (-coverpkg), et le total mesure
+# s'effondre de plusieurs points sans qu'aucun test n'ait change. La CI part
+# d'un runner vierge et n'a pas ce probleme ; en local, sans cette option, le
+# seuil se declenche a tort.
 COVERAGE_MIN ?= 70
-cover-check: test
+cover-check:
+	go test -race -count=1 -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
 	@total=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | tr -d '%'); \
 	echo "couverture totale : $$total % (minimum $(COVERAGE_MIN) %)"; \
 	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) ? 1 : 0 }'

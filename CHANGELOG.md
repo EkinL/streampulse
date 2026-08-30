@@ -58,6 +58,17 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 - Tests unitaires JWT, middlewares (auth, RBAC, rate-limit, CORS), services
   user et music ; `make test-unit`, `make test-integration`, `make cover-check`
 - Seuil de couverture en CI (70 %, cible 80 %) et mesure inter-paquets
+- `make cover-check` force `-count=1` : un paquet servi par le cache de
+  test ne reemet pas sa couverture `-coverpkg`, et le total local
+  s'effondrait de 7 points sans qu'aucun test n'ait change
+- Chaine de publication (`.github/workflows/release.yml`) : sur un tag `v*`,
+  verification de coherence des versions, image multi-architecture publiee sur
+  GHCR, APK, `.ipa`, console web, et release GitHub dont les notes sont
+  extraites de ce fichier
+- Notification automatique : un echec de CI sur une branche partagee, ou un
+  scan de securite planifie en echec, ouvre une issue
+- Badges de statut CI dans le README, et `docs/operations.md` (cycle de
+  livraison, publication, boucle surveillance -> feuille de route)
 
 ### Modifie
 - Identifiant d'application : `com.example.streampulse` -> `dev.streampulse.app`
@@ -65,11 +76,35 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 - Seeds de developpement : comptes fictifs `@streampulse.io` uniquement, plus
   aucune adresse personnelle dans le depot
 
+### Securite
+- Dependances montees pour corriger **29 vulnerabilites HIGH/CRITICAL**
+  detectees par Trivy et govulncheck : `pgx` 5.5.5 -> 5.9.2 (CRITICAL),
+  `grpc` 1.62.1 -> 1.82.1 (CRITICAL), `chi` 5.0.12 -> 5.3.0,
+  `golang-jwt` 5.2.1 -> 5.3.0, `x/crypto` 0.21.0 -> 0.53.0,
+  `x/net` 0.22.0 -> 0.56.0, `x/text` 0.14.0 -> 0.39.0,
+  OpenTelemetry 1.24.0 -> 1.44.0
+- Image de base `alpine` 3.19 -> 3.22, avec `apk upgrade` au build : sans lui
+  l'image embarque les paquets figes a la date de publication de l'etiquette
+- Le conteneur ne tourne plus en **root** : compte de service `streampulse`
+  (uid 10001), `WORKDIR /app`, et `/app/uploads` cree et attribue a ce compte
+- Scans automatises : `govulncheck` (code Go), Trivy (image et systeme de
+  fichiers), Dependabot hebdomadaire. Executes aussi le lundi par
+  `schedule`, une CVE publiee apres un merge etant invisible d'un scan de PR
+
 ### Corrige
 - `/metrics` restreint au role `admin` ; Prometheus scrute un listener interne
 - CI mobile reparee : le test de fumee compilait sur une classe inexistante
 - Rate limiting inoperant (A-01) : la cle etait `IP:port`, donc un compteur
   neuf par connexion ; elle est desormais l'hote seul
+- `X-Forwarded-For` n'etait cru par personne mais lu par tout le monde : il
+  est desormais ignore sauf si la connexion vient d'un proxy declare dans
+  `TRUSTED_PROXIES`. Sans cette condition, n'importe quel client obtenait un
+  compteur vierge en changeant l'en-tete, ou faisait limiter un tiers en
+  usurpant son adresse. Dans une chaine de proxies, l'en-tete est parcouru de
+  droite a gauche jusqu'a la premiere adresse non declaree
+- `chimiddleware.RealIP` retire : il reecrit `r.RemoteAddr` a partir des
+  en-tetes de transmission sans verifier leur provenance. chi l'a deprecie
+  pour cette raison (GHSA-3fxj-6jh8-hvhx)
 - `POST /streams/{id}/start|stop`, `POST /playlists/{id}/tracks` et
   `PUT /admin/users/{id}/role` repondaient 500 sur un identifiant inconnu :
   404 `NOT_FOUND`, documente dans l'OpenAPI

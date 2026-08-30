@@ -1,5 +1,9 @@
 # StreamPulse
 
+[![Backend CI](https://github.com/EkinL/streampulse/actions/workflows/backend.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/backend.yml)
+[![Mobile CI](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml)
+[![Security](https://github.com/EkinL/streampulse/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/security.yml)
+
 Plateforme de streaming audio en temps reel avec backend Go et application mobile Flutter.
 
 ## Architecture
@@ -135,6 +139,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
 | `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
+| `TRUSTED_PROXIES` | (vide) | Reverse-proxies dont `X-Forwarded-For` est accepte, en CIDR ou adresse. Vide = aucun en-tete de transmission n'est cru |
 | `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
 | `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
 | `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
@@ -218,6 +223,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | [docs/rgpd.md](docs/rgpd.md) | Donnees personnelles : registre, retention, droits (acces, effacement), mesures de securite |
 | [docs/deployment.md](docs/deployment.md) | Deploiement |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [docs/operations.md](docs/operations.md) | Cycle de livraison, publication d'une version, boucle surveillance -> feuille de route |
 
 ## Decisions architecturales
 
