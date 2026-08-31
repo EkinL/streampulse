@@ -176,7 +176,8 @@ disponible, ni le meme niveau technique, ni le meme besoin.
   jamais.
 - **Peu a l'aise avec l'ecrit** : les parcours 1 et 2 sont concus pour etre
   refaits en demonstration guidee, une etape a la fois, sans lecture prealable.
-- **Situation de handicap** : voir la section ci-dessous.
+- **Situation de handicap** : voir la section ci-dessous et le document
+  dedie [accessibilite.md](accessibilite.md).
 - **Sans connexion permanente** : l'application exige une connexion pour
   l'ecoute en direct. Le mode hors ligne n'existe pas encore.
 
@@ -185,14 +186,12 @@ disponible, ni le meme niveau technique, ni le meme besoin.
 L'engagement est de rendre l'application utilisable au lecteur d'ecran, avec un
 contraste conforme et des zones tactiles suffisantes.
 
-> **Etat reel a ce jour : cet engagement n'est pas tenu.** L'application mobile
-> ne comporte aucune annotation d'accessibilite — aucun `Semantics` ni
-> `semanticLabel` dans le code de l'interface mobile. Les seules annotations
-> presentes sont trois infobulles de la console web. Un lecteur d'ecran
-> annoncera donc des boutons sans nom sur les controles du lecteur audio.
->
-> C'est un ecart identifie, pas un oubli de documentation. Le corriger consiste
-> a annoter les controles du lecteur, les pochettes et les boutons d'icone.
+Ou en est cet engagement, controle par controle — lecteur d'ecran, taille du
+texte, contraste, handicaps auditif et moteur — et ce qui reste a faire : voir
+[accessibilite.md](accessibilite.md). En resume : les controles du lecteur
+audio (lecture, volume, navigation) sont annonces par VoiceOver et TalkBack et
+la taille de texte du systeme est respectee ; la description des pochettes,
+l'audit ecran par ecran et la mesure des contrastes restent a faire.
 
 ## Depannage
 
