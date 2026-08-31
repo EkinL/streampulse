@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -40,6 +42,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             username: _usernameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
+            acceptedTerms: _acceptedTerms,
           );
     }
   }
@@ -291,36 +294,92 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // Notice d'information RGPD (art. 13) — pas une
-                          // case a cocher : le traitement du compte repose
-                          // sur l'execution du contrat, pas le consentement
-                          // (voir docs/rgpd.md).
-                          GestureDetector(
-                            onTap: () => context.push('/privacy'),
-                            child: RichText(
-                              textAlign: TextAlign.center,
-                              text: TextSpan(
-                                text: 'En créant un compte, vous acceptez notre ',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: context.colors.text3,
-                                ),
+                          // Case a cocher obligatoire (recueil du
+                          // consentement aux conditions d'utilisation, voir
+                          // docs/rgpd.md) : integree au Form pour que
+                          // _handleRegister la refuse comme n'importe quel
+                          // autre champ invalide. Le traitement du compte
+                          // lui-meme reste fonde sur l'execution du contrat,
+                          // pas sur ce consentement ; la case sert de preuve
+                          // que la personne a vu et accepte les conditions.
+                          FormField<bool>(
+                            initialValue: _acceptedTerms,
+                            validator: (value) => (value ?? false)
+                                ? null
+                                : 'Vous devez accepter les conditions d\'utilisation',
+                            builder: (field) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextSpan(
-                                    text: 'politique de confidentialité',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: context.colors.accent,
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Checkbox(
+                                          value: _acceptedTerms,
+                                          activeColor: context.colors.accent,
+                                          side: BorderSide(color: context.colors.divider),
+                                          onChanged: (checked) {
+                                            setState(() {
+                                              _acceptedTerms = checked ?? false;
+                                            });
+                                            field.didChange(_acceptedTerms);
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // Pas de GestureDetector englobant : le
+                                      // lien "politique de confidentialite"
+                                      // porte deja son propre
+                                      // TapGestureRecognizer, un tap-toggle
+                                      // par-dessus entrerait en conflit avec
+                                      // lui dans l'arene de gestes. Cocher se
+                                      // fait via la case elle-meme.
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            text: 'J\'accepte les conditions d\'utilisation et la ',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: context.colors.text3,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: 'politique de confidentialité',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: context.colors.accent,
+                                                ),
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () => context.push('/privacy'),
+                                              ),
+                                              TextSpan(
+                                                text: '.',
+                                                style: GoogleFonts.inter(fontSize: 12, color: context.colors.text3),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (field.hasError)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 34, top: 4),
+                                      child: Text(
+                                        field.errorText!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: context.colors.error,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text: '.',
-                                    style: GoogleFonts.inter(fontSize: 12, color: context.colors.text3),
-                                  ),
                                 ],
-                              ),
-                            ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 24),
                           // Sign In footer

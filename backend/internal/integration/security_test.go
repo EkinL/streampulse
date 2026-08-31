@@ -25,7 +25,7 @@ func TestSecurity_SQLInjectionIsNeutralised(t *testing.T) {
 	evilName := "Robert'); DROP TABLE streams;--"
 
 	d := s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-		"email": evilEmail, "username": evilName, "password": password,
+		"email": evilEmail, "username": evilName, "password": password, "accepted_terms": true,
 	}).expect(t, http.StatusCreated, "").data(t)
 	user, _ := d["user"].(map[string]any)
 	if str(user, "username") != evilName {

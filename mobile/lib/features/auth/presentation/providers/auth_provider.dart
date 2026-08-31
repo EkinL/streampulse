@@ -94,6 +94,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String username,
     required String email,
     required String password,
+    required bool acceptedTerms,
   }) async {
     state = const AuthLoading();
     try {
@@ -101,6 +102,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         username: username,
         email: email,
         password: password,
+        acceptedTerms: acceptedTerms,
       );
 
       final accessToken = response['access_token'] as String;

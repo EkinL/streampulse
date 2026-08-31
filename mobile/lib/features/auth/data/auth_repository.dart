@@ -16,6 +16,7 @@ class AuthRepository {
     required String username,
     required String email,
     required String password,
+    required bool acceptedTerms,
   }) async {
     try {
       final response = await _dio.post(
@@ -24,6 +25,7 @@ class AuthRepository {
           'username': username,
           'email': email,
           'password': password,
+          'accepted_terms': acceptedTerms,
         },
       );
       final body = response.data as Map<String, dynamic>;

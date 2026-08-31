@@ -59,12 +59,13 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, dto.ProfileDTO{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		Username:  user.Username,
-		Role:      string(user.Role),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:              user.ID.String(),
+		Email:           user.Email,
+		Username:        user.Username,
+		Role:            string(user.Role),
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+		TermsAcceptedAt: user.TermsAcceptedAt,
 	})
 }
 
@@ -104,12 +105,13 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, dto.ProfileDTO{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		Username:  user.Username,
-		Role:      string(user.Role),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:              user.ID.String(),
+		Email:           user.Email,
+		Username:        user.Username,
+		Role:            string(user.Role),
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+		TermsAcceptedAt: user.TermsAcceptedAt,
 	})
 }
 

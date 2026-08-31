@@ -26,9 +26,10 @@ func TestAuthService_Register(t *testing.T) {
 		ctx := context.Background()
 
 		result, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice",
-			Password: "securepassword123",
+			Email:         "alice@example.com",
+			Username:      "alice",
+			Password:      "securepassword123",
+			AcceptedTerms: true,
 		})
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -45,6 +46,9 @@ func TestAuthService_Register(t *testing.T) {
 		if result.User.Email != "alice@example.com" {
 			t.Fatalf("expected email alice@example.com, got %s", result.User.Email)
 		}
+		if result.User.TermsAcceptedAt.IsZero() {
+			t.Fatal("expected terms acceptance to be timestamped")
+		}
 		if result.User.Role != domain.RoleUser {
 			t.Fatalf("expected role %s, got %s", domain.RoleUser, result.User.Role)
 		}
@@ -55,18 +59,20 @@ func TestAuthService_Register(t *testing.T) {
 		ctx := context.Background()
 
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice",
-			Password: "securepassword123",
+			Email:         "alice@example.com",
+			Username:      "alice",
+			Password:      "securepassword123",
+			AcceptedTerms: true,
 		})
 		if err != nil {
 			t.Fatalf("first register should succeed, got %v", err)
 		}
 
 		_, err = svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice2",
-			Password: "anotherpassword123",
+			Email:         "alice@example.com",
+			Username:      "alice2",
+			Password:      "anotherpassword123",
+			AcceptedTerms: true,
 		})
 		if err == nil {
 			t.Fatal("expected error for duplicate email")
@@ -81,12 +87,30 @@ func TestAuthService_Register(t *testing.T) {
 		ctx := context.Background()
 
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "bob@example.com",
-			Username: "bob",
-			Password: "short",
+			Email:         "bob@example.com",
+			Username:      "bob",
+			Password:      "short",
+			AcceptedTerms: true,
 		})
 		if err == nil {
 			t.Fatal("expected error for short password")
+		}
+		if !errors.Is(err, domain.ErrInvalidInput) {
+			t.Fatalf("expected ErrInvalidInput, got %v", err)
+		}
+	})
+
+	t.Run("register without accepting terms", func(t *testing.T) {
+		svc, _, _ := newAuthService()
+		ctx := context.Background()
+
+		_, err := svc.Register(ctx, application.RegisterInput{
+			Email:    "carol@example.com",
+			Username: "carol",
+			Password: "securepassword123",
+		})
+		if err == nil {
+			t.Fatal("expected error when terms are not accepted")
 		}
 		if !errors.Is(err, domain.ErrInvalidInput) {
 			t.Fatalf("expected ErrInvalidInput, got %v", err)
@@ -100,9 +124,10 @@ func TestAuthService_Login(t *testing.T) {
 		ctx := context.Background()
 
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice",
-			Password: "securepassword123",
+			Email:         "alice@example.com",
+			Username:      "alice",
+			Password:      "securepassword123",
+			AcceptedTerms: true,
 		})
 		if err != nil {
 			t.Fatalf("register failed: %v", err)
@@ -131,9 +156,10 @@ func TestAuthService_Login(t *testing.T) {
 		ctx := context.Background()
 
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice",
-			Password: "securepassword123",
+			Email:         "alice@example.com",
+			Username:      "alice",
+			Password:      "securepassword123",
+			AcceptedTerms: true,
 		})
 		if err != nil {
 			t.Fatalf("register failed: %v", err)
@@ -174,9 +200,10 @@ func TestAuthService_RefreshToken(t *testing.T) {
 		ctx := context.Background()
 
 		registerResult, err := svc.Register(ctx, application.RegisterInput{
-			Email:    "alice@example.com",
-			Username: "alice",
-			Password: "securepassword123",
+			Email:         "alice@example.com",
+			Username:      "alice",
+			Password:      "securepassword123",
+			AcceptedTerms: true,
 		})
 		if err != nil {
 			t.Fatalf("register failed: %v", err)

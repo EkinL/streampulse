@@ -365,7 +365,7 @@ func TestAuthHandlerRepoFailures(t *testing.T) {
 		h := newAuthHandlerHarness(testutil.NewMockUserRepo(), refresh)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/auth/register",
-			strings.NewReader(`{"email":"a@b.io","username":"ab","password":"longenough"}`))
+			strings.NewReader(`{"email":"a@b.io","username":"ab","password":"longenough","accepted_terms":true}`))
 		h.Register(rec, req)
 		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
 	})

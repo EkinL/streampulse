@@ -20,6 +20,7 @@ transmises a un tiers.
 | Email, nom d'utilisateur | table `users` | Identifier le compte, se connecter | Execution du contrat (creation du compte) | Duree de vie du compte |
 | Mot de passe | table `users`, **hash bcrypt (cout 12)** uniquement | Authentification | Execution du contrat | Duree de vie du compte |
 | Role, dates de creation et de mise a jour | table `users` | Autorisation, tracabilite du compte | Execution du contrat | Duree de vie du compte |
+| Horodatage de l'acceptation des conditions d'utilisation (`terms_accepted_at`) | table `users` | Preuve du consentement recueilli a l'inscription | Obligation legale (obligation de rendre compte, art. 5.2) | Duree de vie du compte |
 | Refresh tokens | table `refresh_tokens`, **hash SHA-256** uniquement | Prolonger une session sans ressaisir le mot de passe | Execution du contrat | 168 h maximum (`JWT_REFRESH_EXPIRY`), revoques a chaque connexion, **purges automatiquement une fois expires** (`REFRESH_TOKEN_PURGE_INTERVAL`, 1 h) |
 | Flux, playlists, favoris, morceaux deposes | tables `streams`, `playlists`, `tracks`, `favorites`, `music`, `music_favorites` | Le service lui-meme | Execution du contrat | Duree de vie du compte, **supprimes en cascade avec lui** |
 | Adresse IP, user-agent, chemin, statut, `request_id`, `trace_id` | logs JSON sur la sortie standard du conteneur `api` | Securite (rate limiting par hote), diagnostic | Interet legitime | Fixee par la plateforme de logs qui les collecte : journal Docker en local, retention a configurer sur le collecteur en production (recommandation : 30 jours) |
@@ -95,8 +96,16 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
    leur URL par `/uploads/{fichier}` pour qui la connait. Ils ne contiennent
    pas de donnees personnelles, mais un nettoyage des fichiers orphelins est
    a prevoir (meme limite que `DELETE /music/{id}`).
-2. **Consentement et information** : l'application ne presente pas encore de
-   conditions d'utilisation ni de lien vers ce document a l'inscription.
+2. ~~**Consentement et information** : l'application ne presente pas encore de
+   conditions d'utilisation ni de lien vers ce document a l'inscription.~~
+   Resolu : l'inscription affiche desormais une case a cocher obligatoire
+   ("J'accepte les conditions d'utilisation et la politique de
+   confidentialite", avec lien vers `/privacy`) ; `POST /auth/register`
+   refuse la requete (`400 BAD_REQUEST`) si `accepted_terms` n'est pas
+   `true`, cote client comme cote serveur. L'horodatage est conserve dans
+   `users.terms_accepted_at` et rendu par `GET /users/me` comme preuve du
+   consentement (obligation de rendre compte, art. 5.2). Voir
+   `register_screen.dart`, `application/auth_service.go`.
 3. **Delai de retractation** : l'effacement est immediat et irreversible. Un
    delai de grace (compte desactive puis purge a J+30) est une evolution
    possible, au prix d'une colonne `deleted_at` et d'une tache de purge.

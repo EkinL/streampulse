@@ -127,7 +127,7 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 
 	t.Run("l'email est libere", func(t *testing.T) {
 		s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-			"email": bc.Email, "username": "renaissance", "password": password,
+			"email": bc.Email, "username": "renaissance", "password": password, "accepted_terms": true,
 		}).expect(t, http.StatusCreated, "")
 	})
 }

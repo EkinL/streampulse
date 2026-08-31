@@ -313,7 +313,7 @@ func (s *suite) register(t *testing.T, role domain.Role) account {
 	username := string(role) + "-" + email[:8]
 
 	r := s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-		"email": email, "username": username, "password": password,
+		"email": email, "username": username, "password": password, "accepted_terms": true,
 	}).expect(t, http.StatusCreated, "")
 	d := r.data(t)
 	user, _ := d["user"].(map[string]any)
