@@ -55,15 +55,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
   int _dropCount = 0;
 
   // Bouton "Couper l'antenne" : maintien obligatoire de 2 s.
-  late final AnimationController _holdController = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 2),
-  )..addStatusListener((status) {
-      if (status == AnimationStatus.completed && _activeStream != null) {
-        _holdController.reset();
-        _stopStream(_activeStream!.id);
-      }
-    });
+  late final AnimationController _holdController;
 
   // Music library
   List<MusicModel> _myMusic = [];
@@ -72,6 +64,19 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
   @override
   void initState() {
     super.initState();
+    // Cree en eager ici, pas en lazy `late final = ...` : si le bouton n'est
+    // jamais maintenu, le premier acces au getter etait sinon `dispose()`,
+    // qui tente de creer l'AnimationController (vsync) sur un widget deja
+    // desactive et plante (TickerMode lookup unsafe post-deactivation).
+    _holdController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && _activeStream != null) {
+          _holdController.reset();
+          _stopStream(_activeStream!.id);
+        }
+      });
     _listenerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_activeStream != null && mounted) {
         _refreshActiveStream(_activeStream!.id);

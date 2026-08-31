@@ -179,12 +179,20 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                               ),
                             ],
                           ),
-                          child: MaterialButton(
+                          child: TextButton(
+                            // TextButton (not MaterialButton): it's a
+                            // ButtonStyleButton, so Enter/Space activate it
+                            // when focused via Tab. MaterialButton doesn't
+                            // reliably respond to keyboard activation on web.
                             onPressed: isLoading ? null : _handleLogin,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            style: TextButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.zero,
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: SP.btnText,
                             ),
-                            padding: EdgeInsets.zero,
                             child: isLoading
                                 ? const SizedBox(
                                     height: 20,

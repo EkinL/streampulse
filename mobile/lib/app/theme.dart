@@ -58,6 +58,13 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: SP.bg,
+      // Le focus clavier par defaut de Material 3 (overlay ~10% d'opacite)
+      // est trop discret sur cette palette sombre custom : on le renforce
+      // pour qu'il reste perceptible a la tabulation (WCAG 2.4.7).
+      focusColor: SP.accent.withValues(alpha: 0.24),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(overlayColor: SP.accent),
+      ),
       colorScheme: const ColorScheme.dark(
         primary: SP.accent,
         onPrimary: SP.btnText,
