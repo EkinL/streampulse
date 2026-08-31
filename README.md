@@ -71,6 +71,10 @@ app/             Router, Theme, Constants
 ## Demarrage rapide
 
 ```bash
+# Secrets locaux (webhook Discord des alertes Grafana) - voir .env.example
+cp .env.example .env
+# puis remplir DISCORD_WEBHOOK_URL
+
 # Lancer toute la stack
 make up
 
@@ -79,11 +83,14 @@ curl http://localhost:8080/health
 # {"data":{"status":"ok"},"meta":{...}}
 ```
 
+Sans ce `.env`, la stack demarre quand meme mais les alertes Grafana n'ont nulle part ou notifier (webhook vide, echec silencieux).
+
 | Service | URL |
 |---------|-----|
 | API | http://localhost:8080 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Prometheus | http://localhost:9090 |
+| Tempo (traces) | http://localhost:3200 |
 
 ## Developpement
 
@@ -236,6 +243,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 - [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
 - [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
 - [ADR 007 - Effacement physique en cascade (RGPD)](docs/ADR/007-effacement-compte-rgpd.md)
+- [ADR 008 - Dashboard Grafana, traces distribuees et alertes](docs/ADR/008-dashboard-alertes-grafana.md)
 
 ## Scalabilite
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage.dart';
 import 'api_endpoints.dart';
 import 'api_exceptions.dart';
+import 'trace_context.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
@@ -30,6 +31,7 @@ final dioProvider = Provider<Dio>((ref) {
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        options.headers['traceparent'] = generateTraceparent();
         handler.next(options);
       },
       onError: (error, handler) async {

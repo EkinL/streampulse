@@ -1,0 +1,92 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: streampulse-technique
+    folder: StreamPulse Alerts
+    interval: 1m
+    rules:
+      - uid: streampulse-api-down
+        title: API StreamPulse indisponible
+        condition: C
+        for: 1m
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+          category: technique
+        annotations:
+          summary: "L'API StreamPulse ne repond plus au scrape Prometheus"
+          description: "up{job=\"streampulse-api\"} == 0 depuis au moins 1 minute : le service est down ou injoignable."
+        data:
+          - refId: A
+            datasourceUid: PBFA97CFB590B2093
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: up{job="streampulse-api"}
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+              refId: C
+
+  - orgId: 1
+    name: streampulse-metier
+    folder: StreamPulse Alerts
+    interval: 1m
+    rules:
+      - uid: streampulse-disconnections-spike
+        title: Pic de deconnexions brutales
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Alerting
+        labels:
+          severity: warning
+          category: metier
+        annotations:
+          summary: "Deconnexions brutales anormalement elevees"
+          description: "Plus de 3 deconnexions brutales sur une fenetre glissante de 5 minutes. Seuil pense pour l'echelle reelle du projet (poignee d'auditeurs en demo/soutenance) plutot que pour de la production : un rate() par seconde n'aurait jamais pu se declencher a ce volume."
+        data:
+          - refId: A
+            datasourceUid: PBFA97CFB590B2093
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: increase(stream_disconnections_total[5m])
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [3]
+              refId: C
