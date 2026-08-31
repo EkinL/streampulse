@@ -99,6 +99,26 @@ func (r *UserRepo) UpdateRole(ctx context.Context, id uuid.UUID, role domain.Rol
 	return nil
 }
 
+// UpdateProfile change l'email et le nom d'utilisateur. La contrainte
+// d'unicite sur l'email (migration 001) fait echouer la requete avec
+// ErrAlreadyExists si l'adresse est deja prise par un autre compte.
+func (r *UserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, email, username string) error {
+	result, err := r.pool.Exec(ctx,
+		"UPDATE users SET email = $1, username = $2, updated_at = $3 WHERE id = $4",
+		email, username, time.Now().UTC(), id,
+	)
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("user_repo: update_profile: %w", domain.ErrAlreadyExists)
+		}
+		return fmt.Errorf("user_repo: update_profile: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user_repo: update_profile: %w", domain.ErrNotFound)
+	}
+	return nil
+}
+
 // Delete supprime la ligne users. Les tables liees (refresh_tokens, streams,
 // playlists, favorites, music, music_favorites) declarent toutes
 // ON DELETE CASCADE vers users(id) : une seule requete efface l'ensemble des

@@ -277,7 +277,7 @@ func (r *stubMusicRepo) Delete(ctx context.Context, id uuid.UUID) error {
 
 type stubUserRepo struct {
 	*testutil.MockUserRepo
-	createErr, findErr, listErr, roleErr, deleteErr error
+	createErr, findErr, listErr, roleErr, deleteErr, profileErr error
 }
 
 func (r *stubUserRepo) Create(ctx context.Context, u *domain.User) error {
@@ -306,6 +306,13 @@ func (r *stubUserRepo) UpdateRole(ctx context.Context, id uuid.UUID, role domain
 		return r.roleErr
 	}
 	return r.MockUserRepo.UpdateRole(ctx, id, role)
+}
+
+func (r *stubUserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, email, username string) error {
+	if r.profileErr != nil {
+		return r.profileErr
+	}
+	return r.MockUserRepo.UpdateProfile(ctx, id, email, username)
 }
 
 func (r *stubUserRepo) Delete(ctx context.Context, id uuid.UUID) error {

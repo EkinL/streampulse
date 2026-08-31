@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/network/api_exceptions.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../shared/providers/theme_provider.dart';
 import '../../domain/auth_state.dart';
+import '../../domain/user_model.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/auth_form_field.dart';
 
 /// Réunit les deux droits RGPD déjà câblés côté serveur (accès et
 /// effacement, voir `docs/rgpd.md`) dans un seul écran découvrable, plutôt
@@ -116,13 +120,26 @@ class AccountScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           _TextScaleSelector(textScale: ref.watch(textScaleProvider)),
           const SizedBox(height: 24),
-          Text(
-            'Vos données',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  'Vos données',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _editProfile(context, ref, user),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Modifier'),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
-            'Droit d\'accès et de portabilité : voici l\'intégralité des données liées à votre compte.',
+            'Droit d\'accès et de portabilité : voici l\'intégralité des données liées à votre compte. '
+            'Droit de rectification : modifiez votre email ou votre nom d\'utilisateur à tout moment.',
             style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -202,6 +219,121 @@ class AccountScreen extends ConsumerWidget {
       return;
     }
     if (context.mounted) context.go('/login');
+  }
+
+  /// Droit de rectification (RGPD art. 16) : jusqu'ici seul un administrateur
+  /// pouvait changer l'email ou le nom d'utilisateur, directement en base.
+  ///
+  /// Le dialogue se contente de collecter les valeurs et se ferme avant tout
+  /// appel reseau : `updateProfile` change l'etat de `authProvider`, dont
+  /// `GoRouter` ecoute les changements (`refreshListenable`), et le faire
+  /// pendant qu'une route de dialogue est encore active fait planter le
+  /// framework (assertion `_dependents`), comme pour `_confirmDeleteAccount`.
+  Future<void> _editProfile(BuildContext context, WidgetRef ref, UserModel user) async {
+    final result = await showDialog<({String email, String username})>(
+      context: context,
+      builder: (_) => _EditProfileDialog(user: user),
+    );
+    if (result == null) return;
+
+    try {
+      await ref.read(authProvider.notifier).updateProfile(
+            email: result.email,
+            username: result.username,
+          );
+    } on ApiException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Modification impossible : ${e.message}')),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Informations mises à jour.')),
+    );
+  }
+}
+
+/// Formulaire du dialogue de rectification. Un widget a part, plutot que des
+/// controleurs locaux a `_editProfile`, pour que Flutter dispose lui-meme les
+/// `TextEditingController` au bon moment : les disposer a la main juste apres
+/// `await showDialog(...)` court-circuite l'animation de sortie du dialogue,
+/// encore en train de reconstruire les champs avec des controleurs deja
+/// detruits ("used after being disposed").
+class _EditProfileDialog extends StatefulWidget {
+  final UserModel user;
+
+  const _EditProfileDialog({required this.user});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _emailController = TextEditingController(text: widget.user.email);
+  late final _usernameController = TextEditingController(text: widget.user.username);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  void _unfocusAndPop<T>(T value) {
+    // Un focus encore actif sur un champ (et sa barre d'outils de selection
+    // eventuelle) fait planter le framework s'il est toujours la quand la
+    // route du dialogue est retiree.
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Modifier mes informations'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AuthFormField(
+              controller: _emailController,
+              label: 'Email',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: const Icon(Icons.alternate_email),
+              validator: Validators.email,
+            ),
+            const SizedBox(height: 12),
+            AuthFormField(
+              controller: _usernameController,
+              label: 'Nom d\'utilisateur',
+              prefixIcon: const Icon(Icons.person_outline),
+              validator: Validators.username,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => _unfocusAndPop<({String email, String username})?>(null),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            _unfocusAndPop((
+              email: _emailController.text.trim(),
+              username: _usernameController.text.trim(),
+            ));
+          },
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    );
   }
 }
 

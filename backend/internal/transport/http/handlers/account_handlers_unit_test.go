@@ -58,6 +58,7 @@ func TestUserHandlerRequiresAuthentication(t *testing.T) {
 
 	for name, fn := range map[string]http.HandlerFunc{
 		"me":        h.Me,
+		"update me": h.UpdateMe,
 		"delete me": h.DeleteMe,
 	} {
 		t.Run(name+" sans claims", func(t *testing.T) {
@@ -97,6 +98,96 @@ func TestUserHandlerRepoFailures(t *testing.T) {
 			unitClaims(user.ID, domain.RoleUser))
 		h.DeleteMe(rec, req)
 		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
+	})
+
+	t.Run("update me", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		harness.userRepo.profileErr = errInfra
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"new@unit.io","username":"newname"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
+	})
+}
+
+// TestUserHandlerUpdateMe teste le droit de rectification (RGPD art. 16) :
+// PATCH /users/me, jusqu'ici reserve a un administrateur en base.
+func TestUserHandlerUpdateMe(t *testing.T) {
+	t.Run("succes", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"rectifie@unit.io","username":"rectifie"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+		}
+
+		updated, err := harness.userRepo.FindByID(context.Background(), user.ID)
+		if err != nil {
+			t.Fatalf("find updated user: %v", err)
+		}
+		if updated.Email != "rectifie@unit.io" || updated.Username != "rectifie" {
+			t.Fatalf("profil non rectifie: %+v", updated)
+		}
+	})
+
+	t.Run("corps invalide", func(t *testing.T) {
+		h := NewUserHandler(newAccountHarness().userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader("{pas du json")),
+			unitClaims(uuid.New(), domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email invalide", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"pas-un-email","username":"valide"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("username trop court", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"valide@unit.io","username":"ab"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email deja pris", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		other := testutil.NewTestUser(domain.RoleUser)
+		other.Email = "prise@unit.io"
+		if err := harness.userRepo.Create(context.Background(), other); err != nil {
+			t.Fatalf("create other user: %v", err)
+		}
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"prise@unit.io","username":"nouveau"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusConflict, "CONFLICT")
 	})
 }
 

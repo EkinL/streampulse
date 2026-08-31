@@ -3,9 +3,17 @@ package application
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/google/uuid"
 	"github.com/streampulse/backend/internal/domain"
+)
+
+// Memes contraintes que cote client (mobile/lib/core/utils/validators.dart) :
+// dupliquees ici parce que le client ne peut pas etre la seule barriere.
+var (
+	profileEmailFormat    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	profileUsernameFormat = regexp.MustCompile(`^[a-zA-Z0-9_]{3,30}$`)
 )
 
 // StreamCloser deconnecte les auditeurs d'un flux. Satisfait par
@@ -52,6 +60,23 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, 
 	user, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("user: get: %w", err)
+	}
+	return user, nil
+}
+
+// UpdateProfile change l'email et le nom d'utilisateur du compte. C'est le
+// droit de rectification du RGPD (art. 16) : jusqu'ici seul un administrateur
+// pouvait modifier ces champs, directement en base (docs/rgpd.md).
+func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, email, username string) (*domain.User, error) {
+	if !profileEmailFormat.MatchString(email) || !profileUsernameFormat.MatchString(username) {
+		return nil, fmt.Errorf("user: update_profile: %w", domain.ErrInvalidInput)
+	}
+	if err := s.userRepo.UpdateProfile(ctx, id, email, username); err != nil {
+		return nil, fmt.Errorf("user: update_profile: %w", err)
+	}
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("user: update_profile: %w", err)
 	}
 	return user, nil
 }

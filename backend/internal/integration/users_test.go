@@ -114,6 +114,43 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 	})
 }
 
+// UC-22 : droit de rectification (RGPD, docs/rgpd.md). La personne change
+// son email et son nom d'utilisateur elle-meme, sans intervention d'un
+// administrateur.
+func TestUsers_Rectification(t *testing.T) {
+	s := newSuite(t)
+	u := s.newAccount(t, domain.RoleUser)
+	other := s.newAccount(t, domain.RoleUser)
+
+	t.Run("sans jeton : 401", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", "", map[string]any{"email": "x@y.io", "username": "xyz"}).expect(t, http.StatusUnauthorized, "UNAUTHORIZED")
+	})
+
+	t.Run("email invalide : 400", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{"email": "pas-un-email", "username": "valide"}).expect(t, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email deja pris par un autre compte : 409", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{"email": other.Email, "username": "nouveau"}).expect(t, http.StatusConflict, "CONFLICT")
+	})
+
+	t.Run("rectification : PATCH /users/me", func(t *testing.T) {
+		d := s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{
+			"email": "rectifie@streampulse.local", "username": "rectifie",
+		}).expect(t, http.StatusOK, "").data(t)
+		if str(d, "email") != "rectifie@streampulse.local" || str(d, "username") != "rectifie" {
+			t.Fatalf("profil non rectifie: %v", d)
+		}
+
+		// La rectification est bien lue en base, pas seulement renvoyee dans
+		// la reponse.
+		got := s.do(t, http.MethodGet, "/users/me", u.Access, nil).expect(t, http.StatusOK, "").data(t)
+		if str(got, "email") != "rectifie@streampulse.local" || str(got, "username") != "rectifie" {
+			t.Fatalf("rectification non persistee: %v", got)
+		}
+	})
+}
+
 // UC-21 : l'administrateur traite une demande d'effacement recue hors
 // application.
 func TestAdmin_DeleteUser(t *testing.T) {

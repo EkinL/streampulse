@@ -38,7 +38,7 @@ stockage securise du systeme (`core/storage/secure_storage.dart`).
 | Acces (art. 15) et portabilite (art. 20) | `GET /users/me` renvoie, au format JSON, l'integralite des donnees du compte lues en base | `handlers/user_handler.go` |
 | Effacement (art. 17) | `DELETE /users/me`, ou dans l'application mobile : avatar > **Delete my account**, apres confirmation. Le compte et tout ce qui s'y rattache disparaissent immediatement, par cascade en base | `handlers/user_handler.go`, `postgres/user_repo.go`, migrations `ON DELETE CASCADE` |
 | Effacement sur demande hors application | Un administrateur supprime le compte avec `DELETE /admin/users/{id}` | `handlers/admin_handler.go` |
-| Rectification (art. 16) | Pas d'endpoint de modification de l'email ou du nom d'utilisateur : la demande est traitee par un administrateur, directement en base. **Limitation connue**, voir section 6 | — |
+| Rectification (art. 16) | `PATCH /users/me` avec `email` et `username`. Les deux champs sont requis et remplacent la valeur en cours ; l'unicite de l'email est verifiee comme a l'inscription | `handlers/user_handler.go`, `application/user_service.go`, `postgres/user_repo.go` |
 | Opposition, limitation | Sans objet : aucun traitement ne repose sur le consentement ni sur du profilage | — |
 
 Apres un effacement, le jeton d'acces encore detenu par l'application reste
@@ -90,19 +90,17 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 
 ## 6. Limites connues et suite
 
-1. **Rectification** : pas de modification self-service de l'email ou du nom
-   d'utilisateur. A ajouter (`PATCH /users/me`).
-2. **Fichiers audio** : la suppression d'un compte efface les lignes `music`
+1. **Fichiers audio** : la suppression d'un compte efface les lignes `music`
    mais laisse les fichiers deposes dans `uploads/`, qui restent servis a
    leur URL par `/uploads/{fichier}` pour qui la connait. Ils ne contiennent
    pas de donnees personnelles, mais un nettoyage des fichiers orphelins est
    a prevoir (meme limite que `DELETE /music/{id}`).
-3. **Consentement et information** : l'application ne presente pas encore de
+2. **Consentement et information** : l'application ne presente pas encore de
    conditions d'utilisation ni de lien vers ce document a l'inscription.
-4. **Delai de retractation** : l'effacement est immediat et irreversible. Un
+3. **Delai de retractation** : l'effacement est immediat et irreversible. Un
    delai de grace (compte desactive puis purge a J+30) est une evolution
    possible, au prix d'une colonne `deleted_at` et d'une tache de purge.
-5. **Retention des logs** : dependante de la plateforme de collecte, a
+4. **Retention des logs** : dependante de la plateforme de collecte, a
    contractualiser lors de la mise en production.
 
 ---
@@ -118,10 +116,10 @@ No listening history, location, advertising identifiers or third-party
 trackers are collected.
 
 Rights: `GET /users/me` returns every piece of personal data held (access and
-portability); `DELETE /users/me` — or **Delete my account** in the mobile app
-— erases the account and everything attached to it immediately, by database
-cascade; an admin can do the same with `DELETE /admin/users/{id}`.
-Rectification is currently handled by an administrator (known limitation).
+portability); `PATCH /users/me` rectifies the email or username; `DELETE
+/users/me` — or **Delete my account** in the mobile app — erases the account
+and everything attached to it immediately, by database cascade; an admin can
+delete an account on behalf of a user with `DELETE /admin/users/{id}`.
 
 Security: bcrypt 12, short-lived JWTs with single-use hashed refresh tokens,
 TLS (native or via a reverse proxy), admin-only `/metrics`, role- and

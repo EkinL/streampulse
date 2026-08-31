@@ -89,6 +89,23 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 	return nil
 }
 
+func (m *MockUserRepo) UpdateProfile(_ context.Context, id uuid.UUID, email, username string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if existing, taken := m.byEmail[email]; taken && existing.ID != id {
+		return domain.ErrAlreadyExists
+	}
+	delete(m.byEmail, u.Email)
+	u.Email = email
+	u.Username = username
+	m.byEmail[email] = u
+	return nil
+}
+
 func (m *MockUserRepo) Delete(_ context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
