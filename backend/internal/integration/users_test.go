@@ -3,6 +3,8 @@ package integration_test
 import (
 	"context"
 	"net/http"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -22,6 +24,16 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 	musicID := s.addMusicByURL(t, bc, "Morceau a effacer", "Artiste")
 	s.do(t, http.MethodPost, "/playlists", bc.Access, map[string]any{"name": "Playlist a effacer", "is_public": false}).expect(t, http.StatusCreated, "")
 	s.do(t, http.MethodPost, "/favorites/"+streamID, bc.Access, nil).expect(t, http.StatusCreated, "")
+
+	// Un morceau verse (pas seulement ajoute par URL) : la suppression du
+	// compte doit aussi retirer le fichier de uploads/, sans quoi il reste
+	// servi par son URL pour qui la connait (limite connue, docs/rgpd.md).
+	uploaded := s.upload(t, bc.Access, map[string]string{"title": "Repetition a effacer", "artist": "Test"}, "repetition.mp3", []byte("audio-a-effacer")).
+		expect(t, http.StatusCreated, "").data(t)
+	uploadedPath := path.Join(uploadDir, path.Base(str(uploaded, "url")))
+	if _, err := os.Stat(uploadedPath); err != nil {
+		t.Fatalf("le fichier uploade doit exister sur disque avant la suppression du compte: %v", err)
+	}
 
 	// Le flux est en direct avec un auditeur connecte : la suppression du
 	// compte doit le couper, pas seulement effacer la ligne en base.
@@ -105,6 +117,12 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 		// Ses ressources publiques ont disparu du catalogue.
 		s.do(t, http.MethodGet, "/streams/"+streamID, "", nil).expect(t, http.StatusNotFound, "NOT_FOUND")
 		s.do(t, http.MethodGet, "/music/"+musicID, "", nil).expect(t, http.StatusNotFound, "NOT_FOUND")
+
+		// Le fichier verse a disparu du disque, pas seulement sa ligne en
+		// base (limite connue, docs/rgpd.md).
+		if _, err := os.Stat(uploadedPath); !os.IsNotExist(err) {
+			t.Fatalf("le fichier uploade doit avoir disparu du disque, err=%v", err)
+		}
 	})
 
 	t.Run("l'email est libere", func(t *testing.T) {

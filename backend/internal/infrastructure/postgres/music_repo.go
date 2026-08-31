@@ -146,6 +146,24 @@ func (r *MusicRepo) ListByUploader(ctx context.Context, uploaderID uuid.UUID, pa
 	return tracks, total, nil
 }
 
+func (r *MusicRepo) AllByUploader(ctx context.Context, uploaderID uuid.UUID) ([]domain.Music, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, title, artist, album, duration, url, cover_url, uploaded_by, created_at
+		 FROM music WHERE uploaded_by = $1`,
+		uploaderID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("music_repo: all_by_uploader: %w", err)
+	}
+	defer rows.Close()
+
+	tracks, err := scanMusicRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	return tracks, nil
+}
+
 func (r *MusicRepo) Update(ctx context.Context, music *domain.Music) error {
 	var coverURL *string
 	if music.CoverURL != "" {

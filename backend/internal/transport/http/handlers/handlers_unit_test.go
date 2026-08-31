@@ -230,7 +230,7 @@ func (r *stubPlaylistRepo) ReorderTracks(ctx context.Context, playlistID uuid.UU
 
 type stubMusicRepo struct {
 	*testutil.MockMusicRepo
-	createErr, findErr, listErr, searchErr, updateErr, deleteErr error
+	createErr, findErr, listErr, searchErr, updateErr, deleteErr, allByUploaderErr error
 }
 
 func (r *stubMusicRepo) Create(ctx context.Context, m *domain.Music) error {
@@ -273,6 +273,13 @@ func (r *stubMusicRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		return r.deleteErr
 	}
 	return r.MockMusicRepo.Delete(ctx, id)
+}
+
+func (r *stubMusicRepo) AllByUploader(ctx context.Context, uploaderID uuid.UUID) ([]domain.Music, error) {
+	if r.allByUploaderErr != nil {
+		return nil, r.allByUploaderErr
+	}
+	return r.MockMusicRepo.AllByUploader(ctx, uploaderID)
 }
 
 type stubUserRepo struct {

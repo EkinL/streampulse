@@ -495,6 +495,18 @@ func (m *MockMusicRepo) ListByUploader(_ context.Context, uploaderID uuid.UUID, 
 	return m.filter(func(it *domain.Music) bool { return it.UploadedBy == uploaderID }, page, perPage)
 }
 
+func (m *MockMusicRepo) AllByUploader(_ context.Context, uploaderID uuid.UUID) ([]domain.Music, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []domain.Music
+	for _, it := range m.items {
+		if it.UploadedBy == uploaderID {
+			out = append(out, *it)
+		}
+	}
+	return out, nil
+}
+
 func (m *MockMusicRepo) Update(_ context.Context, music *domain.Music) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
