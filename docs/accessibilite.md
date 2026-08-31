@@ -32,11 +32,18 @@ Sur la console web, la navigation laterale, l'avatar du compte et la
 deconnexion portent des infobulles, annoncees comme libelles par les lecteurs
 d'ecran de bureau.
 
-> **Limite connue.** Cette couverture concerne le lecteur et la console. Les
-> autres ecrans (listes de flux, playlists, recherche) reposent sur les
-> annonces par defaut de Flutter : les textes sont lus, mais certaines icones
-> et pochettes restent sans description. Un parcours complet au lecteur
-> d'ecran n'a pas encore ete audite ecran par ecran.
+Au-dela du lecteur et de la console, chacun des 33 boutons icone de
+l'application (retour, favoris, recherche, afficher/masquer le mot de passe,
+supprimer, actualiser...) porte desormais une annonce dediee. Les vignettes de
+pochette et de playlist (icone sur fond degrade, sans image reelle) sont
+marquees explicitement decoratives : le lecteur d'ecran passe directement au
+titre et a l'artiste, deja lus juste a cote, plutot que d'annoncer une icone
+muette.
+
+> **Limite connue.** Un parcours complet au lecteur d'ecran n'a pas encore ete
+> audite ecran par ecran (listes de flux, playlists, recherche) : la
+> couverture ci-dessus est verifiee controle par controle, pas rejouee de bout
+> en bout comme un utilisateur le ferait.
 
 ## Taille du texte
 
@@ -60,9 +67,9 @@ exemple, est aussi donne par le texte.
 ## Zones tactiles
 
 Les boutons de l'application utilisent les composants Material standard, dont
-la zone tactile par defaut est de 48 px. Exception connue : le bouton de
-sourdine du mini-lecteur en mode compact est reduit a 32 px, sous la
-recommandation.
+la zone tactile par defaut est de 48 px, y compris le bouton de sourdine du
+mini-lecteur en mode compact : l'icone reste petite visuellement, mais la
+zone tactile respecte la recommandation.
 
 ## Handicap auditif
 

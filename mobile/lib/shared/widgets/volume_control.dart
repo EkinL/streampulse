@@ -30,7 +30,9 @@ class VolumeControl extends ConsumerWidget {
           iconSize: iconSize,
           padding: compact ? EdgeInsets.zero : null,
           constraints: compact
-              ? const BoxConstraints(minWidth: 32, minHeight: 32)
+              // 48x48 minimum tap target (Material recommendation), even though
+              // the visible icon stays small (iconSize 18) to fit the compact bar.
+              ? const BoxConstraints(minWidth: 48, minHeight: 48)
               : null,
           onPressed: notifier.toggleMute,
           icon: Icon(_iconFor(volume), color: SP.text2),
