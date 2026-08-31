@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-backend-integration test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
 
 up:
 	docker compose up -d --build
@@ -19,8 +19,19 @@ build-all:
 test-backend:
 	cd backend && make test
 
+# Tests d'integration backend : exige une base PostgreSQL jetable dans
+# DATABASE_URL (voir docs/plan-de-tests.md).
+test-backend-integration:
+	cd backend && make test-integration
+
 test-mobile:
 	cd mobile && flutter test
+
+# Tests mobile avec le seuil de couverture de la CI (COVERAGE_MIN, voir
+# mobile/scripts/coverage_check.sh).
+.PHONY: test-mobile-cover
+test-mobile-cover:
+	cd mobile && flutter test --coverage && ./scripts/coverage_check.sh
 
 # AppBundle iOS non signe (livrable). Necessite Xcode : impossible sur Linux.
 # Le .ipa atterrit dans mobile/build/ios/ipa/.
@@ -62,3 +73,17 @@ mobile-run: dart-define
 
 mobile-run-debug: dart-define
 	cd mobile && flutter run $(TARGET) --dart-define-from-file=dart_define.json
+
+# --- Production ----------------------------------------------------------
+# Stack de dev + surcouche de production (Caddy termine TLS, API non
+# publiee, CORS explicite, ports internes fermes). Variables attendues dans
+# un .env a la racine : API_DOMAIN, CORS_ALLOWED_ORIGINS, JWT_SECRET.
+# Voir docs/deployment.md, section HTTPS.
+PROD_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.prod.yml
+
+.PHONY: up-prod down-prod
+up-prod:
+	$(PROD_COMPOSE) up -d --build
+
+down-prod:
+	$(PROD_COMPOSE) down

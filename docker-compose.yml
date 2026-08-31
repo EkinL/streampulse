@@ -19,9 +19,18 @@ services:
       OTEL_ENDPOINT: otel-collector:4317
       OTEL_SERVICE_NAME: streampulse-api
       LOG_LEVEL: debug
+      # Joker : stack de dev uniquement. La surcouche docker-compose.prod.yml
+      # passe APP_ENV en production et exige une liste d'origines.
       CORS_ALLOWED_ORIGINS: "*"
       RATE_LIMIT_RPS: "10"
       RATE_LIMIT_BURST: "20"
+      # Vides : la stack locale sert en clair. En production, monter les
+      # certificats dans le conteneur et renseigner les deux chemins, ou
+      # terminer TLS sur un reverse proxy (docs/deployment.md).
+      TLS_CERT_FILE: ""
+      TLS_KEY_FILE: ""
+      PUBLIC_BASE_URL: ""
+      REFRESH_TOKEN_PURGE_INTERVAL: 1h
     depends_on:
       postgres:
         condition: service_healthy

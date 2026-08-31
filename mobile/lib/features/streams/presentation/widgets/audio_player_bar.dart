@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
+import '../../../../shared/widgets/volume_control.dart';
 import '../providers/live_stream_provider.dart';
 import 'audio_waveform.dart';
 
@@ -122,6 +123,11 @@ class AudioPlayerBar extends ConsumerWidget {
                 ),
             ],
           ),
+          if (isConnected)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: VolumeControl(compact: true),
+            ),
         ],
       ),
     );
@@ -145,6 +151,7 @@ class AudioPlayerBar extends ConsumerWidget {
     }
 
     return IconButton(
+      tooltip: isConnected ? 'Stop listening' : 'Listen',
       icon: Icon(
         isConnected ? Icons.stop_circle : Icons.play_circle_filled,
         size: 48,
@@ -159,7 +166,9 @@ class AudioPlayerBar extends ConsumerWidget {
               if (isConnected) {
                 ref.read(liveStreamProvider.notifier).disconnect();
               } else {
-                ref.read(liveStreamProvider.notifier).connect(streamId);
+                ref
+                    .read(liveStreamProvider.notifier)
+                    .connect(streamId, title: title);
               }
             }
           : null,

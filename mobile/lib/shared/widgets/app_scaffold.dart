@@ -158,11 +158,68 @@ class AppScaffold extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 4),
+            // Droit a l'effacement (RGPD, docs/rgpd.md) : volontairement
+            // discret, sous la deconnexion, et toujours confirme.
+            TextButton.icon(
+              onPressed: () => _confirmDeleteAccount(context, sheetCtx, ref),
+              icon: const Icon(Icons.delete_forever_outlined, size: 18),
+              label: const Text('Delete my account'),
+              style: TextButton.styleFrom(foregroundColor: SP.text3),
+            ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+}
+
+extension on AppScaffold {
+  /// Supprime definitivement le compte apres confirmation explicite, puis
+  /// renvoie a l'ecran de connexion. En cas d'echec la session reste ouverte
+  /// et l'erreur est affichee.
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    BuildContext sheetCtx,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: sheetCtx,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'Your account, playlists, favorites and streams will be permanently '
+          'deleted. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: SP.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // On ferme la feuille avant d'appeler le serveur : un message d'erreur
+    // affiche sous une feuille modale est invisible.
+    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+    try {
+      await ref.read(authProvider.notifier).deleteAccount();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete account: $e')),
+      );
+      return;
+    }
+    if (context.mounted) context.go('/login');
   }
 }
 

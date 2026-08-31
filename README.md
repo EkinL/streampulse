@@ -1,5 +1,9 @@
 # StreamPulse
 
+[![Backend CI](https://github.com/EkinL/streampulse/actions/workflows/backend.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/backend.yml)
+[![Mobile CI](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/mobile.yml)
+[![Security](https://github.com/EkinL/streampulse/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/EkinL/streampulse/actions/workflows/security.yml)
+
 Plateforme de streaming audio en temps reel avec backend Go et application mobile Flutter.
 
 ## Architecture
@@ -106,6 +110,9 @@ flutter pub get
 flutter run
 ```
 
+Lecture en arriere-plan et controles ecran verrouille via `audio_service`,
+voir [ADR 004](docs/ADR/004-background-audio.md).
+
 ## Livrables
 
 | Livrable | Commande | Sortie |
@@ -129,6 +136,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_ENV` | development | `production` durcit la configuration : le joker CORS est refuse au demarrage |
 | `PORT` | 8080 | Port du serveur |
 | `DATABASE_URL` | - | URL PostgreSQL |
 | `JWT_SECRET` | - | Secret JWT (changer en prod) |
@@ -137,8 +145,18 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `OTEL_ENDPOINT` | localhost:4317 | Endpoint OTEL Collector |
 | `LOG_LEVEL` | info | Niveau de log |
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
-| `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
+| `CORS_ALLOWED_ORIGINS` | * | Origines CORS, separees par des virgules. `*` n'est accepte qu'en dehors de `APP_ENV=production` ; avec le joker, `Allow-Credentials` n'est pas annonce |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
+| `TRUSTED_PROXIES` | (vide) | Reverse-proxies dont `X-Forwarded-For` est accepte, en CIDR ou adresse. Vide = aucun en-tete de transmission n'est cru |
+| `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
+| `HTTP_WRITE_TIMEOUT` | 30s | Ecriture d'une reponse |
+| `HTTP_IDLE_TIMEOUT` | 60s | Connexion keep-alive inactive |
+| `TLS_CERT_FILE` / `TLS_KEY_FILE` | - | Renseignes ensemble, le serveur sert en HTTPS (TLS 1.2 min.) ; vides, il reste en clair derriere un reverse proxy, voir [deployment.md](docs/deployment.md#https) |
+| `PUBLIC_BASE_URL` | déduit | URL publique de l'API pour les liens des fichiers uploades ; vide = `http(s)://localhost:PORT` selon TLS |
+| `REFRESH_TOKEN_PURGE_INTERVAL` | 1h | Purge des refresh tokens expires (retention, voir [rgpd.md](docs/rgpd.md)) |
+
+Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent
+ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeouts.md).
 
 ## API
 
@@ -170,24 +188,36 @@ Endpoints principaux :
 - `POST /streams` - Creer un stream (broadcaster)
 - `GET/POST/PUT/DELETE /playlists` - CRUD playlists + file d'attente
 - `GET /search` - Recherche globale streams + musiques
+- `GET/DELETE /users/me` - Consulter et supprimer son propre compte (RGPD)
 
 ## Roles
 
 | Role | Permissions |
 |------|-------------|
-| user | Ecouter, playlists, favoris |
+| user | Ecouter, playlists, favoris, consulter et supprimer son compte |
 | broadcaster | + creer/gerer des streams |
-| admin | + gestion des utilisateurs |
+| admin | + gestion des utilisateurs (roles, suppression) |
 
 ## Tests
 
 ```bash
-# Backend
-cd backend && go test -race ./...
+# Backend, suite unitaire (sans base)
+cd backend && make test-unit
+cd backend && make load-test   # 1000 auditeurs sur le Hub + 500 clients SSE reels
+cd backend && make bench       # cout d'un chunk pour 10 a 10 000 auditeurs
 
-# Mobile
-cd mobile && flutter test
+# Backend, suite d'integration : repositories et API bout en bout contre PostgreSQL
+export DATABASE_URL=postgres://localhost:5432/streampulse_test?sslmode=disable
+make test-integration
+
+# Tout, avec le seuil de couverture de la CI
+make cover-check
+
+# Mobile, avec le seuil de couverture de la CI
+make test-mobile-cover
 ```
+
+Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](docs/plan-de-tests.md).
 
 ## Documentation
 
@@ -195,20 +225,25 @@ cd mobile && flutter test
 |----------|-----------|
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
-| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | Strategie de test et 48 cas de recette executes |
+| [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
+| [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
+| [docs/rgpd.md](docs/rgpd.md) | Donnees personnelles : registre, retention, droits (acces, effacement), mesures de securite |
 | [docs/deployment.md](docs/deployment.md) | Deploiement |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [docs/operations.md](docs/operations.md) | Cycle de livraison, publication d'une version, boucle surveillance -> feuille de route |
 
 ## Decisions architecturales
 
 - [ADR 001 - Clean Architecture](docs/ADR/001-clean-architecture.md)
 - [ADR 002 - Riverpod](docs/ADR/002-state-management-riverpod.md)
 - [ADR 003 - SSE Streaming](docs/ADR/003-streaming-sse.md)
+- [ADR 004 - Lecture en arriere-plan et session media](docs/ADR/004-background-audio.md)
 - [ADR 004 - Observabilite : OTEL, Prometheus, logs correles](docs/ADR/004-observabilite-otel.md)
 - [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
 - [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
-- [ADR 007 - Dashboard Grafana, traces distribuees et alertes](docs/ADR/007-dashboard-alertes-grafana.md)
+- [ADR 007 - Effacement physique en cascade (RGPD)](docs/ADR/007-effacement-compte-rgpd.md)
+- [ADR 008 - Dashboard Grafana, traces distribuees et alertes](docs/ADR/008-dashboard-alertes-grafana.md)
 
 ## Scalabilite
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -82,8 +84,10 @@ func main() {
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
 
-	// Initialize file store
-	fileStore := filestore.NewFileStore("./uploads", "http://localhost"+cfg.Addr()+"/uploads")
+	// Initialize file store. L'URL publique suit PUBLIC_BASE_URL, ou a defaut
+	// le port et l'activation de TLS : un fichier uploade doit rester
+	// joignable quand le serveur passe en HTTPS.
+	fileStore := filestore.NewFileStore("./uploads", cfg.PublicBaseURL()+"/uploads")
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry, cfg.JWTRefreshExpiry)
@@ -91,46 +95,72 @@ func main() {
 	// Initialize streaming hub
 	hub := streaming.NewHub(logger)
 	hub.OnListenerChange = func(streamID uuid.UUID, count int) {
+		// Hors requete (le hub appelle ca depuis Broadcast/Unregister), donc pas
+		// de contexte parent : on en pose un borne, sinon une base qui ne
+		// repond plus laisserait s'accumuler une goroutine par changement.
 		go func() {
-			_ = streamRepo.UpdateListenerCount(context.Background(), streamID, count)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := streamRepo.UpdateListenerCount(ctx, streamID, count); err != nil {
+				logger.Warn().Err(err).Str("stream_id", streamID.String()).Msg("failed to update listener count")
+			}
 		}()
 	}
+
+	// Contexte de base des requetes HTTP et des taches de fond qui touchent
+	// la base : annule explicitement a l'arret, AVANT pool.Close (differe),
+	// pour liberer les connexions longues (SSE, audio, broadcast) et arreter
+	// la purge sans qu'elle tombe sur un pool ferme.
+	requestsCtx, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+
+	// Politique de retention (docs/rgpd.md) : les refresh tokens expires
+	// sont purges a intervalle regulier au lieu de s'accumuler en base.
+	go application.PurgeExpiredRefreshTokens(requestsCtx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
 
 	// Initialize services
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
-	userService := application.NewUserService(userRepo)
+	userService := application.NewUserService(userRepo, streamRepo, hub)
 	musicService := application.NewMusicService(musicRepo, fileStore)
 
 	// Initialize router
 	router := transport.NewRouter(transport.RouterConfig{
-		AuthService:     authService,
-		StreamService:   streamService,
-		PlaylistService: playlistService,
-		UserService:     userService,
-		MusicService:    musicService,
-		FavoriteRepo:         favoriteRepo,
-		MusicFavoriteRepo:   musicFavoriteRepo,
-		StreamRepo:           streamRepo,
-		MusicRepo:            musicRepo,
-		JWTManager:      jwtManager,
-		Hub:             hub,
-		Logger:          logger,
-		Metrics:         metrics,
-		CORSOrigins:     cfg.CORSAllowedOrigins,
-		RateLimitRPS:    cfg.RateLimitRPS,
-		RateLimitBurst:  cfg.RateLimitBurst,
-		ServiceName:     cfg.OTELServiceName,
+		AuthService:       authService,
+		StreamService:     streamService,
+		PlaylistService:   playlistService,
+		UserService:       userService,
+		MusicService:      musicService,
+		FavoriteRepo:      favoriteRepo,
+		MusicFavoriteRepo: musicFavoriteRepo,
+		StreamRepo:        streamRepo,
+		MusicRepo:         musicRepo,
+		JWTManager:        jwtManager,
+		Hub:               hub,
+		Logger:            logger,
+		Metrics:           metrics,
+		CORSOrigins:       cfg.CORSAllowedOrigins,
+		RateLimitRPS:      cfg.RateLimitRPS,
+		RateLimitBurst:    cfg.RateLimitBurst,
+		TrustedProxies:    cfg.TrustedProxies,
+		ServiceName:       cfg.OTELServiceName,
 	})
 
-	// Start server
+	// Start server. Les timeouts sont globaux ; les trois handlers de flux
+	// les levent pour leur seule connexion via http.ResponseController
+	// (voir handlers/deadline.go et docs/ADR/005-http-timeouts.md).
 	srv := &http.Server{
-		Addr:         cfg.Addr(),
-		Handler:      router,
-		ReadTimeout:  0, // Disabled for broadcast + SSE streaming
-		WriteTimeout: 0, // Disabled for SSE streaming
-		IdleTimeout:  60 * time.Second,
+		Addr:              cfg.Addr(),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second, // slowloris
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
+		BaseContext:       func(net.Listener) context.Context { return requestsCtx },
+		// N'a d'effet qu'avec ListenAndServeTLS : TLS 1.0 et 1.1 sont
+		// obsoletes (RFC 8996).
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 	}
 
 	// Internal metrics server. Prometheus scrapes this listener from
@@ -150,9 +180,18 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// TLS natif si TLS_CERT_FILE et TLS_KEY_FILE sont renseignes, sinon en
+	// clair derriere un reverse proxy qui termine TLS (docs/deployment.md).
 	go func() {
-		logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if cfg.TLSEnabled() {
+			logger.Info().Str("addr", cfg.Addr()).Msg("https server started")
+			err = srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+		} else {
+			logger.Info().Str("addr", cfg.Addr()).Msg("http server started")
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			logger.Fatal().Err(err).Msg("http server error")
 		}
 	}()
@@ -174,6 +213,10 @@ func main() {
 		logger.Error().Err(err).Msg("metrics server forced to shutdown")
 	}
 
+	// On coupe le contexte des requetes en cours avant Shutdown : les boucles
+	// SSE / audio / broadcast sortent sur r.Context().Done(), les connexions
+	// passent idle et Shutdown rend la main tout de suite.
+	cancelRequests()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal().Err(err).Msg("server forced to shutdown")
 	}

@@ -10,24 +10,32 @@ code HTTP et le corps de reponse ci-dessous sont ceux que le serveur a renvoyes.
 
 ## 1. Strategie de test
 
+La strategie complete — niveaux, cartographie cas d'usage → tests, campagne
+de securite, iterations et seuils — est dans le
+[plan de tests iteratifs](plan-de-tests.md). Ce cahier n'en garde que le
+resume et consigne les resultats **reellement observes** de la recette
+manuelle.
+
 ### Ce qui est teste, et a quel niveau
 
 | Niveau | Perimetre | Outillage | Ou |
 |--------|-----------|-----------|-----|
-| Unitaire | Regles metier pures, sans I/O : services applicatifs, validation, hierarchie de roles, parsing d'erreurs | `testing`, mocks de repository | `internal/application`, `internal/infrastructure` |
-| Composant | Un middleware ou un handler isole, avec un vrai `http.ResponseWriter` | `net/http/httptest` | `internal/transport/http` |
-| Integration | Le routeur complet, chaine de middlewares comprise : JWT, RBAC, rate-limit, enveloppe de reponse | `httptest.Server` | `internal/transport/http` |
-| Charge | Le Hub de fan-out sous concurrence reelle | benchmarks Go, `-race` | `internal/infrastructure/streaming` |
+| Unitaire | Regles metier pures, sans I/O : services applicatifs, validation, hierarchie de roles, JWT, middlewares, parsing d'erreurs | `testing`, mocks de repository | `internal/application`, `internal/infrastructure`, `internal/transport/http/middleware` |
+| Contrat | Le routeur et la description OpenAPI : routes documentees, 401 sur les operations `bearerAuth`, correlation des requetes | `chi.Walk`, `httptest` | `internal/transport/http` |
+| Integration base | Les repositories contre un vrai PostgreSQL : unicite, cascades, expiration, plein texte, transactions | `DATABASE_URL`, schema isole par paquet | `internal/infrastructure/postgres/repos_integration_test.go` |
+| Integration API | Le serveur complet, middlewares compris, par HTTP reel et par role | `httptest.Server` + PostgreSQL | `internal/integration` |
+| Securite | Jetons forges, injection SQL, mass assignment, matrice RBAC, propriete, rate limiting, secrets haches | memes outils | `auth/jwt_test.go`, `middleware/*_test.go`, `integration/security_test.go` |
+| Charge | Le Hub de fan-out sous concurrence reelle | benchmarks Go, `-race` | branche `test/hub-load-proof` |
 | Recette | L'API telle qu'un client la consomme, par role | ce document | — |
 
 ### Principes
 
 **Les tests sont ecrits avec le code, pas apres.** Chaque PR qui ajoute un
-comportement ajoute le test qui le decrit. La regle est verifiable : le seuil de
-couverture en CI echoue si une PR fait baisser la couverture.
+comportement ajoute le test qui le decrit. La regle est verifiable : la CI
+echoue sous le seuil de couverture (`COVERAGE_MIN`, voir le plan de tests).
 
-**Les cas d'echec comptent autant que les cas nominaux.** Sur les 48 cas
-ci-dessous, 21 verifient un refus : mauvais mot de passe, role insuffisant,
+**Les cas d'echec comptent autant que les cas nominaux.** Sur les 58 cas
+ci-dessous, 26 verifient un refus : mauvais mot de passe, role insuffisant,
 non-proprietaire, identifiant invalide, jeton rejoue. Un chemin nominal qui
 fonctionne ne prouve rien sur ce qui se passe quand un utilisateur sort du
 scenario prevu.
@@ -174,6 +182,32 @@ une liste partielle est refusee plutot que d'etre appliquee a moitie.
 | R-72 | **60 requetes en rafale sur `/health`** | anonyme | des `429` apres 20 | **60 x 200, aucun 429** | **ECHEC** |
 | R-73 | **`HEAD /health`** | anonyme | 200 | **405** | **ECHEC** |
 
+### 3.8 Compte et donnees personnelles (RGPD, Ce3.1.4)
+
+Executee le 2026-08-28 contre le serveur lance en local (`make run`) sur une
+base PostgreSQL jetable ; R-88 et R-89 contre un second serveur demarre avec
+un certificat auto-signe (voir [deployment.md](deployment.md#https)) ; R-90
+le 2026-08-30, binaire lance directement avec les variables d'environnement.
+
+| Cas | Requete | Role | Attendu | Obtenu | |
+|-----|---------|------|---------|--------|---|
+| R-80 | `GET /users/me` | user | 200, toutes les donnees du compte, sans hash | 200, `id, email, username, role, created_at, updated_at` | OK |
+| R-81 | `GET /users/me` sans jeton | anonyme | 401 | 401 | OK |
+| R-82 | `DELETE /users/me` | user | 200 `status: deleted` | 200, `{"data":{"status":"deleted"},"meta":{…}}` | OK |
+| R-83 | `GET /users/me` avec le **meme jeton** apres R-82 | user | 404 — le jeton ne designe plus personne | 404, `{"error":{"code":"NOT_FOUND"…}}` | OK |
+| R-84 | `POST /auth/refresh` avec l'ancien refresh token, puis `POST /auth/login` | anonyme | 401 et 401 | 401, 401 | OK |
+| R-85 | `POST /auth/register` avec l'email du compte supprime | anonyme | 201 — l'email est libere | 201 | OK |
+| R-86 | `DELETE /admin/users/{id}` | user | 403 | 403 | OK |
+| R-87 | `DELETE /admin/users/{id}`, puis rejeu, puis id `pas-un-uuid` | admin | 200, 404, 400 | 200 `status: deleted`, 404, 400 | OK |
+| R-88 | `GET /health` sur le serveur demarre avec `TLS_CERT_FILE` / `TLS_KEY_FILE` | anonyme | 200 en HTTPS, refus du HTTP en clair | 200, `TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256` ; 400 en HTTP clair | OK |
+| R-89 | Demarrage avec `TLS_CERT_FILE` seul | — | refus de demarrer | `TLS_CERT_FILE and TLS_KEY_FILE must be set together`, exit 2 | OK |
+| R-90 | Demarrage avec `APP_ENV=production` et `CORS_ALLOWED_ORIGINS=*` ; puis avec `CORS_ALLOWED_ORIGINS=https://console.example.com` | — | refus de demarrer, puis demarrage normal | `CORS_ALLOWED_ORIGINS must list explicit origins when APP_ENV=production`, exit 2 ; puis `starting streampulse api env=production` | OK |
+
+R-83 a R-85 sont les cas qui prouvent l'effacement : rien d'utilisable ne
+subsiste pour l'ancien detenteur du compte, et l'adresse est immediatement
+reutilisable. La disparition des lignes liees (jetons, flux, playlists,
+favoris, morceaux) est verifiee en base par `TestUsers_AccessAndErasure`.
+
 ## 4. Anomalies relevees
 
 ### A-01 — Le rate limiting est inoperant (R-72) — severite haute
@@ -210,6 +244,10 @@ correct, c'est **la cle qui est fausse**.
 
 **Correctif.** Extraire l'hote seul avec `net.SplitHostPort(r.RemoteAddr)`.
 
+**Statut : corrigee.** `middleware/ratelimit.go` indexe desormais sur l'hote
+seul ; le test `TestRateLimiterKeyIgnoresSourcePort` (deux ports, meme hote,
+meme compteur) etait rouge avant le correctif et garde le comportement.
+
 **Remarque connexe.** `X-Forwarded-For` est utilise sans condition. Tant que la
 stack n'a pas de reverse-proxy de confiance, n'importe quel client peut en
 envoyer un arbitraire pour obtenir un compteur vierge, ou usurper l'adresse d'un
@@ -228,13 +266,14 @@ service est mort.
 
 | | Cas | |
 |---|---:|---|
-| Executes | **48** | |
-| Conformes | **46** | 96 % |
-| En echec | **2** | A-01 (haute), A-02 (faible) |
-| Dont cas de refus attendu | 21 | 44 % des cas |
+| Executes | **58** | |
+| Conformes | **56** | 97 % |
+| En echec | **2** | A-01 (haute, corrigee depuis), A-02 (faible) |
+| Dont cas de refus attendu | 26 | 45 % des cas |
 
-Les 46 cas conformes couvrent les quatre roles, les six domaines fonctionnels et
-les principaux codes d'erreur de la description OpenAPI.
+Les 56 cas conformes couvrent les quatre roles, les sept domaines fonctionnels
+(dont les droits RGPD) et les principaux codes d'erreur de la description
+OpenAPI.
 
 ## 6. Rejouer cette recette
 
@@ -253,5 +292,6 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $API/auth/refresh \
   -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$TOK\"}"   # 401
 ```
 
-Les cas automatises correspondants vivent dans `backend/internal/transport/http`
-et se lancent avec `cd backend && make test`.
+Les cas automatises correspondants vivent dans `backend/internal/integration`
+et `backend/internal/transport/http` ; ils se lancent avec
+`cd backend && make test-integration` (voir le [plan de tests](plan-de-tests.md)).

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
 import '../../../../shared/providers/player_provider.dart';
+import '../../../../shared/widgets/volume_control.dart';
 import '../../../playlists/presentation/providers/playlist_provider.dart';
 import '../providers/music_favorites_provider.dart';
 
@@ -480,25 +481,32 @@ class MusicPlayerScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
+                      tooltip: 'Previous',
                       onPressed: () =>
                           ref.read(playerProvider.notifier).previous(),
                       icon: const Icon(Icons.skip_previous,
                           color: SP.text1, size: 36),
                     ),
                     const SizedBox(width: 24),
-                    GestureDetector(
-                      onTap: () =>
-                          ref.read(playerProvider.notifier).togglePlayPause(),
-                      child: Icon(
-                        isPlaying
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_filled,
-                        color: SP.accent,
-                        size: 64,
+                    Semantics(
+                      button: true,
+                      label: isPlaying ? 'Pause' : 'Play',
+                      child: GestureDetector(
+                        onTap: () => ref
+                            .read(playerProvider.notifier)
+                            .togglePlayPause(),
+                        child: Icon(
+                          isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled,
+                          color: SP.accent,
+                          size: 64,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 24),
                     IconButton(
+                      tooltip: 'Next',
                       onPressed: () =>
                           ref.read(playerProvider.notifier).next(),
                       icon: const Icon(Icons.skip_next,
@@ -506,6 +514,11 @@ class MusicPlayerScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Volume
+                const VolumeControl(),
 
                 const Spacer(),
               ],

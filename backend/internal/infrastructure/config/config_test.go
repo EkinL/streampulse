@@ -133,3 +133,130 @@ func TestLoadLogFormatIsIndependentOfAppEnv(t *testing.T) {
 		t.Errorf("LogFormat = %q en developpement : le format ne doit plus suivre APP_ENV", cfg.LogFormat)
 	}
 }
+
+func TestLoadTLSDisabledByDefault(t *testing.T) {
+	setMinimalEnv(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.TLSEnabled() {
+		t.Fatal("TLS ne doit pas etre actif sans TLS_CERT_FILE / TLS_KEY_FILE")
+	}
+	if cfg.RefreshTokenPurgeInterval <= 0 {
+		t.Fatalf("REFRESH_TOKEN_PURGE_INTERVAL doit avoir un defaut positif, obtenu %s", cfg.RefreshTokenPurgeInterval)
+	}
+}
+
+func TestLoadTLSEnabledWithBothFiles(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("TLS_CERT_FILE", "/certs/fullchain.pem")
+	t.Setenv("TLS_KEY_FILE", "/certs/privkey.pem")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.TLSEnabled() {
+		t.Fatal("TLS doit etre actif quand les deux fichiers sont renseignes")
+	}
+}
+
+// TestLoadRejectsHalfTLSConfig : un seul des deux fichiers est une erreur de
+// deploiement. On refuse de demarrer plutot que de servir en clair en
+// croyant servir en HTTPS.
+func TestLoadRejectsHalfTLSConfig(t *testing.T) {
+	for _, only := range []string{"TLS_CERT_FILE", "TLS_KEY_FILE"} {
+		t.Run(only, func(t *testing.T) {
+			setMinimalEnv(t)
+			t.Setenv(only, "/certs/one.pem")
+			if cfg, err := Load(); err == nil {
+				t.Fatalf("Load doit echouer avec %s seul, obtenu %+v", only, cfg)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsNonPositivePurgeInterval(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("REFRESH_TOKEN_PURGE_INTERVAL", "0s")
+	if cfg, err := Load(); err == nil {
+		t.Fatalf("Load doit refuser un intervalle nul, obtenu %+v", cfg)
+	}
+}
+
+func TestPublicBaseURLFollowsTLSAndPort(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("PORT", "8443")
+	t.Setenv("TLS_CERT_FILE", "/certs/fullchain.pem")
+	t.Setenv("TLS_KEY_FILE", "/certs/privkey.pem")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.PublicBaseURL(); got != "https://localhost:8443" {
+		t.Errorf("PublicBaseURL = %q, attendu https://localhost:8443", got)
+	}
+}
+
+func TestPublicBaseURLOverride(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("PUBLIC_BASE_URL", "https://api.example.com/")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.PublicBaseURL(); got != "https://api.example.com" {
+		t.Errorf("PublicBaseURL = %q, attendu https://api.example.com sans barre finale", got)
+	}
+}
+
+// TestLoadRejectsWildcardCORSInProduction : le joker CORS est un reglage de
+// developpement. Un serveur de production qui l'accepte laisserait n'importe
+// quel site appeler l'API depuis le navigateur d'un utilisateur, on refuse
+// donc de demarrer, comme pour une configuration TLS a moitie renseignee.
+func TestLoadRejectsWildcardCORSInProduction(t *testing.T) {
+	for name, origins := range map[string]string{
+		"joker seul":          "*",
+		"joker dans la liste": "https://console.example.com, *",
+		"vide":                "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			setMinimalEnv(t)
+			t.Setenv("APP_ENV", "production")
+			t.Setenv("CORS_ALLOWED_ORIGINS", origins)
+			if cfg, err := Load(); err == nil {
+				t.Fatalf("Load doit refuser CORS_ALLOWED_ORIGINS=%q en production, obtenu %+v", origins, cfg)
+			}
+		})
+	}
+}
+
+func TestLoadAcceptsExplicitCORSInProduction(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://console.example.com, https://app.example.com")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.IsProduction() || !cfg.CORSOriginsAreExplicit() {
+		t.Fatalf("origines nommees en production attendues, obtenu %+v", cfg)
+	}
+}
+
+// TestLoadAcceptsWildcardCORSOutsideProduction : en developpement le joker
+// reste le defaut, sinon la stack locale et Flutter web ne demarrent plus.
+func TestLoadAcceptsWildcardCORSOutsideProduction(t *testing.T) {
+	setMinimalEnv(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.CORSAllowedOrigins != "*" {
+		t.Errorf("CORSAllowedOrigins = %q, attendu le joker par defaut hors production", cfg.CORSAllowedOrigins)
+	}
+}

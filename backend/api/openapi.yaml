@@ -34,6 +34,15 @@ info:
     Roles are ordered: `anonymous` < `user` < `broadcaster` < `admin`.
     An endpoint marked "broadcaster" is therefore also reachable by an admin.
 
+    ## Personal data
+
+    `GET /users/me` returns every piece of personal data held on the
+    calling account; `DELETE /users/me` erases the account and everything
+    attached to it (tokens, streams, playlists, favorites, uploaded
+    tracks). An admin can do the same on behalf of a user with
+    `DELETE /admin/users/{id}`. Retention rules and the security measures
+    behind them are in `docs/rgpd.md`.
+
     ## Known inconsistency
 
     `401`, `403` and `429` raised by the middleware chain (authentication,
@@ -74,6 +83,8 @@ tags:
     description: Per-user favorite streams and tracks.
   - name: playlists
     description: Playlist CRUD and queue ordering.
+  - name: users
+    description: The calling user's own account — data access and erasure.
   - name: admin
     description: User administration, admin only.
 
@@ -526,6 +537,7 @@ paths:
               example:
                 error: { code: CONFLICT, message: stream is already live }
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -550,6 +562,7 @@ paths:
         '400': { $ref: '#/components/responses/InvalidID' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -1120,6 +1133,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
     put:
@@ -1190,6 +1204,70 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /users/me:
+    get:
+      tags: [users]
+      operationId: getMe
+      summary: Read my account
+      description: |
+        Every piece of personal data held on the calling account, read from
+        the database rather than from the token. Right of access (GDPR
+        art. 15) and portability (art. 20): the JSON is the export.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The calling user's account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404':
+          description: The account no longer exists (deleted while the token was still valid).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: NOT_FOUND, message: user not found }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [users]
+      operationId: deleteMe
+      summary: Delete my account
+      description: |
+        Erases the calling account and, by database cascade, everything
+        attached to it: refresh tokens, streams, playlists, favorites and
+        uploaded tracks. Right to erasure (GDPR art. 17). Irreversible.
+
+        The access token presented remains cryptographically valid until
+        it expires (15 minutes by default) but no longer matches any
+        account: `GET /users/me` answers 404 and the refresh token is gone.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: deleted }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404':
+          description: The account was already deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: NOT_FOUND, message: user not found }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /admin/users:
     get:
       tags: [admin]
@@ -1209,6 +1287,46 @@ paths:
                 $ref: '#/components/schemas/UserListEnvelope'
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [admin]
+      operationId: deleteUser
+      summary: Delete a user's account
+      description: |
+        Same effect as `DELETE /users/me`, performed by an admin on behalf
+        of the user — for an erasure request received outside the app.
+        Irreversible. No self-deletion guard: an admin deleting their own
+        id gets the same result as `DELETE /users/me`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: deleted }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400':
+          description: Invalid user id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: BAD_REQUEST, message: invalid user id }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -1255,6 +1373,7 @@ paths:
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -1509,6 +1628,18 @@ components:
         email: { type: string, format: email }
         username: { type: string }
         role: { $ref: '#/components/schemas/Role' }
+
+    Profile:
+      description: Every piece of personal data held on an account. The password hash is never returned.
+      type: object
+      required: [id, email, username, role, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     TokenPair:
       type: object
@@ -1765,6 +1896,13 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/Playlist' }
+
+    ProfileEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Profile' }
 
     UserListEnvelope:
       allOf:
