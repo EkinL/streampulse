@@ -49,7 +49,7 @@ jobs:
         working-directory: backend
         run: npx --yes @redocly/cli@1.25.11 bundle api/openapi.yaml -o openapi.bundled.yaml
       - name: Upload OpenAPI description
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi
           path: |
@@ -102,7 +102,7 @@ jobs:
         run: go test -run '^$' -bench 'Hub' -benchtime=1x ./internal/infrastructure/streaming/
       - name: Upload coverage
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: backend/coverage.out

@@ -159,7 +159,7 @@ jobs:
         run: |
           mv mobile/build/app/outputs/flutter-apk/app-release.apk \
              streampulse-${{ needs.verify.outputs.version }}.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android
           path: streampulse-*.apk
@@ -181,7 +181,7 @@ jobs:
       # avant toute installation sur appareil.
       - working-directory: mobile
         run: ./scripts/build_ipa.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ios
           path: mobile/build/ios/ipa/*.ipa
@@ -205,7 +205,7 @@ jobs:
         run: |
           cd mobile/build/web
           zip -qr "$GITHUB_WORKSPACE/streampulse-console-${{ needs.verify.outputs.version }}.zip" .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web
           path: streampulse-console-*.zip
