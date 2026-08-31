@@ -116,8 +116,12 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
    consentement (obligation de rendre compte, art. 5.2). Voir
    `register_screen.dart`, `application/auth_service.go`.
 3. **Delai de retractation** : l'effacement est immediat et irreversible. Un
-   delai de grace (compte desactive puis purge a J+30) est une evolution
-   possible, au prix d'une colonne `deleted_at` et d'une tache de purge.
+   delai de grace (compte desactive puis purge a J+30) est ecarte pour
+   l'instant : sans envoi d'email, rien ne peut informer la personne que son
+   compte est en sursis ni lui donner un moyen de l'annuler, ce qui prive le
+   delai de son interet (et ajouterait une colonne `deleted_at` et une tache
+   de purge pour un gain nul). A reconsiderer si une brique d'envoi d'email
+   est ajoutee au projet.
 4. ~~**Retention des logs** : dependante de la plateforme de collecte, a
    contractualiser lors de la mise en production.~~ Resolu : les logs de
    l'API tournent via le pilote `local` de Docker (`docker-compose.yml`,
