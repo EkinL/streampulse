@@ -96,6 +96,18 @@ class AccountScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _ThemeModeSelector(themeMode: ref.watch(themeModeProvider)),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: ref.watch(highContrastProvider),
+            onChanged: (value) => ref.read(highContrastProvider.notifier).set(value),
+            activeTrackColor: context.colors.accent,
+            title: Text('Contraste élevé', style: TextStyle(color: context.colors.text1, fontWeight: FontWeight.w600)),
+            subtitle: Text(
+              'Renforce les contrastes de texte et les bordures pour une meilleure lisibilité.',
+              style: TextStyle(fontSize: 12, color: context.colors.text3, height: 1.4),
+            ),
+          ),
           const SizedBox(height: 24),
           Text(
             'Vos données',

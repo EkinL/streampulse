@@ -62,3 +62,60 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
   return ThemeModeNotifier(ref.watch(themeModeStoreProvider));
 });
+
+abstract class HighContrastStore {
+  Future<bool?> load();
+  Future<void> save(bool enabled);
+}
+
+class SharedPrefsHighContrastStore implements HighContrastStore {
+  static const _key = 'high_contrast_enabled';
+
+  @override
+  Future<bool?> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_key);
+  }
+
+  @override
+  Future<void> save(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, enabled);
+  }
+}
+
+final highContrastStoreProvider = Provider<HighContrastStore>((ref) {
+  return SharedPrefsHighContrastStore();
+});
+
+/// Préférence "contraste élevé" (accessibilité), indépendante du choix
+/// clair/sombre — voir [SPColors.darkHighContrast] et [SPColors.lightHighContrast].
+class HighContrastNotifier extends StateNotifier<bool> {
+  final HighContrastStore _store;
+
+  HighContrastNotifier(this._store) : super(false) {
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    try {
+      final saved = await _store.load();
+      if (saved != null && mounted) state = saved;
+    } catch (_) {
+      // prefs indisponibles : on garde le defaut (desactive)
+    }
+  }
+
+  Future<void> set(bool enabled) async {
+    state = enabled;
+    try {
+      await _store.save(enabled);
+    } catch (_) {
+      // non bloquant
+    }
+  }
+}
+
+final highContrastProvider = StateNotifierProvider<HighContrastNotifier, bool>((ref) {
+  return HighContrastNotifier(ref.watch(highContrastStoreProvider));
+});

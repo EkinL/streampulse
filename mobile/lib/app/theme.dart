@@ -146,6 +146,57 @@ class SPColors extends ThemeExtension<SPColors> {
     navShadow: Color(0x146C63FF),
   );
 
+  /// Variante "contraste élevé" du thème sombre — noir pur, blanc pur,
+  /// bordures pleinement opaques. Vise le niveau AAA (7:1) plutôt que AA,
+  /// pour les utilisateurs malvoyants (WCAG 1.4.6 / 1.4.11).
+  static const darkHighContrast = SPColors(
+    bg: Color(0xFF000000),
+    altBg: Color(0xFF000000),
+    surface: Color(0xFF000000),
+    surfaceVariant: Color(0xFF1A1A1A),
+    tag: Color(0xFF262626),
+    text1: Color(0xFFFFFFFF),
+    text2: Color(0xFFF2F2F2),
+    text3: Color(0xFFD6D6D6),
+    textMuted: Color(0xFFCCCCCC),
+    accent: Color(0xFFE3E1FF),
+    onAccent: Color(0xFF000000),
+    offlineBg: Color(0xFF404040),
+    error: Color(0xFFFF7A6E),
+    success: Color(0xFF7CFF8F),
+    dangerText: Color(0xFFFFB4A8),
+    divider: Color(0x99FFFFFF),
+    consoleCardBorder: Color(0x59FFFFFF),
+    glow: Color(0x40E3E1FF),
+    navBg: Color(0xF2000000),
+    navShadow: Color(0x40E3E1FF),
+  );
+
+  /// Variante "contraste élevé" du thème clair — blanc pur, noir pur,
+  /// bordures pleinement opaques. Vise le niveau AAA (7:1) plutôt que AA.
+  static const lightHighContrast = SPColors(
+    bg: Color(0xFFFFFFFF),
+    altBg: Color(0xFFFFFFFF),
+    surface: Color(0xFFFFFFFF),
+    surfaceVariant: Color(0xFFEDEDED),
+    tag: Color(0xFFE0E0E0),
+    text1: Color(0xFF000000),
+    text2: Color(0xFF0D0D0D),
+    text3: Color(0xFF262626),
+    textMuted: Color(0xFF2E2E2E),
+    accent: Color(0xFF32268F),
+    onAccent: Color(0xFFFFFFFF),
+    offlineBg: Color(0xFFC7C7C7),
+    error: Color(0xFF8E0000),
+    success: Color(0xFF0A5B1D),
+    dangerText: Color(0xFF6B0000),
+    divider: Color(0x99000000),
+    consoleCardBorder: Color(0x59000000),
+    glow: Color(0x4032268F),
+    navBg: Color(0xF2FFFFFF),
+    navShadow: Color(0x4032268F),
+  );
+
   @override
   SPColors copyWith({
     Color? bg,
@@ -234,7 +285,13 @@ class AppTheme {
 
   static ThemeData get lightTheme => _buildTheme(SPColors.light, Brightness.light);
 
-  static ThemeData _buildTheme(SPColors c, Brightness brightness) {
+  static ThemeData get darkHighContrastTheme =>
+      _buildTheme(SPColors.darkHighContrast, Brightness.dark, highContrast: true);
+
+  static ThemeData get lightHighContrastTheme =>
+      _buildTheme(SPColors.lightHighContrast, Brightness.light, highContrast: true);
+
+  static ThemeData _buildTheme(SPColors c, Brightness brightness, {bool highContrast = false}) {
     final base = brightness == Brightness.dark
         ? ThemeData.dark(useMaterial3: true)
         : ThemeData.light(useMaterial3: true);
@@ -286,7 +343,10 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: c.surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: highContrast ? BorderSide(color: c.divider, width: 1.5) : BorderSide.none,
+        ),
         margin: EdgeInsets.zero,
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -294,10 +354,16 @@ class AppTheme {
         fillColor: c.surface,
         hintStyle: GoogleFonts.inter(fontSize: 16, color: c.text3),
         labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: c.text2),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.accent, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.error)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: highContrast ? BorderSide(color: c.divider, width: 1.5) : BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: highContrast ? BorderSide(color: c.divider, width: 1.5) : BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.accent, width: 2)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.error, width: highContrast ? 2 : 1)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
       ),
       filledButtonTheme: FilledButtonThemeData(

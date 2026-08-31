@@ -54,12 +54,13 @@ class StreamPulseApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final highContrast = ref.watch(highContrastProvider);
 
     return MaterialApp.router(
       title: 'StreamPulse',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: highContrast ? AppTheme.lightHighContrastTheme : AppTheme.lightTheme,
+      darkTheme: highContrast ? AppTheme.darkHighContrastTheme : AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: router,
     );
