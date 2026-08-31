@@ -12,13 +12,12 @@
 #     survivre a un deploiement.
 #   - TRUSTED_PROXIES = sous-reseau Docker : le rate limiting lit
 #     X-Forwarded-For pose par Caddy, et lui seul.
-#   - PostgreSQL et le collecteur OTEL ne sont plus publies ; Prometheus et
-#     Grafana ne repondent que sur l'interface locale de l'hote (tunnel SSH).
+#   - PostgreSQL, le collecteur OTEL et Loki ne sont plus publies ; Prometheus
+#     et Grafana ne repondent que sur l'interface locale de l'hote (tunnel SSH).
 #   - Rotation des logs de l'API resserree vers la recommandation de 30 jours
 #     (docs/rgpd.md) : approximative, le pilote local de Docker fait tourner
-#     par taille, pas par date. Une retention exacte par date suppose
-#     d'expedier les logs vers un collecteur (Loki, ELK...), hors perimetre
-#     de cette stack.
+#     par taille, pas par date. Loki garde de son cote une copie indexee des
+#     logs (loki/loki.yaml) sans retention par date configuree pour l'instant.
 #
 # Variables attendues (fichier .env a la racine ou environnement) :
 #   API_DOMAIN            nom DNS public de l'API (localhost pour un essai local)
@@ -77,6 +76,10 @@ services:
       - "127.0.0.1:3000:3000"
 
   otel-collector:
+    ports: !override []
+
+  loki:
+    # Seul Grafana interroge Loki, par le reseau interne : rien a publier.
     ports: !override []
 
 volumes:

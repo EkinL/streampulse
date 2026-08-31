@@ -114,10 +114,44 @@ services:
     networks:
       - streampulse
 
+  # Indexation des logs (le sujet demande des logs JSON indexables). Les
+  # conteneurs ecrivent deja du JSON sur stdout (LOG_FORMAT=json), Loki ne
+  # fait que les stocker et les indexer pour Grafana.
+  loki:
+    image: grafana/loki:3.0.0
+    command: ["-config.file=/etc/loki.yaml"]
+    volumes:
+      - ./loki/loki.yaml:/etc/loki.yaml
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - streampulse
+
+  # Collecte des logs par Promtail plutot que par le driver Docker Loki : le
+  # driver exige d'installer un plugin sur le demon Docker de chaque machine
+  # (dependance hors compose), alors que Promtail est un simple conteneur de
+  # plus, comme Prometheus ou Tempo — la stack reste autoportante pour la demo.
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: ["-config.file=/etc/promtail.yaml"]
+    volumes:
+      - ./loki/promtail.yaml:/etc/promtail.yaml
+      # Socket Docker en lecture seule : Promtail decouvre les conteneurs et
+      # lit leurs logs via l'API, sans monter /var/lib/docker/containers.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-data:/positions
+    depends_on:
+      - loki
+    networks:
+      - streampulse
+
 volumes:
   pgdata:
   grafana-data:
   tempo-data:
+  loki-data:
+  promtail-data:
 
 networks:
   streampulse:
