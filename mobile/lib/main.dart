@@ -55,6 +55,7 @@ class StreamPulseApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     final highContrast = ref.watch(highContrastProvider);
+    final textScaleFactor = ref.watch(textScaleProvider).factor;
 
     return MaterialApp.router(
       title: 'StreamPulse',
@@ -63,6 +64,13 @@ class StreamPulseApp extends ConsumerWidget {
       darkTheme: highContrast ? AppTheme.darkHighContrastTheme : AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) {
+        if (textScaleFactor == null || child == null) return child ?? const SizedBox.shrink();
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScaleFactor)),
+          child: child,
+        );
+      },
     );
   }
 }

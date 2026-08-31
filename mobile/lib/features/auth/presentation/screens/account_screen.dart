@@ -108,6 +108,13 @@ class AccountScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 12, color: context.colors.text3, height: 1.4),
             ),
           ),
+          const SizedBox(height: 16),
+          Text(
+            'Taille du texte',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.colors.text2),
+          ),
+          const SizedBox(height: 8),
+          _TextScaleSelector(textScale: ref.watch(textScaleProvider)),
           const SizedBox(height: 24),
           Text(
             'Vos données',
@@ -214,6 +221,39 @@ class _ThemeModeSelector extends ConsumerWidget {
       selected: {themeMode},
       onSelectionChanged: (selection) {
         ref.read(themeModeProvider.notifier).set(selection.first);
+      },
+      style: SegmentedButton.styleFrom(
+        backgroundColor: context.colors.surfaceVariant,
+        foregroundColor: context.colors.text2,
+        selectedBackgroundColor: context.colors.accent,
+        selectedForegroundColor: context.colors.onAccent,
+        side: BorderSide(color: context.colors.divider),
+      ),
+    );
+  }
+}
+
+class _TextScaleSelector extends ConsumerWidget {
+  final AppTextScale textScale;
+
+  const _TextScaleSelector({required this.textScale});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SegmentedButton<AppTextScale>(
+      segments: [
+        for (final option in AppTextScale.values)
+          ButtonSegment(
+            value: option,
+            label: Text(
+              option.label,
+              style: TextStyle(fontSize: 12 + (option.factor ?? 1.0) * 2),
+            ),
+          ),
+      ],
+      selected: {textScale},
+      onSelectionChanged: (selection) {
+        ref.read(textScaleProvider.notifier).set(selection.first);
       },
       style: SegmentedButton.styleFrom(
         backgroundColor: context.colors.surfaceVariant,
