@@ -45,20 +45,22 @@ class MiniPlayer extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    // Album art placeholder
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [SP.gradEnd, SP.accent],
+                    // Album art placeholder — decorative, title/artist beside it carry the info
+                    ExcludeSemantics(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [SP.gradEnd, SP.accent],
+                          ),
                         ),
+                        child: const Icon(Icons.music_note,
+                            color: SP.btnText, size: 24),
                       ),
-                      child: const Icon(Icons.music_note,
-                          color: SP.btnText, size: 24),
                     ),
                     const SizedBox(width: 12),
                     // Title + Artist

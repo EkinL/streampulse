@@ -34,19 +34,21 @@ class MusicTile extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            // Album art placeholder
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [SP.gradEnd, SP.accent],
+            // Album art placeholder — decorative, title/artist below carry the info
+            ExcludeSemantics(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [SP.gradEnd, SP.accent],
+                  ),
                 ),
+                child: const Icon(Icons.music_note, color: SP.btnText, size: 28),
               ),
-              child: const Icon(Icons.music_note, color: SP.btnText, size: 28),
             ),
             const SizedBox(width: 12),
             // Title + Artist

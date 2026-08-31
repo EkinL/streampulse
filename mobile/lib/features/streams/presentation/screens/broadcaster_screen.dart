@@ -967,15 +967,18 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 4),
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: SP.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
+                  // Album art placeholder — decorative, title/subtitle carry the info
+                  leading: ExcludeSemantics(
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: SP.surfaceVariant,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.music_note,
+                          color: SP.accent, size: 20),
                     ),
-                    child: const Icon(Icons.music_note,
-                        color: SP.accent, size: 20),
                   ),
                   title: Text(
                     track.title,

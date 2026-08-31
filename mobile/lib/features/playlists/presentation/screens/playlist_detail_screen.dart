@@ -609,16 +609,19 @@ class _SearchResultTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: const LinearGradient(
-                colors: [SP.gradEnd, SP.accent],
+          // Album art placeholder — decorative, title/artist beside it carry the info
+          ExcludeSemantics(
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: const LinearGradient(
+                  colors: [SP.gradEnd, SP.accent],
+                ),
               ),
+              child: const Icon(Icons.music_note, color: SP.btnText, size: 22),
             ),
-            child: const Icon(Icons.music_note, color: SP.btnText, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(

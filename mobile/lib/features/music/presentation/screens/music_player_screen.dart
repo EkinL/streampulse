@@ -392,26 +392,29 @@ class MusicPlayerScreen extends ConsumerWidget {
                 const Spacer(),
 
                 // Album art
-                Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [SP.gradEnd, SP.accent],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: SP.gradEnd.withValues(alpha: 0.3),
-                        blurRadius: 32,
-                        offset: const Offset(0, 16),
+                // Album art placeholder — decorative, title/artist below carry the info
+                ExcludeSemantics(
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [SP.gradEnd, SP.accent],
                       ),
-                    ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: SP.gradEnd.withValues(alpha: 0.3),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.music_note,
+                        color: SP.btnText, size: 80),
                   ),
-                  child: const Icon(Icons.music_note,
-                      color: SP.btnText, size: 80),
                 ),
 
                 const SizedBox(height: 48),

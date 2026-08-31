@@ -24,14 +24,17 @@ class PlaylistTile extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: SP.tag,
-            borderRadius: BorderRadius.circular(8),
+        // Playlist cover placeholder — decorative, title/subtitle carry the info
+        leading: ExcludeSemantics(
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: SP.tag,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.queue_music, color: SP.accent),
           ),
-          child: const Icon(Icons.queue_music, color: SP.accent),
         ),
         title: Text(
           playlist.name,
