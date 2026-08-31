@@ -77,6 +77,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search, color: SP.text1, size: 22),
+                  tooltip: 'Rechercher',
                   onPressed: () => context.push('/search'),
                 ),
               ],

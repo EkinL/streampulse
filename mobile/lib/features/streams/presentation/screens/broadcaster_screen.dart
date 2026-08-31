@@ -481,6 +481,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
         foregroundColor: SP.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Console diffuseur'),
@@ -885,6 +886,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
             ),
             IconButton(
               onPressed: _loadMyMusic,
+              tooltip: 'Actualiser ma bibliothèque',
               icon: const Icon(Icons.refresh, color: SP.text3, size: 20),
             ),
           ],

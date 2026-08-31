@@ -112,6 +112,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         Icons.arrow_back,
                         color: SP.text1,
                       ),
+                      tooltip: 'Retour',
                       onPressed: () => context.go('/login'),
                     ),
                   ),
@@ -186,6 +187,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     ? Icons.visibility_off
                                     : Icons.visibility,
                               ),
+                              tooltip: _obscurePassword
+                                  ? 'Afficher le mot de passe'
+                                  : 'Masquer le mot de passe',
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
@@ -210,6 +214,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     ? Icons.visibility_off
                                     : Icons.visibility,
                               ),
+                              tooltip: _obscureConfirmPassword
+                                  ? 'Afficher le mot de passe'
+                                  : 'Masquer le mot de passe',
                               onPressed: () {
                                 setState(() {
                                   _obscureConfirmPassword =

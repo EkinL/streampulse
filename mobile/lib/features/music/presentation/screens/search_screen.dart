@@ -83,6 +83,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         foregroundColor: SP.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: TextField(
@@ -104,6 +105,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             suffixIcon: _controller.text.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear, color: SP.text3, size: 20),
+                    tooltip: 'Effacer',
                     onPressed: () {
                       _controller.clear();
                       _onQueryChanged('');

@@ -233,6 +233,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
+                          tooltip: _obscurePassword
+                              ? 'Afficher le mot de passe'
+                              : 'Masquer le mot de passe',
                           onPressed: () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;

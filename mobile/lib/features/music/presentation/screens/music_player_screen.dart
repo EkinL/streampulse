@@ -302,6 +302,7 @@ class MusicPlayerScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
+                tooltip: 'Fermer',
                 icon: const Icon(Icons.arrow_downward, color: SP.text1),
               ),
             ],
@@ -344,6 +345,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Fermer',
                         icon: const Icon(Icons.keyboard_arrow_down,
                             color: SP.text1, size: 28),
                       ),
@@ -364,6 +366,9 @@ class MusicPlayerScreen extends ConsumerWidget {
                               onPressed: () {
                                 ref.read(musicFavoritesProvider.notifier).toggle(track.id);
                               },
+                              tooltip: isFav
+                                  ? 'Retirer des favoris'
+                                  : 'Ajouter aux favoris',
                               icon: Icon(
                                 isFav ? Icons.favorite : Icons.favorite_border,
                                 color: isFav ? SP.liveBg : SP.text3,
@@ -374,6 +379,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                           IconButton(
                             onPressed: () =>
                                 _showAddToPlaylistSheet(context, ref),
+                            tooltip: 'Ajouter à une playlist',
                             icon: const Icon(Icons.playlist_add,
                                 color: SP.text2, size: 24),
                           ),

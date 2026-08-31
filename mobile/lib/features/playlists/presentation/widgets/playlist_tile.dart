@@ -49,6 +49,7 @@ class PlaylistTile extends StatelessWidget {
         trailing: onDelete != null
             ? IconButton(
                 icon: const Icon(Icons.delete_outline, color: SP.error),
+                tooltip: 'Supprimer',
                 onPressed: onDelete,
               )
             : const Icon(Icons.chevron_right, color: SP.text3),

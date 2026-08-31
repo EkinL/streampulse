@@ -55,6 +55,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
         foregroundColor: SP.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Détail du flux'),
@@ -62,6 +63,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
           IconButton(
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: isFavorite ? SP.accent : null),
+            tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
             onPressed: () {
               final notifier = ref.read(favoritesProvider.notifier);
               final action = isFavorite

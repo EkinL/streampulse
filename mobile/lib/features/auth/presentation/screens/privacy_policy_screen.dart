@@ -19,6 +19,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         foregroundColor: SP.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Politique de confidentialité'),

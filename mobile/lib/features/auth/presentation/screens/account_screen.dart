@@ -29,6 +29,7 @@ class AccountScreen extends ConsumerWidget {
         foregroundColor: SP.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Mon compte'),

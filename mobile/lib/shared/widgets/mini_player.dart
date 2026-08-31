@@ -96,6 +96,7 @@ class MiniPlayer extends ConsumerWidget {
                     IconButton(
                       onPressed: () =>
                           ref.read(playerProvider.notifier).togglePlayPause(),
+                      tooltip: playerState.isPlaying ? 'Pause' : 'Lecture',
                       icon: Icon(
                         playerState.isPlaying
                             ? Icons.pause_circle_filled

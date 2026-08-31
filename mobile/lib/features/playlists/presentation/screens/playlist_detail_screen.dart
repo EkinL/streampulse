@@ -37,6 +37,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
+            tooltip: 'Ajouter un morceau',
             onPressed: () => _showAddTrackDialog(context, ref),
           ),
         ],
@@ -534,6 +535,7 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
                   ? IconButton(
                       icon:
                           const Icon(Icons.clear, color: SP.text3, size: 20),
+                      tooltip: 'Effacer',
                       onPressed: () {
                         _searchController.clear();
                         _onSearchChanged('');
@@ -650,6 +652,7 @@ class _SearchResultTile extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
             onPressed: onAdd,
+            tooltip: 'Ajouter à la playlist',
             icon: const Icon(Icons.add_circle, color: SP.accent, size: 28),
           ),
         ],
