@@ -70,8 +70,9 @@ flutter run
 5. Renseigner `CORS_ALLOWED_ORIGINS` avec les domaines de la console web
    (obligatoire : avec `APP_ENV=production`, le joker fait echouer le
    demarrage)
-6. Configurer la collecte OTEL et la retention des logs vers votre backend
-   d'observabilite (les logs contiennent des adresses IP, voir [rgpd.md](rgpd.md))
+6. Configurer la collecte OTEL et la retention des traces vers votre backend
+   d'observabilite (les logs contiennent des adresses IP ; leur rotation a un
+   defaut raisonnable dans `docker-compose.prod.yml`, voir [rgpd.md](rgpd.md))
 7. Ne jamais jouer `backend/scripts/seed.sql` : comptes de developpement
 
 ## HTTPS

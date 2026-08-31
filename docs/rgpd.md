@@ -23,7 +23,7 @@ transmises a un tiers.
 | Horodatage de l'acceptation des conditions d'utilisation (`terms_accepted_at`) | table `users` | Preuve du consentement recueilli a l'inscription | Obligation legale (obligation de rendre compte, art. 5.2) | Duree de vie du compte |
 | Refresh tokens | table `refresh_tokens`, **hash SHA-256** uniquement | Prolonger une session sans ressaisir le mot de passe | Execution du contrat | 168 h maximum (`JWT_REFRESH_EXPIRY`), revoques a chaque connexion, **purges automatiquement une fois expires** (`REFRESH_TOKEN_PURGE_INTERVAL`, 1 h) |
 | Flux, playlists, favoris, morceaux deposes | tables `streams`, `playlists`, `tracks`, `favorites`, `music`, `music_favorites` | Le service lui-meme | Execution du contrat | Duree de vie du compte, **supprimes en cascade avec lui** |
-| Adresse IP, user-agent, chemin, statut, `request_id`, `trace_id` | logs JSON sur la sortie standard du conteneur `api` | Securite (rate limiting par hote), diagnostic | Interet legitime | Fixee par la plateforme de logs qui les collecte : journal Docker en local, retention a configurer sur le collecteur en production (recommandation : 30 jours) |
+| Adresse IP, user-agent, chemin, statut, `request_id`, `trace_id` | logs JSON sur la sortie standard du conteneur `api` | Securite (rate limiting par hote), diagnostic | Interet legitime | Pilote `local` de Docker, rotation par taille : ~30 jours a volume normal en production (`docker-compose.prod.yml`) |
 | Traces OpenTelemetry | collecteur OTEL | Diagnostic de performance | Interet legitime | Fixee par le backend de traces ; les spans ne portent ni email ni identifiant de compte |
 | Metriques Prometheus | `/metrics` (admin) et listener interne | Supervision | Interet legitime | Agregees, aucune donnee individuelle |
 
@@ -65,8 +65,16 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
   tache de fond (`application.PurgeExpiredRefreshTokens`, lancee dans
   `cmd/server/main.go`) supprime les jetons expires au demarrage puis toutes
   les `REFRESH_TOKEN_PURGE_INTERVAL`.
-- **Logs et traces** : la retention est celle de la plateforme d'observabilite
-  ; elle doit etre configuree explicitement en production.
+- **Logs** : les logs de l'API (seul conteneur dont les logs portent des
+  donnees personnelles : IP, user-agent, `middleware/logging.go`) tournent via
+  le pilote `local` de Docker, configure dans `docker-compose.yml` et resserre
+  en production par `docker-compose.prod.yml` (30 fichiers de 20 Mo, environ
+  30 jours a volume normal). Rotation par taille, pas par date : une
+  retention exacte par date suppose d'expedier les logs vers un collecteur
+  (Loki, ELK...), hors perimetre de cette stack.
+- **Traces** : la retention est celle du backend de traces (Tempo) ; a
+  configurer explicitement en production si elle doit differer du defaut de
+  l'image.
 - **Donnees de developpement** : les comptes du seed (`backend/scripts/seed.sql`)
   sont fictifs (`@streampulse.io`). Aucune adresse ni donnee reelle ne figure
   dans le depot, et le seed ne doit jamais etre joue sur un environnement
@@ -91,11 +99,12 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 
 ## 6. Limites connues et suite
 
-1. **Fichiers audio** : la suppression d'un compte efface les lignes `music`
-   mais laisse les fichiers deposes dans `uploads/`, qui restent servis a
-   leur URL par `/uploads/{fichier}` pour qui la connait. Ils ne contiennent
-   pas de donnees personnelles, mais un nettoyage des fichiers orphelins est
-   a prevoir (meme limite que `DELETE /music/{id}`).
+1. ~~**Fichiers audio** : la suppression d'un compte efface les lignes `music`
+   mais laisse les fichiers deposes dans `uploads/`.~~ Resolu : `DELETE
+   /music/{id}` et la suppression de compte effacent desormais aussi le
+   fichier sous-jacent dans `uploads/` (`FileStore.DeleteFile`,
+   `MusicService.DeleteMusic`, `UserService.DeleteUser`), pas seulement la
+   ligne en base.
 2. ~~**Consentement et information** : l'application ne presente pas encore de
    conditions d'utilisation ni de lien vers ce document a l'inscription.~~
    Resolu : l'inscription affiche desormais une case a cocher obligatoire
@@ -109,26 +118,34 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 3. **Delai de retractation** : l'effacement est immediat et irreversible. Un
    delai de grace (compte desactive puis purge a J+30) est une evolution
    possible, au prix d'une colonne `deleted_at` et d'une tache de purge.
-4. **Retention des logs** : dependante de la plateforme de collecte, a
-   contractualiser lors de la mise en production.
+4. ~~**Retention des logs** : dependante de la plateforme de collecte, a
+   contractualiser lors de la mise en production.~~ Resolu : les logs de
+   l'API tournent via le pilote `local` de Docker (`docker-compose.yml`,
+   resserre en production par `docker-compose.prod.yml` vers ~30 jours a
+   volume normal). Limite residuelle : rotation par taille, pas par date
+   exacte (section 4).
 
 ---
 
 ## Summary (English)
 
 StreamPulse stores, per account: email, username, a bcrypt password hash, a
-role and timestamps; SHA-256 hashes of refresh tokens (max 168 h, revoked on
-login, purged automatically once expired); and the user's streams, playlists,
-favorites and uploaded tracks. HTTP logs carry the client IP and user agent
-for security and diagnostics; their retention is set by the log platform.
-No listening history, location, advertising identifiers or third-party
-trackers are collected.
+role, a timestamp of terms-of-use acceptance, and timestamps; SHA-256 hashes
+of refresh tokens (max 168 h, revoked on login, purged automatically once
+expired); and the user's streams, playlists, favorites and uploaded tracks.
+HTTP logs carry the client IP and user agent for security and diagnostics;
+they rotate via Docker's `local` logging driver, capped to roughly 30 days
+of normal volume in production. No listening history, location, advertising
+identifiers or third-party trackers are collected.
 
-Rights: `GET /users/me` returns every piece of personal data held (access and
+Rights: registration requires an explicit, server-enforced acceptance of the
+terms of use, timestamped as proof of consent; `GET /users/me` returns every
+piece of personal data held, including that timestamp (access and
 portability); `PATCH /users/me` rectifies the email or username; `DELETE
 /users/me` — or **Delete my account** in the mobile app — erases the account
-and everything attached to it immediately, by database cascade; an admin can
-delete an account on behalf of a user with `DELETE /admin/users/{id}`.
+and everything attached to it immediately, by database cascade, including any
+uploaded audio file on disk; an admin can delete an account on behalf of a
+user with `DELETE /admin/users/{id}`.
 
 Security: bcrypt 12, short-lived JWTs with single-use hashed refresh tokens,
 TLS (native or via a reverse proxy), admin-only `/metrics`, role- and
