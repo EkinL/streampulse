@@ -24,7 +24,7 @@ jobs:
     name: Vulnerabilites Go
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # '1.26' sans patch, deliberement : setup-go resout vers la derniere
       # 1.26.x publiee. Une part importante des vulnerabilites atteignables
       # vient de la bibliotheque standard, et le seul correctif est une montee
@@ -47,7 +47,7 @@ jobs:
     name: Vulnerabilites de l'image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Construire l'image a scanner
         working-directory: backend
         run: docker build -t streampulse-api:scan .
@@ -69,7 +69,7 @@ jobs:
     name: Secrets et configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Detecte un secret commite par inadvertance et les erreurs de
       # configuration des Dockerfile et manifestes.
       - name: Trivy (systeme de fichiers)
