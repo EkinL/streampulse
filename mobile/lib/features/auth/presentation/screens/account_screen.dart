@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme.dart';
+import '../../../../shared/providers/theme_provider.dart';
 import '../../domain/auth_state.dart';
 import '../providers/auth_provider.dart';
 
@@ -83,6 +84,18 @@ class AccountScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          Text(
+            'Apparence',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Choisissez l\'apparence de l\'application, ou suivez les réglages de votre appareil.',
+            style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          _ThemeModeSelector(themeMode: ref.watch(themeModeProvider)),
           const SizedBox(height: 24),
           Text(
             'Vos données',
@@ -170,6 +183,34 @@ class AccountScreen extends ConsumerWidget {
       return;
     }
     if (context.mounted) context.go('/login');
+  }
+}
+
+class _ThemeModeSelector extends ConsumerWidget {
+  final ThemeMode themeMode;
+
+  const _ThemeModeSelector({required this.themeMode});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SegmentedButton<ThemeMode>(
+      segments: const [
+        ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Système')),
+        ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Clair')),
+        ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Sombre')),
+      ],
+      selected: {themeMode},
+      onSelectionChanged: (selection) {
+        ref.read(themeModeProvider.notifier).set(selection.first);
+      },
+      style: SegmentedButton.styleFrom(
+        backgroundColor: context.colors.surfaceVariant,
+        foregroundColor: context.colors.text2,
+        selectedBackgroundColor: context.colors.accent,
+        selectedForegroundColor: context.colors.onAccent,
+        side: BorderSide(color: context.colors.divider),
+      ),
+    );
   }
 }
 
