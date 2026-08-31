@@ -54,7 +54,7 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
     final isLoading = authState is AuthLoading;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Stack(
         children: [
           Positioned(
@@ -67,8 +67,8 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withValues(alpha: 0.16),
-                    SP.accent.withValues(alpha: 0.0),
+                    context.colors.accent.withValues(alpha: 0.16),
+                    context.colors.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -88,11 +88,11 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                         child: Container(
                           width: 72,
                           height: 72,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             gradient: SP.primaryGradient,
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(color: SP.glow, blurRadius: 48),
+                              BoxShadow(color: context.colors.glow, blurRadius: 48),
                             ],
                           ),
                           child: const Icon(
@@ -113,7 +113,7 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                         'BROADCASTER & ADMIN CONSOLE',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: SP.accent,
+                              color: context.colors.accent,
                             ),
                       ),
                       const SizedBox(height: 40),
@@ -172,7 +172,7 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: SP.accent.withValues(alpha: 0.10),
+                                color: context.colors.accent.withValues(alpha: 0.10),
                                 offset: const Offset(0, 10),
                                 blurRadius: 15,
                                 spreadRadius: -3,
@@ -219,7 +219,7 @@ class _ConsoleLoginScreenState extends ConsumerState<ConsoleLoginScreen> {
                         'Listeners use the mobile app.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: SP.text3,
+                              color: context.colors.text3,
                             ),
                       ),
                     ],

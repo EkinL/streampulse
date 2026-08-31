@@ -22,7 +22,7 @@ class MusicPlayerScreen extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: SP.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -43,17 +43,17 @@ class MusicPlayerScreen extends ConsumerWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: SP.text3.withValues(alpha: 0.3),
+                      color: context.colors.text3.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const Text(
+                Text(
                   'Add to Playlist',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -69,11 +69,11 @@ class MusicPlayerScreen extends ConsumerWidget {
                     ),
                     child: const Icon(Icons.add, color: SP.btnText, size: 22),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Create New Playlist',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: SP.text1,
+                      color: context.colors.text1,
                     ),
                   ),
                   onTap: () {
@@ -81,29 +81,29 @@ class MusicPlayerScreen extends ConsumerWidget {
                     _showCreatePlaylistAndAdd(context, ref, track.title, track.url, track.duration);
                   },
                 ),
-                const Divider(color: SP.divider, height: 1),
+                Divider(color: context.colors.divider, height: 1),
                 // Existing playlists
                 playlistsAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(24),
+                  loading: () => Padding(
+                    padding: const EdgeInsets.all(24),
                     child: Center(
-                      child: CircularProgressIndicator(color: SP.accent),
+                      child: CircularProgressIndicator(color: context.colors.accent),
                     ),
                   ),
-                  error: (err, _) => const Padding(
-                    padding: EdgeInsets.all(16),
+                  error: (err, _) => Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Text(
                       'Failed to load playlists',
-                      style: TextStyle(color: SP.error),
+                      style: TextStyle(color: context.colors.error),
                     ),
                   ),
                   data: (playlists) {
                     if (playlists.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(24),
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
                         child: Text(
                           'No playlists yet. Create one above!',
-                          style: TextStyle(color: SP.text3),
+                          style: TextStyle(color: context.colors.text3),
                           textAlign: TextAlign.center,
                         ),
                       );
@@ -123,23 +123,23 @@ class MusicPlayerScreen extends ConsumerWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: SP.surfaceVariant,
+                                color: context.colors.surfaceVariant,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.queue_music,
-                                  color: SP.accent, size: 22),
+                              child: Icon(Icons.queue_music,
+                                  color: context.colors.accent, size: 22),
                             ),
                             title: Text(
                               playlist.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: SP.text1,
+                                color: context.colors.text1,
                               ),
                             ),
                             subtitle: Text(
                               '${playlist.trackCount} tracks',
-                              style: const TextStyle(
-                                  fontSize: 12, color: SP.text3),
+                              style: TextStyle(
+                                  fontSize: 12, color: context.colors.text3),
                             ),
                             onTap: () async {
                               Navigator.of(sheetCtx).pop();
@@ -157,7 +157,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                                     SnackBar(
                                       content: Text(
                                           'Added to "${playlist.name}"'),
-                                      backgroundColor: SP.surface,
+                                      backgroundColor: context.colors.surface,
                                     ),
                                   );
                                 }
@@ -166,7 +166,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Failed to add: $e'),
-                                      backgroundColor: SP.error,
+                                      backgroundColor: context.colors.error,
                                     ),
                                   );
                                 }
@@ -199,13 +199,13 @@ class MusicPlayerScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: SP.surface,
+        backgroundColor: context.colors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text(
+        title: Text(
           'New Playlist',
-          style: TextStyle(color: SP.text1, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.colors.text1, fontWeight: FontWeight.bold),
         ),
         content: TextField(
           controller: nameCtrl,
@@ -213,18 +213,18 @@ class MusicPlayerScreen extends ConsumerWidget {
           decoration: InputDecoration(
             hintText: 'Playlist name',
             filled: true,
-            fillColor: SP.surfaceVariant,
+            fillColor: context.colors.surfaceVariant,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
           ),
-          style: const TextStyle(color: SP.text1),
+          style: TextStyle(color: context.colors.text1),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+            child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
           ),
           FilledButton(
             onPressed: () async {
@@ -251,7 +251,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Created "$name" and added track'),
-                      backgroundColor: SP.surface,
+                      backgroundColor: context.colors.surface,
                     ),
                   );
                 }
@@ -260,14 +260,14 @@ class MusicPlayerScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Failed: $e'),
-                      backgroundColor: SP.error,
+                      backgroundColor: context.colors.error,
                     ),
                   );
                 }
               }
             },
             style: FilledButton.styleFrom(
-              backgroundColor: SP.accent,
+              backgroundColor: context.colors.accent,
               foregroundColor: SP.btnText,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -288,22 +288,22 @@ class MusicPlayerScreen extends ConsumerWidget {
 
     if (track == null) {
       return Scaffold(
-        backgroundColor: SP.bg,
+        backgroundColor: context.colors.bg,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.music_off, size: 64, color: SP.text3),
+              Icon(Icons.music_off, size: 64, color: context.colors.text3),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'No track playing',
-                style: TextStyle(fontSize: 18, color: SP.text3),
+                style: TextStyle(fontSize: 18, color: context.colors.text3),
               ),
               const SizedBox(height: 24),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
                 tooltip: 'Fermer',
-                icon: const Icon(Icons.arrow_downward, color: SP.text1),
+                icon: Icon(Icons.arrow_downward, color: context.colors.text1),
               ),
             ],
           ),
@@ -320,7 +320,7 @@ class MusicPlayerScreen extends ConsumerWidget {
         position.inMilliseconds.toDouble().clamp(0.0, sliderMax);
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -328,7 +328,7 @@ class MusicPlayerScreen extends ConsumerWidget {
             end: Alignment.bottomCenter,
             colors: [
               SP.gradEnd.withValues(alpha: 0.3),
-              SP.bg,
+              context.colors.bg,
             ],
           ),
         ),
@@ -346,15 +346,15 @@ class MusicPlayerScreen extends ConsumerWidget {
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         tooltip: 'Fermer',
-                        icon: const Icon(Icons.keyboard_arrow_down,
-                            color: SP.text1, size: 28),
+                        icon: Icon(Icons.keyboard_arrow_down,
+                            color: context.colors.text1, size: 28),
                       ),
-                      const Text(
+                      Text(
                         'Now Playing',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: SP.text2,
+                          color: context.colors.text2,
                         ),
                       ),
                       Row(
@@ -371,7 +371,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                                   : 'Ajouter aux favoris',
                               icon: Icon(
                                 isFav ? Icons.favorite : Icons.favorite_border,
-                                color: isFav ? SP.liveBg : SP.text3,
+                                color: isFav ? SP.liveBg : context.colors.text3,
                                 size: 22,
                               ),
                             );
@@ -380,8 +380,8 @@ class MusicPlayerScreen extends ConsumerWidget {
                             onPressed: () =>
                                 _showAddToPlaylistSheet(context, ref),
                             tooltip: 'Ajouter à une playlist',
-                            icon: const Icon(Icons.playlist_add,
-                                color: SP.text2, size: 24),
+                            icon: Icon(Icons.playlist_add,
+                                color: context.colors.text2, size: 24),
                           ),
                         ],
                       ),
@@ -399,10 +399,10 @@ class MusicPlayerScreen extends ConsumerWidget {
                     height: 200,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [SP.gradEnd, SP.accent],
+                        colors: [SP.gradEnd, context.colors.accent],
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -422,10 +422,10 @@ class MusicPlayerScreen extends ConsumerWidget {
                 // Track info
                 Text(
                   track.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -434,9 +434,9 @@ class MusicPlayerScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   track.artist.isNotEmpty ? track.artist : 'Unknown artist',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: SP.text2,
+                    color: context.colors.text2,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -446,10 +446,10 @@ class MusicPlayerScreen extends ConsumerWidget {
                 // Progress slider
                 SliderTheme(
                   data: SliderThemeData(
-                    activeTrackColor: SP.accent,
-                    inactiveTrackColor: SP.surfaceVariant,
-                    thumbColor: SP.accent,
-                    overlayColor: SP.accent.withValues(alpha: 0.1),
+                    activeTrackColor: context.colors.accent,
+                    inactiveTrackColor: context.colors.surfaceVariant,
+                    thumbColor: context.colors.accent,
+                    overlayColor: context.colors.accent.withValues(alpha: 0.1),
                     trackHeight: 4,
                     thumbShape:
                         const RoundSliderThumbShape(enabledThumbRadius: 6),
@@ -473,11 +473,11 @@ class MusicPlayerScreen extends ConsumerWidget {
                     children: [
                       Text(
                         _formatDuration(position),
-                        style: const TextStyle(fontSize: 12, color: SP.text3),
+                        style: TextStyle(fontSize: 12, color: context.colors.text3),
                       ),
                       Text(
                         '-${_formatDuration(duration - position)}',
-                        style: const TextStyle(fontSize: 12, color: SP.text3),
+                        style: TextStyle(fontSize: 12, color: context.colors.text3),
                       ),
                     ],
                   ),
@@ -493,8 +493,8 @@ class MusicPlayerScreen extends ConsumerWidget {
                       tooltip: 'Previous',
                       onPressed: () =>
                           ref.read(playerProvider.notifier).previous(),
-                      icon: const Icon(Icons.skip_previous,
-                          color: SP.text1, size: 36),
+                      icon: Icon(Icons.skip_previous,
+                          color: context.colors.text1, size: 36),
                     ),
                     const SizedBox(width: 24),
                     Semantics(
@@ -508,7 +508,7 @@ class MusicPlayerScreen extends ConsumerWidget {
                           isPlaying
                               ? Icons.pause_circle_filled
                               : Icons.play_circle_filled,
-                          color: SP.accent,
+                          color: context.colors.accent,
                           size: 64,
                         ),
                       ),
@@ -518,8 +518,8 @@ class MusicPlayerScreen extends ConsumerWidget {
                       tooltip: 'Next',
                       onPressed: () =>
                           ref.read(playerProvider.notifier).next(),
-                      icon: const Icon(Icons.skip_next,
-                          color: SP.text1, size: 36),
+                      icon: Icon(Icons.skip_next,
+                          color: context.colors.text1, size: 36),
                     ),
                   ],
                 ),

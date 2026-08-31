@@ -314,13 +314,13 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: SP.surface,
+          backgroundColor: context.colors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Add Music by URL',
-            style: TextStyle(color: SP.text1, fontWeight: FontWeight.bold),
+            style: TextStyle(color: context.colors.text1, fontWeight: FontWeight.bold),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -335,15 +335,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       decoration: InputDecoration(
                         labelText: 'Audio URL',
                         hintText: 'https://example.com/song.mp3',
-                        prefixIcon: const Icon(Icons.link, color: SP.text3),
+                        prefixIcon: Icon(Icons.link, color: context.colors.text3),
                         filled: true,
-                        fillColor: SP.surfaceVariant,
+                        fillColor: context.colors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      style: const TextStyle(color: SP.text1),
+                      style: TextStyle(color: context.colors.text1),
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'URL is required' : null,
                     ),
@@ -352,15 +352,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       controller: titleCtrl,
                       decoration: InputDecoration(
                         labelText: 'Title',
-                        prefixIcon: const Icon(Icons.music_note, color: SP.text3),
+                        prefixIcon: Icon(Icons.music_note, color: context.colors.text3),
                         filled: true,
-                        fillColor: SP.surfaceVariant,
+                        fillColor: context.colors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      style: const TextStyle(color: SP.text1),
+                      style: TextStyle(color: context.colors.text1),
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Title is required' : null,
                     ),
@@ -369,15 +369,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       controller: artistCtrl,
                       decoration: InputDecoration(
                         labelText: 'Artist',
-                        prefixIcon: const Icon(Icons.person, color: SP.text3),
+                        prefixIcon: Icon(Icons.person, color: context.colors.text3),
                         filled: true,
-                        fillColor: SP.surfaceVariant,
+                        fillColor: context.colors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      style: const TextStyle(color: SP.text1),
+                      style: TextStyle(color: context.colors.text1),
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Artist is required' : null,
                     ),
@@ -386,15 +386,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       controller: albumCtrl,
                       decoration: InputDecoration(
                         labelText: 'Album (optional)',
-                        prefixIcon: const Icon(Icons.album, color: SP.text3),
+                        prefixIcon: Icon(Icons.album, color: context.colors.text3),
                         filled: true,
-                        fillColor: SP.surfaceVariant,
+                        fillColor: context.colors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      style: const TextStyle(color: SP.text1),
+                      style: TextStyle(color: context.colors.text1),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -402,15 +402,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       decoration: InputDecoration(
                         labelText: 'Duration (seconds)',
                         hintText: '180',
-                        prefixIcon: const Icon(Icons.timer, color: SP.text3),
+                        prefixIcon: Icon(Icons.timer, color: context.colors.text3),
                         filled: true,
-                        fillColor: SP.surfaceVariant,
+                        fillColor: context.colors.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      style: const TextStyle(color: SP.text1),
+                      style: TextStyle(color: context.colors.text1),
                       keyboardType: TextInputType.number,
                     ),
                   ],
@@ -421,7 +421,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+              child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
             ),
             FilledButton(
               onPressed: isSubmitting
@@ -452,7 +452,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       }
                     },
               style: FilledButton.styleFrom(
-                backgroundColor: SP.accent,
+                backgroundColor: context.colors.accent,
                 foregroundColor: SP.btnText,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -480,10 +480,10 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
     }
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Retour',
@@ -500,7 +500,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
               'Create New Stream',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
             ),
             const SizedBox(height: 16),
@@ -510,7 +510,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
               'Your Streams',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
             ),
             const SizedBox(height: 12),
@@ -547,7 +547,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: SP.text3),
+                      icon: Icon(Icons.arrow_back, color: context.colors.text3),
                       tooltip: 'Retour',
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -557,7 +557,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                         letterSpacing: 1.6,
-                        color: SP.text3,
+                        color: context.colors.text3,
                       ),
                     ),
                     const Spacer(),
@@ -566,7 +566,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       style: GoogleFonts.ibmPlexMono(
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
-                        color: SP.text3,
+                        color: context.colors.text3,
                       ),
                     ),
                   ],
@@ -588,12 +588,12 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -2,
                           height: 1.05,
-                          color: SP.text1,
+                          color: context.colors.text1,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -602,7 +602,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         style: GoogleFonts.ibmPlexMono(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
-                          color: SP.text2,
+                          color: context.colors.text2,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -613,7 +613,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         decoration: BoxDecoration(
                           color: const Color(0x800B0B18),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: SP.consoleCardBorder),
+                          border: Border.all(color: context.colors.consoleCardBorder),
                         ),
                         child: AudioWaveform(
                           isActive: _isBroadcasting,
@@ -633,7 +633,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                             child: _ConsoleStat(
                               value: '${stream.listenerCount}',
                               label: 'AUDITEURS',
-                              color: SP.text1,
+                              color: context.colors.text1,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -645,7 +645,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                                       ? '+${_listenerDelta5min!}'
                                       : '${_listenerDelta5min!}'),
                               label: '5 DERN. MIN',
-                              color: SP.success,
+                              color: context.colors.success,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -669,15 +669,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         },
                       ),
                       const SizedBox(height: 14),
-                      const Text(
+                      Text(
                         "Couper l'antenne",
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: SP.dangerText),
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.colors.dangerText),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Maintenir 2 s pour éviter les arrêts accidentels.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: SP.text3, height: 1.4),
+                        style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
                       ),
                     ],
                   ),
@@ -772,8 +772,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
         final currentUserId =
             authState is AuthAuthenticated ? authState.user.id : '';
         return streamsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
-          error: (error, _) => Text('Error: $error', style: const TextStyle(color: SP.error)),
+          loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
+          error: (error, _) => Text('Error: $error', style: TextStyle(color: context.colors.error)),
           data: (allStreams) {
             // Le backend renvoie tous les streams : on ne garde que ceux
             // du broadcaster connecte (seul lui peut les demarrer/arreter).
@@ -781,18 +781,18 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                 .where((s) => s.ownerId == currentUserId)
                 .toList();
             if (streams.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
+              return Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text('No streams yet.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: SP.text3)),
+                    style: TextStyle(color: context.colors.text3)),
               );
             }
             return Column(
               children: streams.map((stream) {
                 final isActive = _activeStream?.id == stream.id;
                 return Card(
-                  color: SP.surface,
+                  color: context.colors.surface,
                   margin: const EdgeInsets.only(bottom: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -806,12 +806,12 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                     onTap: stream.isLive ? () => _openManagement(stream) : null,
                     leading: Icon(
                       stream.isLive ? Icons.radio : Icons.radio_outlined,
-                      color: stream.isLive ? SP.liveBg : SP.text3,
+                      color: stream.isLive ? SP.liveBg : context.colors.text3,
                     ),
                     title: Text(stream.title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: SP.text1,
+                              color: context.colors.text1,
                             )),
                     subtitle: Row(
                       children: [
@@ -819,7 +819,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: stream.isLive ? SP.liveBg : SP.text3,
+                            color: stream.isLive ? SP.liveBg : context.colors.text3,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -828,19 +828,19 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           stream.isLive ? 'LIVE' : stream.status.toUpperCase(),
                           style: TextStyle(
                               fontSize: 11,
-                              color: stream.isLive ? SP.liveText : SP.text3,
+                              color: stream.isLive ? SP.liveText : context.colors.text3,
                               fontWeight: FontWeight.bold),
                         ),
                         if (stream.isLive) ...[
                           const SizedBox(width: 12),
-                          const Icon(Icons.headphones,
-                              size: 14, color: SP.text3),
+                          Icon(Icons.headphones,
+                              size: 14, color: context.colors.text3),
                           const SizedBox(width: 4),
                           Text('${stream.listenerCount}',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
-                                  ?.copyWith(color: SP.text2)),
+                                  ?.copyWith(color: context.colors.text2)),
                         ],
                       ],
                     ),
@@ -851,7 +851,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           ? TextButton(
                               onPressed: () => _openManagement(stream),
                               style: TextButton.styleFrom(
-                                foregroundColor: SP.accent,
+                                foregroundColor: context.colors.accent,
                                 padding: EdgeInsets.zero,
                               ),
                               child: const Text('Gérer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
@@ -859,7 +859,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           : TextButton(
                               onPressed: _activeStream != null ? null : () => _startStream(stream.id),
                               style: TextButton.styleFrom(
-                                foregroundColor: SP.accent,
+                                foregroundColor: context.colors.accent,
                                 padding: EdgeInsets.zero,
                               ),
                               child: const Text('Go Live', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
@@ -886,13 +886,13 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
               'Music Library',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
             ),
             IconButton(
               onPressed: _loadMyMusic,
               tooltip: 'Actualiser ma bibliothèque',
-              icon: const Icon(Icons.refresh, color: SP.text3, size: 20),
+              icon: Icon(Icons.refresh, color: context.colors.text3, size: 20),
             ),
           ],
         ),
@@ -903,9 +903,9 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: SP.surfaceVariant,
+              color: context.colors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: SP.accent.withValues(alpha: 0.3), width: 1),
+              border: Border.all(color: context.colors.accent.withValues(alpha: 0.3), width: 1),
             ),
             child: Row(
               children: [
@@ -919,7 +919,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                   child: const Icon(Icons.add, color: SP.btnText, size: 24),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -928,18 +928,18 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: SP.text1,
+                          color: context.colors.text1,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         'Add a track by URL',
-                        style: TextStyle(fontSize: 12, color: SP.text3),
+                        style: TextStyle(fontSize: 12, color: context.colors.text3),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: SP.text3),
+                Icon(Icons.chevron_right, color: context.colors.text3),
               ],
             ),
           ),
@@ -947,24 +947,24 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
         const SizedBox(height: 12),
         // Music list
         if (_isLoadingMusic)
-          const Padding(
-            padding: EdgeInsets.all(24),
+          Padding(
+            padding: const EdgeInsets.all(24),
             child: Center(
-              child: CircularProgressIndicator(color: SP.accent),
+              child: CircularProgressIndicator(color: context.colors.accent),
             ),
           )
         else if (_myMusic.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
+          Padding(
+            padding: const EdgeInsets.all(24),
             child: Text(
               'No music uploaded yet.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: SP.text3),
+              style: TextStyle(color: context.colors.text3),
             ),
           )
         else
           ..._myMusic.map((track) => Card(
-                color: SP.surface,
+                color: context.colors.surface,
                 margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -978,31 +978,31 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: SP.surfaceVariant,
+                        color: context.colors.surfaceVariant,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.music_note,
-                          color: SP.accent, size: 20),
+                      child: Icon(Icons.music_note,
+                          color: context.colors.accent, size: 20),
                     ),
                   ),
                   title: Text(
                     track.title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: SP.text1,
+                          color: context.colors.text1,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
                     track.artist.isNotEmpty ? track.artist : 'Unknown artist',
-                    style: const TextStyle(fontSize: 12, color: SP.text3),
+                    style: TextStyle(fontSize: 12, color: context.colors.text3),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: Text(
                     track.formattedDuration,
-                    style: const TextStyle(fontSize: 12, color: SP.text3),
+                    style: TextStyle(fontSize: 12, color: context.colors.text3),
                   ),
                 ),
               )),
@@ -1109,7 +1109,7 @@ class _ConsoleStat extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2,
-              color: SP.text3,
+              color: context.colors.text3,
             ),
           ),
         ],
@@ -1150,21 +1150,24 @@ class _HoldToStopButton extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: SP.error.withValues(alpha: 0.12),
-                  border: Border.all(color: SP.error.withValues(alpha: 0.5), width: 2),
+                  color: context.colors.error.withValues(alpha: 0.12),
+                  border: Border.all(color: context.colors.error.withValues(alpha: 0.5), width: 2),
                 ),
               ),
               AnimatedBuilder(
                 animation: controller,
                 builder: (context, _) => CustomPaint(
                   size: const Size(132, 132),
-                  painter: _HoldProgressPainter(progress: controller.value),
+                  painter: _HoldProgressPainter(
+                    progress: controller.value,
+                    color: context.colors.error,
+                  ),
                 ),
               ),
               Container(
                 width: 96,
                 height: 96,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: SP.error),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: context.colors.error),
                 child: Center(
                   child: Container(
                     width: 30,
@@ -1186,14 +1189,15 @@ class _HoldToStopButton extends StatelessWidget {
 
 class _HoldProgressPainter extends CustomPainter {
   final double progress;
-  const _HoldProgressPainter({required this.progress});
+  final Color color;
+  const _HoldProgressPainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
     final rect = (Offset.zero & size).deflate(1.5);
     final paint = Paint()
-      ..color = SP.error
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
@@ -1201,5 +1205,6 @@ class _HoldProgressPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _HoldProgressPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _HoldProgressPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }

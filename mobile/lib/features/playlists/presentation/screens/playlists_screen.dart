@@ -14,10 +14,10 @@ class PlaylistsScreen extends ConsumerWidget {
     final playlistsAsync = ref.watch(playlistListProvider);
 
     return Scaffold(
-      backgroundColor: SP.altBg,
+      backgroundColor: context.colors.altBg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         title: const Text('Playlists'),
         actions: [
           Padding(
@@ -26,7 +26,7 @@ class PlaylistsScreen extends ConsumerWidget {
               child: playlistsAsync.maybeWhen(
                 data: (playlists) => Text(
                   '${playlists.length} liste${playlists.length != 1 ? 's' : ''}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: SP.text3),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.text3),
                 ),
                 orElse: () => const SizedBox.shrink(),
               ),
@@ -35,17 +35,17 @@ class PlaylistsScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        color: SP.accent,
+        color: context.colors.accent,
         onRefresh: () async {
           await ref.read(playlistListProvider.notifier).fetch();
         },
         child: playlistsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
+          loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
           error: (error, _) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Error: $error', style: const TextStyle(color: SP.text2)),
+                Text('Error: $error', style: TextStyle(color: context.colors.text2)),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
@@ -62,17 +62,17 @@ class PlaylistsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.queue_music,
                       size: 80,
-                      color: SP.text3,
+                      color: context.colors.text3,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'No playlists yet',
                       style:
                           Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: SP.text3,
+                                color: context.colors.text3,
                               ),
                     ),
                     const SizedBox(height: 8),
@@ -80,7 +80,7 @@ class PlaylistsScreen extends ConsumerWidget {
                       'Create your first playlist',
                       style:
                           Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: SP.text3,
+                                color: context.colors.text3,
                               ),
                     ),
                   ],
@@ -107,7 +107,7 @@ class PlaylistsScreen extends ConsumerWidget {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: FloatingActionButton(
-          backgroundColor: SP.accent,
+          backgroundColor: context.colors.accent,
           foregroundColor: SP.btnText,
           onPressed: () => _showCreateDialog(context, ref),
           child: const Icon(Icons.add),
@@ -124,8 +124,8 @@ class PlaylistsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: SP.surface,
-          title: const Text('Create Playlist', style: TextStyle(color: SP.text1)),
+          backgroundColor: context.colors.surface,
+          title: Text('Create Playlist', style: TextStyle(color: context.colors.text1)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -138,9 +138,9 @@ class PlaylistsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               SwitchListTile(
-                title: const Text('Public', style: TextStyle(color: SP.text1)),
+                title: Text('Public', style: TextStyle(color: context.colors.text1)),
                 value: isPublic,
-                activeThumbColor: SP.accent,
+                activeThumbColor: context.colors.accent,
                 onChanged: (v) => setDialogState(() => isPublic = v),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -149,7 +149,7 @@ class PlaylistsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+              child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
             ),
             FilledButton(
               onPressed: () {
@@ -175,16 +175,16 @@ class PlaylistsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: SP.surface,
-        title: const Text('Delete Playlist', style: TextStyle(color: SP.text1)),
-        content: const Text(
+        backgroundColor: context.colors.surface,
+        title: Text('Delete Playlist', style: TextStyle(color: context.colors.text1)),
+        content: Text(
           'Are you sure you want to delete this playlist? This action cannot be undone.',
-          style: TextStyle(color: SP.text2),
+          style: TextStyle(color: context.colors.text2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+            child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
           ),
           FilledButton(
             onPressed: () {
@@ -193,7 +193,7 @@ class PlaylistsScreen extends ConsumerWidget {
               context.showSnackBar('Playlist deleted');
             },
             style: FilledButton.styleFrom(
-              backgroundColor: SP.error,
+              backgroundColor: context.colors.error,
             ),
             child: const Text('Delete'),
           ),

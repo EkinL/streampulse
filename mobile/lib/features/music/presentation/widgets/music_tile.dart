@@ -29,7 +29,7 @@ class MusicTile extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: SP.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -41,10 +41,10 @@ class MusicTile extends ConsumerWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [SP.gradEnd, SP.accent],
+                    colors: [SP.gradEnd, context.colors.accent],
                   ),
                 ),
                 child: const Icon(Icons.music_note, color: SP.btnText, size: 28),
@@ -58,10 +58,10 @@ class MusicTile extends ConsumerWidget {
                 children: [
                   Text(
                     music.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: SP.text1,
+                      color: context.colors.text1,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -69,9 +69,9 @@ class MusicTile extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     music.artist.isNotEmpty ? music.artist : 'Unknown artist',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: SP.text2,
+                      color: context.colors.text2,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -82,9 +82,9 @@ class MusicTile extends ConsumerWidget {
             // Duration
             Text(
               music.formattedDuration,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: SP.text3,
+                color: context.colors.text3,
               ),
             ),
             const SizedBox(width: 4),
@@ -92,9 +92,9 @@ class MusicTile extends ConsumerWidget {
             if (onEdit != null)
               GestureDetector(
                 onTap: onEdit,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(Icons.edit, color: SP.text3, size: 16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.edit, color: context.colors.text3, size: 16),
                 ),
               ),
             // Favorite heart button
@@ -106,7 +106,7 @@ class MusicTile extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Icon(
                   isFav ? Icons.favorite : Icons.favorite_border,
-                  color: isFav ? SP.liveBg : SP.text3,
+                  color: isFav ? SP.liveBg : context.colors.text3,
                   size: 22,
                 ),
               ),
@@ -114,27 +114,27 @@ class MusicTile extends ConsumerWidget {
             // Play button
             GestureDetector(
               onTap: onTap,
-              child: const Icon(
+              child: Icon(
                 Icons.play_circle_filled,
-                color: SP.accent,
+                color: context.colors.accent,
                 size: 32,
               ),
             ),
             // Popup menu
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: SP.text3, size: 20),
-              color: SP.surfaceVariant,
+              icon: Icon(Icons.more_vert, color: context.colors.text3, size: 20),
+              color: context.colors.surfaceVariant,
               onSelected: (value) {
                 if (value == 'add_to_playlist' && onAddToPlaylist != null) {
                   onAddToPlaylist!();
                 }
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
+              itemBuilder: (menuCtx) => [
+                PopupMenuItem(
                   value: 'add_to_playlist',
                   child: Text(
                     'Add to playlist',
-                    style: TextStyle(color: SP.text1, fontSize: 14),
+                    style: TextStyle(color: context.colors.text1, fontSize: 14),
                   ),
                 ),
               ],

@@ -28,7 +28,7 @@ class StreamCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: SP.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -46,13 +46,13 @@ class StreamCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: stream.isLive
                       ? [SP.gradEnd.withValues(alpha: 0.6), SP.gradStart.withValues(alpha: 0.3)]
-                      : [SP.surfaceVariant, SP.tag],
+                      : [context.colors.surfaceVariant, context.colors.tag],
                 ),
               ),
               child: stream.isLive
-                  ? const AudioWaveform(isActive: true, color: SP.accent, barCount: 5, height: 60)
-                  : const Center(
-                      child: Icon(Icons.mic_off, size: 30, color: SP.textMuted),
+                  ? AudioWaveform(isActive: true, color: context.colors.accent, barCount: 5, height: 60)
+                  : Center(
+                      child: Icon(Icons.mic_off, size: 30, color: context.colors.textMuted),
                     ),
             ),
             const SizedBox(width: 16),
@@ -74,11 +74,11 @@ class StreamCard extends StatelessWidget {
                             if (stream.isLive)
                               Row(
                                 children: [
-                                  const Icon(Icons.headphones, size: 11, color: SP.text2),
+                                  Icon(Icons.headphones, size: 11, color: context.colors.text2),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatCount(stream.listenerCount),
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: SP.text2),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.text2),
                                   ),
                                 ],
                               ),
@@ -86,7 +86,7 @@ class StreamCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: onEdit,
-                                child: const Icon(Icons.edit, color: SP.text3, size: 16),
+                                child: Icon(Icons.edit, color: context.colors.text3, size: 16),
                               ),
                             ],
                           ],
@@ -97,7 +97,7 @@ class StreamCard extends StatelessWidget {
                     // Title
                     Text(
                       stream.title,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -105,7 +105,7 @@ class StreamCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         stream.description,
-                        style: const TextStyle(fontSize: 12, color: SP.text2),
+                        style: TextStyle(fontSize: 12, color: context.colors.text2),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -135,7 +135,7 @@ class StreamCard extends StatelessWidget {
                                 child: Icon(
                                   favoriteFilled ? Icons.favorite : Icons.favorite_border,
                                   size: 18,
-                                  color: favoriteFilled ? SP.accent : SP.text3,
+                                  color: favoriteFilled ? context.colors.accent : context.colors.text3,
                                 ),
                               ),
                             ),
@@ -168,7 +168,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isLive ? SP.liveBg : SP.offlineBg,
+        color: isLive ? SP.liveBg : context.colors.offlineBg,
         borderRadius: BorderRadius.circular(2),
       ),
       child: Row(
@@ -188,7 +188,7 @@ class _StatusBadge extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
-              color: isLive ? SP.liveText : SP.text2,
+              color: isLive ? SP.liveText : context.colors.text2,
             ),
           ),
         ],
@@ -206,16 +206,16 @@ class _FormatTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: SP.tag,
+        color: context.colors.tag,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.45,
-          color: SP.textMuted,
+          color: context.colors.textMuted,
         ),
       ),
     );

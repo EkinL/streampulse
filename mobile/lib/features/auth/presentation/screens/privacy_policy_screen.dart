@@ -13,10 +13,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Retour',
@@ -82,12 +82,12 @@ class _Section extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
           ),
           const SizedBox(height: 8),
           Text(
             body,
-            style: const TextStyle(fontSize: 16, height: 1.55, color: SP.text2),
+            style: TextStyle(fontSize: 16, height: 1.55, color: context.colors.text2),
           ),
         ],
       ),

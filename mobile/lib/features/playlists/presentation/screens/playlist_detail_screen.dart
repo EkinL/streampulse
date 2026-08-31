@@ -25,10 +25,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
     final playlistAsync = ref.watch(playlistDetailProvider(playlistId));
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -60,8 +60,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        SP.accent.withValues(alpha: 0.2),
-                        SP.accent.withValues(alpha: 0.05),
+                        context.colors.accent.withValues(alpha: 0.2),
+                        context.colors.accent.withValues(alpha: 0.05),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -78,10 +78,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: SP.tag,
+                              color: context.colors.tag,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.queue_music, color: SP.accent, size: 26),
+                            child: Icon(Icons.queue_music, color: context.colors.accent, size: 26),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -92,18 +92,18 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                   playlist.name,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: -0.5,
-                                    color: SP.text1,
+                                    color: context.colors.text1,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: SP.accent.withValues(alpha: 0.15),
+                                    color: context.colors.accent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Row(
@@ -112,15 +112,15 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                       Icon(
                                         playlist.isPublic ? Icons.public : Icons.lock,
                                         size: 12,
-                                        color: SP.accent,
+                                        color: context.colors.accent,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
                                         playlist.isPublic ? 'Public' : 'Privé',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w700,
-                                          color: SP.accent,
+                                          color: context.colors.accent,
                                         ),
                                       ),
                                     ],
@@ -134,7 +134,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         '${playlist.trackCount} titre${playlist.trackCount != 1 ? 's' : ''}',
-                        style: const TextStyle(fontSize: 13, color: SP.text2),
+                        style: TextStyle(fontSize: 13, color: context.colors.text2),
                       ),
                       if (playlist.tracks.isNotEmpty) ...[
                         const SizedBox(height: 16),
@@ -189,33 +189,33 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 ),
               ),
               if (playlist.tracks.isNotEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
                     'Titres',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
                   ),
                 ),
               Expanded(
                 child: playlist.tracks.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.queue_music,
                               size: 80,
-                              color: SP.text3,
+                              color: context.colors.text3,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Text(
                               'Aucun titre pour l\'instant',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: SP.text2),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.text2),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
                               'Touchez + pour ajouter un titre',
-                              style: TextStyle(fontSize: 13, color: SP.text3),
+                              style: TextStyle(fontSize: 13, color: context.colors.text3),
                             ),
                           ],
                         ),
@@ -236,7 +236,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: SP.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -383,7 +383,7 @@ class _TrackListItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: SP.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
@@ -395,33 +395,33 @@ class _TrackListItem extends StatelessWidget {
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: SP.tag,
+            color: context.colors.tag,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             '${index + 1}',
-            style: const TextStyle(color: SP.accent, fontWeight: FontWeight.w700, fontSize: 14),
+            style: TextStyle(color: context.colors.accent, fontWeight: FontWeight.w700, fontSize: 14),
           ),
         ),
         title: Text(
           track.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: SP.text1),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.text1),
         ),
         subtitle: Text(
           track.formattedDuration,
-          style: const TextStyle(fontSize: 12, color: SP.text3),
+          style: TextStyle(fontSize: 12, color: context.colors.text3),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               tooltip: 'Retirer',
-              icon: const Icon(Icons.remove_circle_outline, color: SP.error),
+              icon: Icon(Icons.remove_circle_outline, color: context.colors.error),
               onPressed: onRemove,
             ),
-            const Icon(Icons.drag_handle, color: SP.text3),
+            Icon(Icons.drag_handle, color: context.colors.text3),
           ],
         ),
       ),
@@ -495,18 +495,18 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
           height: 4,
           margin: const EdgeInsets.only(top: 12, bottom: 16),
           decoration: BoxDecoration(
-            color: SP.text3.withValues(alpha: 0.3),
+            color: context.colors.text3.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Ajouter un titre',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: SP.text1,
+              color: context.colors.text1,
             ),
           ),
         ),
@@ -517,12 +517,12 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
           child: TextField(
             controller: _searchController,
             autofocus: true,
-            style: const TextStyle(color: SP.text1, fontSize: 14),
+            style: TextStyle(color: context.colors.text1, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Rechercher dans le catalogue…',
-              hintStyle: const TextStyle(color: SP.text3, fontSize: 14),
+              hintStyle: TextStyle(color: context.colors.text3, fontSize: 14),
               filled: true,
-              fillColor: SP.surfaceVariant,
+              fillColor: context.colors.surfaceVariant,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -530,11 +530,11 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               prefixIcon:
-                  const Icon(Icons.search, color: SP.text3, size: 20),
+                  Icon(Icons.search, color: context.colors.text3, size: 20),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon:
-                          const Icon(Icons.clear, color: SP.text3, size: 20),
+                          Icon(Icons.clear, color: context.colors.text3, size: 20),
                       tooltip: 'Effacer',
                       onPressed: () {
                         _searchController.clear();
@@ -550,15 +550,15 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
         // Results
         Expanded(
           child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: SP.accent))
+              ? Center(
+                  child: CircularProgressIndicator(color: context.colors.accent))
               : _results.isEmpty
                   ? Center(
                       child: Text(
                         _searchController.text.isEmpty
                             ? 'Recherchez un titre à ajouter'
                             : 'Aucun résultat',
-                        style: const TextStyle(color: SP.text3, fontSize: 14),
+                        style: TextStyle(color: context.colors.text3, fontSize: 14),
                       ),
                     )
                   : ListView.builder(
@@ -604,7 +604,7 @@ class _SearchResultTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: SP.surfaceVariant,
+        color: context.colors.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -616,8 +616,8 @@ class _SearchResultTile extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                gradient: const LinearGradient(
-                  colors: [SP.gradEnd, SP.accent],
+                gradient: LinearGradient(
+                  colors: [SP.gradEnd, context.colors.accent],
                 ),
               ),
               child: const Icon(Icons.music_note, color: SP.btnText, size: 22),
@@ -630,10 +630,10 @@ class _SearchResultTile extends StatelessWidget {
               children: [
                 Text(
                   music.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -641,7 +641,7 @@ class _SearchResultTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   music.artist.isNotEmpty ? music.artist : 'Artiste inconnu',
-                  style: const TextStyle(fontSize: 12, color: SP.text2),
+                  style: TextStyle(fontSize: 12, color: context.colors.text2),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -650,13 +650,13 @@ class _SearchResultTile extends StatelessWidget {
           ),
           Text(
             music.formattedDuration,
-            style: const TextStyle(fontSize: 12, color: SP.text3),
+            style: TextStyle(fontSize: 12, color: context.colors.text3),
           ),
           const SizedBox(width: 8),
           IconButton(
             onPressed: onAdd,
             tooltip: 'Ajouter à la playlist',
-            icon: const Icon(Icons.add_circle, color: SP.accent, size: 28),
+            icon: Icon(Icons.add_circle, color: context.colors.accent, size: 28),
           ),
         ],
       ),

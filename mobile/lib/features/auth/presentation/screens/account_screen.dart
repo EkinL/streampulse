@@ -15,18 +15,18 @@ class AccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(
-        backgroundColor: SP.bg,
-        body: Center(child: CircularProgressIndicator(color: SP.accent)),
+      return Scaffold(
+        backgroundColor: context.colors.bg,
+        body: Center(child: CircularProgressIndicator(color: context.colors.accent)),
       );
     }
     final user = authState.user;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Retour',
@@ -42,7 +42,7 @@ class AccountScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [SP.accent.withValues(alpha: 0.2), SP.accent.withValues(alpha: 0.05)],
+                colors: [context.colors.accent.withValues(alpha: 0.2), context.colors.accent.withValues(alpha: 0.05)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -52,10 +52,10 @@ class AccountScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: SP.surfaceVariant,
+                  backgroundColor: context.colors.surfaceVariant,
                   child: Text(
                     user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-                    style: const TextStyle(fontSize: 22, color: SP.accent, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 22, color: context.colors.accent, fontWeight: FontWeight.w900),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -64,17 +64,17 @@ class AccountScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(user.username,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1)),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1)),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: SP.accent.withValues(alpha: 0.15),
+                          color: context.colors.accent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           user.role.toUpperCase(),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: SP.accent),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.colors.accent),
                         ),
                       ),
                     ],
@@ -84,14 +84,14 @@ class AccountScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Vos données',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Droit d\'accès et de portabilité : voici l\'intégralité des données liées à votre compte.',
-            style: TextStyle(fontSize: 13, color: SP.text3, height: 1.4),
+            style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
           ),
           const SizedBox(height: 12),
           _DataRow(icon: Icons.badge_outlined, label: 'Identifiant', value: user.id),
@@ -101,20 +101,20 @@ class AccountScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.privacy_tip_outlined, color: SP.text2),
-            title: const Text('Politique de confidentialité', style: TextStyle(color: SP.text1, fontWeight: FontWeight.w600)),
-            trailing: const Icon(Icons.chevron_right, color: SP.text3),
+            leading: Icon(Icons.privacy_tip_outlined, color: context.colors.text2),
+            title: Text('Politique de confidentialité', style: TextStyle(color: context.colors.text1, fontWeight: FontWeight.w600)),
+            trailing: Icon(Icons.chevron_right, color: context.colors.text3),
             onTap: () => context.push('/privacy'),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Zone dangereuse',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Droit à l\'effacement : votre compte, vos flux, playlists et favoris sont supprimés immédiatement et définitivement.',
-            style: TextStyle(fontSize: 13, color: SP.text3, height: 1.4),
+            style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -124,8 +124,8 @@ class AccountScreen extends ConsumerWidget {
               icon: const Icon(Icons.delete_forever_outlined, size: 18),
               label: const Text('Supprimer mon compte'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: SP.error,
-                side: const BorderSide(color: SP.error),
+                foregroundColor: context.colors.error,
+                side: BorderSide(color: context.colors.error),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -152,7 +152,7 @@ class AccountScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: SP.error),
+            style: TextButton.styleFrom(foregroundColor: context.colors.error),
             child: const Text('Supprimer'),
           ),
         ],
@@ -186,16 +186,16 @@ class _DataRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: SP.text3),
+          Icon(icon, size: 18, color: context.colors.text3),
           const SizedBox(width: 12),
           SizedBox(
             width: 130,
-            child: Text(label, style: const TextStyle(fontSize: 14, color: SP.text3)),
+            child: Text(label, style: TextStyle(fontSize: 14, color: context.colors.text3)),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 14, color: SP.text1, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 14, color: context.colors.text1, fontWeight: FontWeight.w600),
               overflow: TextOverflow.ellipsis,
             ),
           ),

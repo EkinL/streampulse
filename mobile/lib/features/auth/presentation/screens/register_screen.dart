@@ -59,7 +59,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final isLoading = authState is AuthLoading;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Stack(
         children: [
           // Top-right purple glow
@@ -73,8 +73,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withValues(alpha: 0.18),
-                    SP.accent.withValues(alpha: 0.0),
+                    context.colors.accent.withValues(alpha: 0.18),
+                    context.colors.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -108,9 +108,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8, top: 8),
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back,
-                        color: SP.text1,
+                        color: context.colors.text1,
                       ),
                       tooltip: 'Retour',
                       onPressed: () => context.go('/login'),
@@ -132,7 +132,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
-                              color: SP.text1,
+                              color: context.colors.text1,
                               letterSpacing: -1.8,
                             ),
                             textAlign: TextAlign.center,
@@ -143,7 +143,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: SP.text2,
+                              color: context.colors.text2,
                               letterSpacing: 0.35,
                             ),
                             textAlign: TextAlign.center,
@@ -245,7 +245,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: SP.accent.withValues(alpha: 0.10),
+                                    color: context.colors.accent.withValues(alpha: 0.10),
                                     offset: const Offset(0, 10),
                                     blurRadius: 15,
                                     spreadRadius: -3,
@@ -303,7 +303,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 text: 'En créant un compte, vous acceptez notre ',
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
-                                  color: SP.text3,
+                                  color: context.colors.text3,
                                 ),
                                 children: [
                                   TextSpan(
@@ -311,12 +311,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: SP.accent,
+                                      color: context.colors.accent,
                                     ),
                                   ),
                                   TextSpan(
                                     text: '.',
-                                    style: GoogleFonts.inter(fontSize: 12, color: SP.text3),
+                                    style: GoogleFonts.inter(fontSize: 12, color: context.colors.text3),
                                   ),
                                 ],
                               ),
@@ -334,7 +334,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  color: SP.text2,
+                                  color: context.colors.text2,
                                 ),
                                 children: [
                                   TextSpan(
@@ -342,7 +342,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: SP.accent,
+                                      color: context.colors.accent,
                                     ),
                                   ),
                                 ],
@@ -371,7 +371,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         style: GoogleFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: SP.text2,
+          color: context.colors.text2,
           letterSpacing: 1.2,
         ),
       ),

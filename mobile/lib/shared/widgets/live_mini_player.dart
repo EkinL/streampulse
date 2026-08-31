@@ -36,9 +36,9 @@ class LiveMiniPlayer extends ConsumerWidget {
       onTap: () => context.push('/streams/$streamId'),
       child: Container(
         height: 64,
-        decoration: const BoxDecoration(
-          color: SP.surface,
-          border: Border(top: BorderSide(color: SP.divider, width: 0.5)),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          border: Border(top: BorderSide(color: context.colors.divider, width: 0.5)),
         ),
         child: Column(
           children: [
@@ -50,7 +50,7 @@ class LiveMiniPlayer extends ConsumerWidget {
                 alignment: Alignment.centerLeft,
                 child: FractionallySizedBox(
                   widthFactor: liveState.isReceivingData ? 0.38 : 0,
-                  child: Container(color: SP.accent),
+                  child: Container(color: context.colors.accent),
                 ),
               ),
             ),
@@ -64,10 +64,10 @@ class LiveMiniPlayer extends ConsumerWidget {
                       height: 48,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [SP.gradEnd, SP.accent],
+                          colors: [SP.gradEnd, context.colors.accent],
                         ),
                       ),
                       child: const Icon(Icons.podcasts, color: SP.btnText, size: 22),
@@ -80,7 +80,7 @@ class LiveMiniPlayer extends ConsumerWidget {
                         children: [
                           Text(
                             liveState.title ?? 'Direct',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: SP.text1),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.colors.text1),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -89,7 +89,7 @@ class LiveMiniPlayer extends ConsumerWidget {
                             listenerCount != null
                                 ? 'En direct • ${_formatCount(listenerCount)} à l\'écoute'
                                 : 'En direct',
-                            style: const TextStyle(fontSize: 12, color: SP.text2),
+                            style: TextStyle(fontSize: 12, color: context.colors.text2),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -101,7 +101,7 @@ class LiveMiniPlayer extends ConsumerWidget {
                     IconButton(
                       tooltip: 'Pause',
                       onPressed: () => ref.read(liveStreamProvider.notifier).disconnect(),
-                      icon: const Icon(Icons.pause_circle_filled, color: SP.accent, size: 36),
+                      icon: Icon(Icons.pause_circle_filled, color: context.colors.accent, size: 36),
                     ),
                   ],
                 ),

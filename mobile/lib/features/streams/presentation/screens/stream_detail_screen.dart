@@ -49,10 +49,10 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
     final isFavorite = ref.watch(favoriteIdsProvider).contains(widget.streamId);
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Retour',
@@ -62,7 +62,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
         actions: [
           IconButton(
             icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: isFavorite ? SP.accent : null),
+                color: isFavorite ? context.colors.accent : null),
             tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
             onPressed: () {
               final notifier = ref.read(favoritesProvider.notifier);
@@ -104,8 +104,8 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              SP.accent.withValues(alpha: 0.2),
-                              SP.accent.withValues(alpha: 0.05),
+                              context.colors.accent.withValues(alpha: 0.2),
+                              context.colors.accent.withValues(alpha: 0.05),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -117,10 +117,10 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.radio,
                                   size: 48,
-                                  color: SP.accent,
+                                  color: context.colors.accent,
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
@@ -135,7 +135,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                                             .headlineSmall
                                             ?.copyWith(
                                               fontWeight: FontWeight.bold,
-                                              color: SP.text1,
+                                              color: context.colors.text1,
                                             ),
                                       ),
                                       const SizedBox(height: 4),
@@ -157,7 +157,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                               .titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: SP.text1,
+                                color: context.colors.text1,
                               ),
                         ),
                         const SizedBox(height: 8),
@@ -166,7 +166,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodyLarge
-                              ?.copyWith(color: SP.text2),
+                              ?.copyWith(color: context.colors.text2),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -175,7 +175,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: SP.text1,
+                                  color: context.colors.text1,
                                 ),
                       ),
                       const SizedBox(height: 12),
@@ -192,7 +192,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: SP.tag,
+                            color: context.colors.tag,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -200,7 +200,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
-                                ?.copyWith(color: SP.text2),
+                                ?.copyWith(color: context.colors.text2),
                           ),
                         ),
                       ),
@@ -213,7 +213,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
-                              ?.copyWith(color: SP.text2),
+                              ?.copyWith(color: context.colors.text2),
                         ),
                       ),
                     ],
@@ -245,7 +245,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isLive ? SP.liveBg.withValues(alpha: 0.15) : SP.offlineBg,
+        color: isLive ? SP.liveBg.withValues(alpha: 0.15) : context.colors.offlineBg,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -266,7 +266,7 @@ class _StatusBadge extends StatelessWidget {
             style: TextStyle(
               // Sur ce badge translucide, le texte reprend la teinte claire
               // (liveBg), pas le liveText foncé prévu pour un fond plein.
-              color: isLive ? SP.liveBg : SP.textMuted,
+              color: isLive ? SP.liveBg : context.colors.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
@@ -295,13 +295,13 @@ class _DetailRow extends StatelessWidget {
         Icon(
           icon,
           size: 18,
-          color: SP.text3,
+          color: context.colors.text3,
         ),
         const SizedBox(width: 8),
         Text(
           '$label: ',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: SP.text3,
+                color: context.colors.text3,
               ),
         ),
         child,

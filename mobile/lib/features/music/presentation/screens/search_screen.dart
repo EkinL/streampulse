@@ -77,10 +77,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Retour',
@@ -89,22 +89,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         title: TextField(
           controller: _controller,
           autofocus: true,
-          style: const TextStyle(color: SP.text1, fontSize: 16),
+          style: TextStyle(color: context.colors.text1, fontSize: 16),
           decoration: InputDecoration(
             hintText: 'Search streams and music...',
-            hintStyle: const TextStyle(color: SP.text3, fontSize: 16),
+            hintStyle: TextStyle(color: context.colors.text3, fontSize: 16),
             filled: true,
-            fillColor: SP.surfaceVariant,
+            fillColor: context.colors.surfaceVariant,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            prefixIcon: const Icon(Icons.search, color: SP.text3, size: 20),
+            prefixIcon: Icon(Icons.search, color: context.colors.text3, size: 20),
             suffixIcon: _controller.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: SP.text3, size: 20),
+                    icon: Icon(Icons.clear, color: context.colors.text3, size: 20),
                     tooltip: 'Effacer',
                     onPressed: () {
                       _controller.clear();
@@ -117,27 +117,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
         titleSpacing: 0,
       ),
-      body: _buildBody(),
+      body: _buildBody(context),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: SP.accent),
+      return Center(
+        child: CircularProgressIndicator(color: context.colors.accent),
       );
     }
 
     if (!_hasSearched) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: SP.text3),
-            SizedBox(height: 16),
+            Icon(Icons.search, size: 64, color: context.colors.text3),
+            const SizedBox(height: 16),
             Text(
               'Search for streams and music',
-              style: TextStyle(fontSize: 16, color: SP.text3),
+              style: TextStyle(fontSize: 16, color: context.colors.text3),
             ),
           ],
         ),
@@ -145,15 +145,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (_streamResults.isEmpty && _musicResults.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: SP.text3),
-            SizedBox(height: 16),
+            Icon(Icons.search_off, size: 64, color: context.colors.text3),
+            const SizedBox(height: 16),
             Text(
               'No results found',
-              style: TextStyle(fontSize: 16, color: SP.text3),
+              style: TextStyle(fontSize: 16, color: context.colors.text3),
             ),
           ],
         ),
@@ -164,14 +164,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         if (_streamResults.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               'Streams',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: SP.text1,
+                color: context.colors.text1,
               ),
             ),
           ),
@@ -186,14 +186,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const SizedBox(height: 24),
         ],
         if (_musicResults.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               'Music',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: SP.text1,
+                color: context.colors.text1,
               ),
             ),
           ),

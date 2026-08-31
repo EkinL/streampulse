@@ -84,8 +84,17 @@ elements purement decoratifs a faible opacite (separateurs, ombre portee,
 bordure de carte sur la console) ne portent aucune information et ne sont pas
 concernes par cette exigence.
 
-> **Limite connue.** Il n'existe ni theme clair ni mode contraste eleve : la
-> mesure ci-dessus ne couvre que le theme sombre unique de l'application.
+Un theme clair existe desormais et suit automatiquement le reglage clair/sombre
+du systeme (mobile et console web), sans reglage a faire dans l'application.
+Les tokens de couleur (fond, texte, accent) sont distincts entre les deux
+themes et ont ete verifies au meme seuil WCAG AA que le theme sombre : le
+plus faible est `text3` sur `surfaceVariant` a 4,55:1, toujours conforme.
+L'accent, plus clair et peu contraste sur fond sombre, devient un indigo plus
+sature en theme clair pour rester lisible en texte/icone sur fond blanc.
+
+> **Limite connue.** Il n'existe pas de mode contraste eleve distinct (au-dela
+> du theme clair et du theme sombre) — pas de troisieme palette a contraste
+> renforce pour repondre specifiquement au reglage systeme "Contraste eleve".
 
 ## Zones tactiles
 
@@ -159,10 +168,19 @@ accompagne sur son propre appareil, avec sa propre configuration.
 | Controles du lecteur annotes (`Semantics`, infobulles) | Fait | — |
 | Volume et progression ajustables au lecteur d'ecran | Fait | — |
 | Taille de texte systeme respectee | Fait | Verifier les grandes tailles sur les ecrans denses |
-| Description des pochettes et icones restantes | A faire | Ajouter `semanticLabel` sur les images et boutons d'icone |
-| Audit VoiceOver / TalkBack ecran par ecran | A faire | Derouler les parcours 1 a 3 du guide utilisateur au lecteur d'ecran et consigner les ecarts |
-| Mesure des contrastes WCAG AA | A faire | Passer la palette du theme au verificateur de contraste |
-| Zone tactile du bouton sourdine compact | A faire | Remonter a 48 px |
+| Tooltips sur les boutons icone (33/33) | Fait | — |
+| Pochettes/vignettes marquees decoratives (`ExcludeSemantics`) | Fait | — |
+| Mesure des contrastes WCAG AA (texte/fond) | Fait | Revalider `text3` sur `surfaceVariant` (marge la plus faible, 4,55) si la palette change |
+| Zone tactile du bouton sourdine compact (48 px) | Fait | — |
+| Focus clavier visible sur boutons/icones (console web) | Fait | — |
+| Bouton de connexion : `MaterialButton` -> `TextButton` | Fait | — |
+| Crash de navigation diffuseur <-> admin (console web) | Fait | — |
+| Theme clair (mobile + console web), suit le reglage systeme | Fait | — |
+| Activation clavier (Entree/Espace) des elements non textuels | A verifier | Test manuel au clavier physique dans Chrome (non concluant avec l'outillage automatise) |
+| Audit VoiceOver / TalkBack ecran par ecran (mobile) | A faire | Derouler les parcours 1 a 3 du guide utilisateur au lecteur d'ecran et consigner les ecarts |
+| Grandes tailles de texte sur cartes denses | A faire | Verifier a l'echelle de texte systeme maximale |
+| Mode contraste eleve (troisieme palette dediee) | A faire | Definir un besoin reel avant de designer une palette specifique |
+| Audit clavier console web ecran par ecran (au-dela login/shell/admin) | A faire | Playlists, recherche, autres ecrans non encore testes |
 | Transcription / sous-titrage des flux | Non prevu a ce stade | A reevaluer avec les diffuseurs |
 
 ## Voir aussi

@@ -29,9 +29,9 @@ class StreamPulseConsoleApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'StreamPulse Console',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

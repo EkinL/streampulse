@@ -40,7 +40,7 @@ class AudioPlayerBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SP.surfaceVariant,
+        color: context.colors.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -58,7 +58,7 @@ class AudioPlayerBar extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: AudioWaveform(
                 isActive: isReceivingData,
-                color: SP.accent,
+                color: context.colors.accent,
                 barCount: 30,
                 height: 50,
               ),
@@ -79,10 +79,10 @@ class AudioPlayerBar extends ConsumerWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: SP.text1,
+                        color: context.colors.text1,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -92,7 +92,7 @@ class AudioPlayerBar extends ConsumerWidget {
                       statusText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isReceivingData ? SP.success : SP.text3,
+                        color: isReceivingData ? context.colors.success : context.colors.text3,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -106,10 +106,10 @@ class AudioPlayerBar extends ConsumerWidget {
                   height: 10,
                   margin: const EdgeInsets.only(left: 8),
                   decoration: BoxDecoration(
-                    color: isReceivingData ? SP.success : SP.text3,
+                    color: isReceivingData ? context.colors.success : context.colors.text3,
                     shape: BoxShape.circle,
                     boxShadow: isReceivingData
-                        ? [BoxShadow(color: SP.success.withValues(alpha: 0.5), blurRadius: 6)]
+                        ? [BoxShadow(color: context.colors.success.withValues(alpha: 0.5), blurRadius: 6)]
                         : null,
                   ),
                 ),
@@ -132,12 +132,12 @@ class AudioPlayerBar extends ConsumerWidget {
     required bool isConnecting,
   }) {
     if (isConnecting) {
-      return const SizedBox(
+      return SizedBox(
         width: 48,
         height: 48,
         child: Padding(
-          padding: EdgeInsets.all(8),
-          child: CircularProgressIndicator(strokeWidth: 2, color: SP.accent),
+          padding: const EdgeInsets.all(8),
+          child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.accent),
         ),
       );
     }
@@ -163,12 +163,12 @@ class AudioPlayerBar extends ConsumerWidget {
           child: Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(color: SP.error, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: context.colors.error, shape: BoxShape.circle),
             child: Center(
               child: Container(
                 width: 16,
                 height: 16,
-                decoration: BoxDecoration(color: SP.bg, borderRadius: BorderRadius.circular(3)),
+                decoration: BoxDecoration(color: context.colors.bg, borderRadius: BorderRadius.circular(3)),
               ),
             ),
           ),
@@ -181,7 +181,7 @@ class AudioPlayerBar extends ConsumerWidget {
       icon: Icon(
         Icons.play_circle_filled,
         size: 48,
-        color: isLive ? SP.accent : SP.text3.withValues(alpha: 0.3),
+        color: isLive ? context.colors.accent : context.colors.text3.withValues(alpha: 0.3),
       ),
       onPressed: onPressed,
       padding: EdgeInsets.zero,

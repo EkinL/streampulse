@@ -14,16 +14,16 @@ class ListenerCount extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
+        Icon(
           Icons.headphones,
           size: 14,
-          color: SP.accent,
+          color: context.colors.accent,
         ),
         const SizedBox(width: 4),
         Text(
           _formatCount(count),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: SP.accent,
+                color: context.colors.accent,
                 fontWeight: FontWeight.w600,
               ),
         ),

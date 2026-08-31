@@ -60,10 +60,10 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
         authState is AuthAuthenticated ? authState.user.id : '';
 
     return Scaffold(
-      backgroundColor: SP.altBg,
+      backgroundColor: context.colors.altBg,
       body: RefreshIndicator(
-        color: SP.accent,
-        backgroundColor: SP.surface,
+        color: context.colors.accent,
+        backgroundColor: context.colors.surface,
         onRefresh: () async {
           await ref.read(streamListProvider.notifier).fetchStreams();
         },
@@ -72,11 +72,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
             // App bar
             SliverAppBar(
               floating: true,
-              backgroundColor: SP.surface,
+              backgroundColor: context.colors.surface,
               title: const Text('StreamPulse', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5, fontSize: 20)),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.search, color: SP.text1, size: 22),
+                  icon: Icon(Icons.search, color: context.colors.text1, size: 22),
                   tooltip: 'Rechercher',
                   onPressed: () => context.push('/search'),
                 ),
@@ -116,9 +116,9 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Flux actifs',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: SP.text1),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: context.colors.text1),
                           ),
                           Row(
                             children: [
@@ -172,25 +172,25 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                       const SizedBox(height: 32),
 
                       // Recent Music section
-                      const Text(
+                      Text(
                         'Recent Music',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: SP.text1),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: context.colors.text1),
                       ),
                       const SizedBox(height: 16),
                       musicAsync.when(
-                        loading: () => const Center(child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(color: SP.accent),
+                        loading: () => Center(child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: CircularProgressIndicator(color: context.colors.accent),
                         )),
-                        error: (e, _) => const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('Could not load music', style: TextStyle(color: SP.text3)),
+                        error: (e, _) => Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('Could not load music', style: TextStyle(color: context.colors.text3)),
                         ),
                         data: (musicList) {
                           if (musicList.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text('No music available', style: TextStyle(color: SP.text3)),
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text('No music available', style: TextStyle(color: context.colors.text3)),
                             );
                           }
                           return Column(
@@ -310,7 +310,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       child: Container(
         height: 256,
         decoration: BoxDecoration(
-          color: SP.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         clipBehavior: Clip.antiAlias,
@@ -325,8 +325,8 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                     end: Alignment.bottomRight,
                     colors: [
                       SP.gradEnd.withValues(alpha: 0.7),
-                      SP.accent.withValues(alpha: 0.3),
-                      SP.bg,
+                      context.colors.accent.withValues(alpha: 0.3),
+                      context.colors.bg,
                     ],
                   ),
                 ),
@@ -381,7 +381,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                         ),
                         child: Text(
                           '${stream.format.toUpperCase()} \u2022 320 KBPS',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: SP.text2),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: context.colors.text2),
                         ),
                       ),
                     ],
@@ -390,14 +390,14 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                   // Title
                   Text(
                     stream.title,
-                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: SP.text1, height: 1.25),
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: context.colors.text1, height: 1.25),
                     maxLines: 3,
                   ),
                   if (stream.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       stream.description,
-                      style: const TextStyle(fontSize: 14, color: SP.text2),
+                      style: TextStyle(fontSize: 14, color: context.colors.text2),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -416,12 +416,12 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           return Shimmer.fromColors(
-            baseColor: SP.surface,
-            highlightColor: SP.surfaceVariant,
+            baseColor: context.colors.surface,
+            highlightColor: context.colors.surfaceVariant,
             child: Container(
               height: index == 0 ? 256 : 128,
               margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              decoration: BoxDecoration(color: SP.surface, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: context.colors.surface, borderRadius: BorderRadius.circular(12)),
             ),
           );
         },
@@ -437,11 +437,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: SP.error),
+            Icon(Icons.error_outline, size: 64, color: context.colors.error),
             const SizedBox(height: 16),
-            const Text('Something went wrong', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: SP.text1)),
+            Text('Something went wrong', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.colors.text1)),
             const SizedBox(height: 8),
-            Text(error, style: const TextStyle(color: SP.text2), textAlign: TextAlign.center),
+            Text(error, style: TextStyle(color: context.colors.text2), textAlign: TextAlign.center),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => ref.read(streamListProvider.notifier).fetchStreams(),
@@ -459,15 +459,15 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       children: [
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
-          child: const Center(
+          child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.radio_outlined, size: 80, color: SP.text3),
-                SizedBox(height: 16),
-                Text('No streams available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text2)),
-                SizedBox(height: 8),
-                Text('Pull down to refresh', style: TextStyle(fontSize: 14, color: SP.text3)),
+                Icon(Icons.radio_outlined, size: 80, color: context.colors.text3),
+                const SizedBox(height: 16),
+                Text('No streams available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text2)),
+                const SizedBox(height: 8),
+                Text('Pull down to refresh', style: TextStyle(fontSize: 14, color: context.colors.text3)),
               ],
             ),
           ),
@@ -486,7 +486,7 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? SP.surfaceVariant : Colors.transparent,
+      color: selected ? context.colors.surfaceVariant : Colors.transparent,
       borderRadius: BorderRadius.circular(9999),
       child: InkWell(
         onTap: onTap,
@@ -498,7 +498,7 @@ class _FilterChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: selected ? SP.text1 : SP.text2,
+              color: selected ? context.colors.text1 : context.colors.text2,
             ),
           ),
         ),

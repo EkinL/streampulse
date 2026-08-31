@@ -58,9 +58,9 @@ class AppScaffold extends ConsumerWidget {
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             height: 80 + MediaQuery.of(context).padding.bottom,
-            decoration: const BoxDecoration(
-              color: SP.navBg,
-              boxShadow: [BoxShadow(color: SP.navShadow, offset: Offset(0, -8), blurRadius: 24)],
+            decoration: BoxDecoration(
+              color: context.colors.navBg,
+              boxShadow: [BoxShadow(color: context.colors.navShadow, offset: const Offset(0, -8), blurRadius: 24)],
             ),
             padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
             child: Row(
@@ -102,7 +102,7 @@ class AppScaffold extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: SP.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -116,32 +116,32 @@ class AppScaffold extends ConsumerWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: SP.text3.withValues(alpha: 0.3),
+                color: context.colors.text3.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             CircleAvatar(
               radius: 40,
-              backgroundColor: SP.surfaceVariant,
+              backgroundColor: context.colors.surfaceVariant,
               child: Text(
                 user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 32, color: SP.accent, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 32, color: context.colors.accent, fontWeight: FontWeight.w900),
               ),
             ),
             const SizedBox(height: 16),
-            Text(user.username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: SP.text1)),
+            Text(user.username, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.colors.text1)),
             const SizedBox(height: 4),
-            Text(user.email, style: const TextStyle(fontSize: 14, color: SP.text3)),
+            Text(user.email, style: TextStyle(fontSize: 14, color: context.colors.text3)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: SP.surfaceVariant,
+                color: context.colors.surfaceVariant,
                 borderRadius: BorderRadius.circular(9999),
               ),
               child: Text(
                 user.role.toUpperCase(),
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: SP.accent),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: context.colors.accent),
               ),
             ),
             const SizedBox(height: 32),
@@ -155,8 +155,8 @@ class AppScaffold extends ConsumerWidget {
                 icon: const Icon(Icons.manage_accounts_outlined, size: 18),
                 label: const Text('Mon compte'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: SP.accent,
-                  side: const BorderSide(color: SP.accent),
+                  foregroundColor: context.colors.accent,
+                  side: BorderSide(color: context.colors.accent),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -171,7 +171,7 @@ class AppScaffold extends ConsumerWidget {
               },
               icon: const Icon(Icons.logout, size: 18),
               label: const Text('Sign Out'),
-              style: TextButton.styleFrom(foregroundColor: SP.text3),
+              style: TextButton.styleFrom(foregroundColor: context.colors.text3),
             ),
             const SizedBox(height: 8),
           ],
@@ -197,7 +197,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? SP.accent : SP.textMuted;
+    final color = selected ? context.colors.accent : context.colors.textMuted;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

@@ -56,9 +56,9 @@ class StreamPulseApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'StreamPulse',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

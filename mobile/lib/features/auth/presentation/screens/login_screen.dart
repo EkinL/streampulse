@@ -53,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = authState is AuthLoading;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Stack(
         children: [
           // Top-right purple glow
@@ -67,8 +67,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withValues(alpha: 0.18),
-                    SP.accent.withValues(alpha: 0.0),
+                    context.colors.accent.withValues(alpha: 0.18),
+                    context.colors.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -110,16 +110,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 96,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: SP.surface,
-                            boxShadow: const [
+                            color: context.colors.surface,
+                            boxShadow: [
                               BoxShadow(
-                                color: SP.glow,
+                                color: context.colors.glow,
                                 blurRadius: 40,
                                 spreadRadius: 0,
                               ),
                             ],
                             border: Border.all(
-                              color: SP.accent.withValues(alpha: 0.2),
+                              color: context.colors.accent.withValues(alpha: 0.2),
                               width: 2,
                             ),
                           ),
@@ -130,14 +130,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: SP.accent.withValues(alpha: 0.1),
+                                  color: context.colors.accent.withValues(alpha: 0.1),
                                   width: 1,
                                 ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.wifi_tethering,
                                 size: 40,
-                                color: SP.accent,
+                                color: context.colors.accent,
                               ),
                             ),
                           ),
@@ -150,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 36,
                           fontWeight: FontWeight.w900,
-                          color: SP.text1,
+                          color: context.colors.text1,
                           letterSpacing: -1.8,
                         ),
                         textAlign: TextAlign.center,
@@ -162,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: SP.text2,
+                          color: context.colors.text2,
                           letterSpacing: 0.35,
                         ),
                         textAlign: TextAlign.center,
@@ -176,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: SP.text2,
+                            color: context.colors.text2,
                             letterSpacing: 1.2,
                           ),
                         ),
@@ -201,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: SP.text2,
+                                color: context.colors.text2,
                                 letterSpacing: 1.2,
                               ),
                             ),
@@ -214,7 +214,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
-                                  color: SP.accent,
+                                  color: context.colors.accent,
                                 ),
                               ),
                             ),
@@ -260,7 +260,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: SP.accent.withValues(alpha: 0.10),
+                                color: context.colors.accent.withValues(alpha: 0.10),
                                 offset: const Offset(0, 10),
                                 blurRadius: 15,
                                 spreadRadius: -3,
@@ -311,7 +311,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: SP.divider,
+                              color: context.colors.divider,
                             ),
                           ),
                           Padding(
@@ -321,7 +321,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: SP.text3,
+                                color: context.colors.text3,
                                 letterSpacing: 1.2,
                               ),
                             ),
@@ -329,7 +329,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: SP.divider,
+                              color: context.colors.divider,
                             ),
                           ),
                         ],
@@ -344,15 +344,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: OutlinedButton(
                                 onPressed: isLoading ? null : () {},
                                 style: OutlinedButton.styleFrom(
-                                  backgroundColor: SP.surface,
+                                  backgroundColor: context.colors.surface,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   side: BorderSide.none,
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.apple,
-                                  color: SP.text1,
+                                  color: context.colors.text1,
                                   size: 24,
                                 ),
                               ),
@@ -365,7 +365,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               child: OutlinedButton(
                                 onPressed: isLoading ? null : () {},
                                 style: OutlinedButton.styleFrom(
-                                  backgroundColor: SP.surface,
+                                  backgroundColor: context.colors.surface,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -376,7 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   style: GoogleFonts.inter(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w700,
-                                    color: SP.text1,
+                                    color: context.colors.text1,
                                   ),
                                 ),
                               ),
@@ -395,7 +395,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: SP.text2,
+                              color: context.colors.text2,
                             ),
                             children: [
                               TextSpan(
@@ -403,7 +403,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
-                                  color: SP.accent,
+                                  color: context.colors.accent,
                                 ),
                               ),
                             ],

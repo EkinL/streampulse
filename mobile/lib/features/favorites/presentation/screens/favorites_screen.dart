@@ -14,10 +14,10 @@ class FavoritesScreen extends ConsumerWidget {
     final favoritesAsync = ref.watch(favoritesProvider);
 
     return Scaffold(
-      backgroundColor: SP.altBg,
+      backgroundColor: context.colors.altBg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         title: const Text('Favoris'),
         actions: [
           Padding(
@@ -28,7 +28,7 @@ class FavoritesScreen extends ConsumerWidget {
                   final liveCount = favorites.where((s) => s.isLive).length;
                   return Text(
                     '$liveCount en direct • ${favorites.length} suivis',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: SP.text3),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.text3),
                   );
                 },
                 orElse: () => const SizedBox.shrink(),
@@ -38,23 +38,23 @@ class FavoritesScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        color: SP.accent,
+        color: context.colors.accent,
         onRefresh: () async {
           await ref.read(favoritesProvider.notifier).fetch();
         },
         child: favoritesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
+          loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
           error: (error, _) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
                   size: 64,
-                  color: SP.error,
+                  color: context.colors.error,
                 ),
                 const SizedBox(height: 16),
-                Text('Error: $error', style: const TextStyle(color: SP.text2)),
+                Text('Error: $error', style: TextStyle(color: context.colors.text2)),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
@@ -71,17 +71,17 @@ class FavoritesScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.favorite_border,
                       size: 80,
-                      color: SP.text3,
+                      color: context.colors.text3,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'No favorites yet',
                       style:
                           Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: SP.text3,
+                                color: context.colors.text3,
                               ),
                     ),
                     const SizedBox(height: 8),
@@ -89,7 +89,7 @@ class FavoritesScreen extends ConsumerWidget {
                       'Start adding streams to your favorites',
                       style:
                           Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: SP.text3,
+                                color: context.colors.text3,
                               ),
                     ),
                   ],
@@ -106,12 +106,12 @@ class FavoritesScreen extends ConsumerWidget {
               itemCount: sorted.length + 1,
               itemBuilder: (context, index) {
                 if (index == sorted.length) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
                       'Touchez le cœur pour retirer un flux des favoris.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: SP.textMuted, height: 1.5),
+                      style: TextStyle(fontSize: 13, color: context.colors.textMuted, height: 1.5),
                     ),
                   );
                 }

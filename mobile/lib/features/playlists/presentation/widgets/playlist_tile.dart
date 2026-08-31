@@ -19,7 +19,7 @@ class PlaylistTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: SP.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
@@ -30,32 +30,32 @@ class PlaylistTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: SP.tag,
+              color: context.colors.tag,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.queue_music, color: SP.accent),
+            child: Icon(Icons.queue_music, color: context.colors.accent),
           ),
         ),
         title: Text(
           playlist.name,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: SP.text1),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.text1),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
           '${playlist.trackCount} titre${playlist.trackCount != 1 ? 's' : ''}'
           '${playlist.isPublic ? ' \u2022 Public' : ''}',
-          style: const TextStyle(fontSize: 12, color: SP.text3),
+          style: TextStyle(fontSize: 12, color: context.colors.text3),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: onDelete != null
             ? IconButton(
-                icon: const Icon(Icons.delete_outline, color: SP.error),
+                icon: Icon(Icons.delete_outline, color: context.colors.error),
                 tooltip: 'Supprimer',
                 onPressed: onDelete,
               )
-            : const Icon(Icons.chevron_right, color: SP.text3),
+            : Icon(Icons.chevron_right, color: context.colors.text3),
         onTap: onTap,
       ),
     );

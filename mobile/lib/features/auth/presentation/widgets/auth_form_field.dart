@@ -38,23 +38,23 @@ class AuthFormField extends StatelessWidget {
         textInputAction: textInputAction,
         validator: validator,
         onFieldSubmitted: onFieldSubmitted,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: SP.text1,
+          color: context.colors.text1,
         ),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: SP.text3,
+            color: context.colors.text3,
           ),
           prefixIcon: prefixIcon != null
               ? Padding(
                   padding: const EdgeInsets.only(left: 16, right: 12),
                   child: IconTheme(
-                    data: const IconThemeData(color: SP.text3, size: 20),
+                    data: IconThemeData(color: context.colors.text3, size: 20),
                     child: prefixIcon!,
                   ),
                 )
@@ -65,12 +65,12 @@ class AuthFormField extends StatelessWidget {
           ),
           suffixIcon: suffixIcon != null
               ? IconTheme(
-                  data: const IconThemeData(color: SP.text3, size: 20),
+                  data: IconThemeData(color: context.colors.text3, size: 20),
                   child: suffixIcon!,
                 )
               : null,
           filled: true,
-          fillColor: SP.surface,
+          fillColor: context.colors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -81,11 +81,11 @@ class AuthFormField extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: SP.accent, width: 1.5),
+            borderSide: BorderSide(color: context.colors.accent, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: SP.error),
+            borderSide: BorderSide(color: context.colors.error),
           ),
           contentPadding: const EdgeInsets.only(
             left: 48,
