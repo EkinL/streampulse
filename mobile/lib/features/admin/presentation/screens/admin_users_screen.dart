@@ -50,16 +50,25 @@ class AdminUsersScreen extends ConsumerWidget {
             tooltip: 'Open Grafana dashboard',
             icon: const Icon(Icons.query_stats),
             onPressed: () async {
-              final uri = Uri.parse(AppConstants.grafanaUrl);
-              final opened = await launchUrl(
-                uri,
-                mode: LaunchMode.externalApplication,
-              );
-              if (!opened && context.mounted) {
-                context.showSnackBar(
-                  'Could not open Grafana dashboard',
-                  isError: true,
+              try {
+                final uri = Uri.parse(AppConstants.grafanaUrl);
+                final opened = await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
                 );
+                if (!opened && context.mounted) {
+                  context.showSnackBar(
+                    'Could not open Grafana dashboard',
+                    isError: true,
+                  );
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  context.showSnackBar(
+                    'Could not open Grafana dashboard',
+                    isError: true,
+                  );
+                }
               }
             },
           ),

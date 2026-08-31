@@ -16,6 +16,11 @@ String generateTraceparent() {
 }
 
 String _randomHex(int byteCount) {
-  final bytes = List<int>.generate(byteCount, (_) => _random.nextInt(256));
+  // W3C trace context forbids an all-zero trace-id/span-id. Astronomically
+  // unlikely, but free to guard against.
+  List<int> bytes;
+  do {
+    bytes = List<int>.generate(byteCount, (_) => _random.nextInt(256));
+  } while (bytes.every((b) => b == 0));
   return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
