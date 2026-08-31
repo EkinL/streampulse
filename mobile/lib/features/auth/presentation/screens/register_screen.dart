@@ -283,7 +283,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 16),
+                          // Notice d'information RGPD (art. 13) — pas une
+                          // case a cocher : le traitement du compte repose
+                          // sur l'execution du contrat, pas le consentement
+                          // (voir docs/rgpd.md).
+                          GestureDetector(
+                            onTap: () => context.push('/privacy'),
+                            child: RichText(
+                              textAlign: TextAlign.center,
+                              text: TextSpan(
+                                text: 'En créant un compte, vous acceptez notre ',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: SP.text3,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'politique de confidentialité',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: SP.accent,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: '.',
+                                    style: GoogleFonts.inter(fontSize: 12, color: SP.text3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
                           // Sign In footer
                           GestureDetector(
                             onTap:

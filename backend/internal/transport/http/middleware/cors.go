@@ -28,7 +28,7 @@ func CORSHandler(allowedOrigins string) *cors.Cors {
 	return cors.New(cors.Options{
 		AllowedOrigins: origins,
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "traceparent", "tracestate"},
 		ExposedHeaders: []string{"Link", "X-Request-ID"},
 		// Les navigateurs refusent la paire `Allow-Origin: *` +
 		// `Allow-Credentials: true` : avec le joker, l'annoncer ne sert a rien

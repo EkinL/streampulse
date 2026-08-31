@@ -14,11 +14,25 @@ class PlaylistsScreen extends ConsumerWidget {
     final playlistsAsync = ref.watch(playlistListProvider);
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: SP.altBg,
       appBar: AppBar(
         backgroundColor: SP.surface,
         foregroundColor: SP.text1,
         title: const Text('Playlists'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 24),
+            child: Center(
+              child: playlistsAsync.maybeWhen(
+                data: (playlists) => Text(
+                  '${playlists.length} liste${playlists.length != 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: SP.text3),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: SP.accent,

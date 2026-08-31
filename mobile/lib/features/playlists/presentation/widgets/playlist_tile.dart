@@ -28,7 +28,7 @@ class PlaylistTile extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: SP.surfaceVariant,
+            color: SP.tag,
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.queue_music, color: SP.accent),
@@ -40,7 +40,7 @@ class PlaylistTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${playlist.trackCount} track${playlist.trackCount != 1 ? 's' : ''}'
+          '${playlist.trackCount} titre${playlist.trackCount != 1 ? 's' : ''}'
           '${playlist.isPublic ? ' \u2022 Public' : ''}',
           style: const TextStyle(fontSize: 12, color: SP.text3),
           maxLines: 1,

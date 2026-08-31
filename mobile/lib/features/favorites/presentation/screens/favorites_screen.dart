@@ -14,11 +14,28 @@ class FavoritesScreen extends ConsumerWidget {
     final favoritesAsync = ref.watch(favoritesProvider);
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: SP.altBg,
       appBar: AppBar(
         backgroundColor: SP.surface,
         foregroundColor: SP.text1,
-        title: const Text('Favorites'),
+        title: const Text('Favoris'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 24),
+            child: Center(
+              child: favoritesAsync.maybeWhen(
+                data: (favorites) {
+                  final liveCount = favorites.where((s) => s.isLive).length;
+                  return Text(
+                    '$liveCount en direct • ${favorites.length} suivis',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: SP.text3),
+                  );
+                },
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: SP.accent,
@@ -79,13 +96,29 @@ class FavoritesScreen extends ConsumerWidget {
                 ),
               );
             }
+            // Les flux en direct passent avant les flux hors ligne.
+            final sorted = [...favorites]..sort((a, b) {
+                if (a.isLive == b.isLive) return 0;
+                return a.isLive ? -1 : 1;
+              });
             return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: favorites.length,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              itemCount: sorted.length + 1,
               itemBuilder: (context, index) {
-                final stream = favorites[index];
+                if (index == sorted.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Touchez le cœur pour retirer un flux des favoris.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: SP.textMuted, height: 1.5),
+                    ),
+                  );
+                }
+                final stream = sorted[index];
                 return StreamCard(
                   stream: stream,
+                  favoriteFilled: true,
                   onTap: () => context.push('/streams/${stream.id}'),
                   onFavorite: () {
                     ref

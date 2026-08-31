@@ -1,16 +1,18 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:record/record.dart';
 import '../../../../app/theme.dart';
 import '../../data/stream_repository.dart';
 import '../../domain/stream_model.dart';
 import '../providers/stream_provider.dart';
 import '../widgets/audio_waveform.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/utils/extensions.dart';
@@ -27,7 +29,8 @@ class BroadcasterScreen extends ConsumerStatefulWidget {
   ConsumerState<BroadcasterScreen> createState() => _BroadcasterScreenState();
 }
 
-class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
+class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -42,8 +45,25 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
   CancelToken? _broadcastCancelToken;
 
   // Listeners tracking
-  List<Map<String, dynamic>> _listeners = [];
   Timer? _listenerTimer;
+
+  // Console diffuseur — durée d'antenne, historique auditeurs, coupures
+  DateTime? _liveSince;
+  Duration _elapsed = Duration.zero;
+  Timer? _elapsedTimer;
+  final List<MapEntry<DateTime, int>> _listenerHistory = [];
+  int _dropCount = 0;
+
+  // Bouton "Couper l'antenne" : maintien obligatoire de 2 s.
+  late final AnimationController _holdController = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  )..addStatusListener((status) {
+      if (status == AnimationStatus.completed && _activeStream != null) {
+        _holdController.reset();
+        _stopStream(_activeStream!.id);
+      }
+    });
 
   // Music library
   List<MusicModel> _myMusic = [];
@@ -54,7 +74,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
     super.initState();
     _listenerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_activeStream != null && mounted) {
-        _fetchListeners(_activeStream!.id);
         _refreshActiveStream(_activeStream!.id);
       }
     });
@@ -64,6 +83,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
   @override
   void dispose() {
     _listenerTimer?.cancel();
+    _elapsedTimer?.cancel();
+    _holdController.dispose();
     _stopBroadcasting();
     _recorder.dispose();
     _titleController.dispose();
@@ -71,26 +92,25 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchListeners(String streamId) async {
-    try {
-      final dio = ref.read(dioProvider);
-      final response =
-          await dio.get(ApiEndpoints.streamListeners(streamId));
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>;
-      final list = data['listeners'] as List<dynamic>? ?? [];
-      if (mounted) {
-        setState(() => _listeners = list.cast<Map<String, dynamic>>());
-      }
-    } catch (_) {}
-  }
-
   Future<void> _refreshActiveStream(String streamId) async {
     try {
       final repo = ref.read(streamRepositoryProvider);
       final updated = await repo.getStream(streamId);
-      if (mounted) setState(() => _activeStream = updated);
+      if (!mounted) return;
+      setState(() {
+        _activeStream = updated;
+        _listenerHistory.add(MapEntry(DateTime.now(), updated.listenerCount));
+        final cutoff = DateTime.now().subtract(const Duration(minutes: 5));
+        _listenerHistory.removeWhere((e) => e.key.isBefore(cutoff));
+      });
     } catch (_) {}
+  }
+
+  /// Delta d'auditeurs sur les 5 dernières minutes, ou `null` si l'historique
+  /// est trop court pour être significatif — jamais une valeur inventée.
+  int? get _listenerDelta5min {
+    if (_listenerHistory.length < 2 || _activeStream == null) return null;
+    return _activeStream!.listenerCount - _listenerHistory.first.value;
   }
 
   Future<void> _createStream() async {
@@ -122,7 +142,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       final updated = await repo.getStream(streamId);
       setState(() {
         _activeStream = updated;
-        _listeners = [];
+        _listenerHistory.clear();
+        _dropCount = 0;
+        _liveSince = DateTime.now();
+        _elapsed = Duration.zero;
+      });
+      _elapsedTimer?.cancel();
+      _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || _liveSince == null) return;
+        setState(() => _elapsed = DateTime.now().difference(_liveSince!));
       });
 
       // Start mic broadcasting
@@ -201,6 +229,11 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
         .then<void>((_) {}, onError: (e) {
       if (!CancelToken.isCancel(e)) {
         debugPrint('Broadcast connection ended: $e');
+        // Coupure non planifiée (pas un arrêt volontaire via le bouton) :
+        // comptabilisée dans le compteur "Coupures" de la console.
+        if (mounted && _isBroadcasting) {
+          setState(() => _dropCount++);
+        }
       }
     });
   }
@@ -221,9 +254,12 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       await _stopBroadcasting();
       final repo = ref.read(streamRepositoryProvider);
       await repo.stopStream(streamId);
+      _elapsedTimer?.cancel();
+      _elapsedTimer = null;
       setState(() {
         _activeStream = null;
-        _listeners = [];
+        _liveSince = null;
+        _elapsed = Duration.zero;
       });
       ref.read(streamListProvider.notifier).fetchStreams();
       if (mounted) context.showSnackBar('Stream stopped');
@@ -232,6 +268,22 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
         context.showSnackBar('Failed to stop: $e', isError: true);
       }
     }
+  }
+
+  /// Ouvre la console "antenne" pour un flux déjà en direct (démarré plus tôt
+  /// dans cette session, ou retrouvé après une navigation) sans relancer la
+  /// capture micro — seul `_startStream` fait ça. Permet de rejoindre l'écran
+  /// de gestion (et son bouton couper l'antenne à maintien obligatoire de
+  /// 2 s) au lieu d'un arrêt en un tap depuis la liste.
+  void _openManagement(StreamModel stream) {
+    setState(() {
+      _activeStream = stream;
+      _liveSince ??= DateTime.now();
+    });
+    _elapsedTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _liveSince == null) return;
+      setState(() => _elapsed = DateTime.now().difference(_liveSince!));
+    });
   }
 
   Future<void> _loadMyMusic() async {
@@ -418,6 +470,10 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_activeStream != null) {
+      return _buildOnAirConsole();
+    }
+
     return Scaffold(
       backgroundColor: SP.bg,
       appBar: AppBar(
@@ -427,26 +483,23 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Broadcaster'),
+        title: const Text('Console diffuseur'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_activeStream != null) _buildLiveCard(),
-            if (_activeStream == null) ...[
-              Text(
-                'Create New Stream',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: SP.text1,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              _buildCreateForm(),
-              const SizedBox(height: 32),
-            ],
+            Text(
+              'Create New Stream',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: SP.text1,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            _buildCreateForm(),
+            const SizedBox(height: 32),
             Text(
               'Your Streams',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -464,130 +517,176 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
     );
   }
 
-  Widget _buildLiveCard() {
-    return Card(
-      color: SP.liveBg.withValues(alpha: 0.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: SP.liveBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+  /// Écran plein cadre pendant la diffusion active — registre visuel distinct
+  /// de l'écran de préparation ci-dessus, calqué sur la maquette v1-console.
+  Widget _buildOnAirConsole() {
+    final stream = _activeStream!;
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.8),
+            radius: 1.4,
+            colors: [Color(0xFF3A1C24), Color(0xFF14122A), Color(0xFF0B0B18)],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 24, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: SP.text3),
+                      tooltip: 'Retour',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    Text(
+                      'CONSOLE DIFFUSEUR',
+                      style: GoogleFonts.ibmPlexMono(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        letterSpacing: 1.6,
+                        color: SP.text3,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _isBroadcasting ? 'SSE · CONNECTÉ' : 'SSE · CONNEXION…',
+                      style: GoogleFonts.ibmPlexMono(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        color: SP.text3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: Column(
                     children: [
-                      Icon(Icons.circle,
-                          size: 8,
-                          color: _isBroadcasting ? SP.liveText : SP.liveText.withValues(alpha: 0.5)),
-                      const SizedBox(width: 4),
+                      // Reflète le flux (déjà en direct côté serveur) et pas
+                      // seulement la capture micro locale : gérer un flux
+                      // démarré plus tôt dans la session ne relance pas le
+                      // micro, mais doit quand même afficher "à l'antenne".
+                      _AntennaPill(isBroadcasting: _isBroadcasting || stream.isLive),
+                      const SizedBox(height: 20),
                       Text(
-                        _isBroadcasting ? 'LIVE' : 'STARTING...',
+                        stream.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: SP.liveText,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -2,
+                          height: 1.05,
+                          color: SP.text1,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_formatElapsed(_elapsed)} · ${stream.format.toUpperCase()}',
+                        style: GoogleFonts.ibmPlexMono(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: SP.text2,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Container(
+                        height: 120,
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0x800B0B18),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: SP.consoleCardBorder),
+                        ),
+                        child: AudioWaveform(
+                          isActive: _isBroadcasting,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [SP.liveBg, SP.gradEnd],
+                          ),
+                          barCount: 9,
+                          height: 88,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ConsoleStat(
+                              value: '${stream.listenerCount}',
+                              label: 'AUDITEURS',
+                              color: SP.text1,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _ConsoleStat(
+                              value: _listenerDelta5min == null
+                                  ? '—'
+                                  : (_listenerDelta5min! >= 0
+                                      ? '+${_listenerDelta5min!}'
+                                      : '${_listenerDelta5min!}'),
+                              label: '5 DERN. MIN',
+                              color: SP.success,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _ConsoleStat(
+                              value: '$_dropCount',
+                              label: 'COUPURES',
+                              color: SP.liveBg,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+                      _HoldToStopButton(
+                        controller: _holdController,
+                        onHoldStart: () => _holdController.forward(),
+                        onHoldEnd: () {
+                          if (_holdController.status != AnimationStatus.completed) {
+                            _holdController.reverse();
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        "Couper l'antenne",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: SP.dangerText),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Maintenir 2 s pour éviter les arrêts accidentels.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: SP.text3, height: 1.4),
                       ),
                     ],
                   ),
                 ),
-                const Spacer(),
-                const Icon(Icons.headphones, size: 18, color: SP.text3),
-                const SizedBox(width: 4),
-                Text(
-                  '${_activeStream!.listenerCount}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: SP.text1,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _activeStream!.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: SP.text1,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            AudioWaveform(
-              isActive: _isBroadcasting,
-              color: SP.liveBg,
-              barCount: 30,
-              height: 40,
-            ),
-            const SizedBox(height: 16),
-
-            // Listeners
-            if (_listeners.isNotEmpty) ...[
-              Text(
-                'Listening now:',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: SP.text1,
-                    ),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _listeners.map((l) {
-                  final name = l['username'] as String? ?? '?';
-                  return Chip(
-                    backgroundColor: SP.surfaceVariant,
-                    avatar: CircleAvatar(
-                      backgroundColor: SP.accent,
-                      child: Text(name[0].toUpperCase(),
-                          style: const TextStyle(
-                              color: SP.btnText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                    label: Text(name, style: const TextStyle(color: SP.text1)),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-            ] else ...[
-              Text(
-                'No listeners yet',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: SP.text3,
-                    ),
-              ),
-              const SizedBox(height: 16),
             ],
-
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _stopStream(_activeStream!.id),
-                icon: const Icon(Icons.stop),
-                label: const Text('Stop Broadcasting'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: SP.error,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  String _formatElapsed(Duration d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.inHours)}:${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
   }
 
   Widget _buildCreateForm() {
@@ -698,6 +797,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                   child: ListTile(
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    onTap: stream.isLive ? () => _openManagement(stream) : null,
                     leading: Icon(
                       stream.isLive ? Icons.radio : Icons.radio_outlined,
                       color: stream.isLive ? SP.liveBg : SP.text3,
@@ -743,12 +843,12 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
                       height: 32,
                       child: stream.isLive
                           ? TextButton(
-                              onPressed: () => _stopStream(stream.id),
+                              onPressed: () => _openManagement(stream),
                               style: TextButton.styleFrom(
-                                foregroundColor: SP.error,
+                                foregroundColor: SP.accent,
                                 padding: EdgeInsets.zero,
                               ),
-                              child: const Text('Stop', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                              child: const Text('Gérer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                             )
                           : TextButton(
                               onPressed: _activeStream != null ? null : () => _startStream(stream.id),
@@ -899,4 +999,197 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen> {
       ],
     );
   }
+}
+
+/// Bandeau "À L'ANTENNE" avec pastille clignotante — coupée sous
+/// `prefers-reduced-motion` (accessibilité, cf. handoff design).
+class _AntennaPill extends StatefulWidget {
+  final bool isBroadcasting;
+  const _AntennaPill({required this.isBroadcasting});
+
+  @override
+  State<_AntennaPill> createState() => _AntennaPillState();
+}
+
+class _AntennaPillState extends State<_AntennaPill> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  bool get _reducedMotion =>
+      SchedulerBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_reducedMotion) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(color: SP.liveBg, borderRadius: BorderRadius.circular(9999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: _reducedMotion
+                ? const AlwaysStoppedAnimation(1)
+                : Tween(begin: 1.0, end: 0.25).animate(_controller),
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: const BoxDecoration(color: SP.liveText, shape: BoxShape.circle),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            widget.isBroadcasting ? "À L'ANTENNE" : 'DÉMARRAGE…',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.4,
+              color: SP.liveText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Une carte de compteur de la console (Auditeurs / 5 dern. min / Coupures).
+class _ConsoleStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _ConsoleStat({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xB31A1A2E),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: SP.text3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bouton "Couper l'antenne" : un tap seul ne fait rien, il faut maintenir la
+/// pression 2 s (voir [AnimationController] du parent) — l'anneau se remplit
+/// pendant la pression pour donner un retour visuel de progression.
+class _HoldToStopButton extends StatelessWidget {
+  final AnimationController controller;
+  final VoidCallback onHoldStart;
+  final VoidCallback onHoldEnd;
+
+  const _HoldToStopButton({
+    required this.controller,
+    required this.onHoldStart,
+    required this.onHoldEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: "Couper l'antenne, maintenir 2 secondes",
+      child: GestureDetector(
+        onTapDown: (_) => onHoldStart(),
+        onTapUp: (_) => onHoldEnd(),
+        onTapCancel: onHoldEnd,
+        child: SizedBox(
+          width: 132,
+          height: 132,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: SP.error.withValues(alpha: 0.12),
+                  border: Border.all(color: SP.error.withValues(alpha: 0.5), width: 2),
+                ),
+              ),
+              AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) => CustomPaint(
+                  size: const Size(132, 132),
+                  painter: _HoldProgressPainter(progress: controller.value),
+                ),
+              ),
+              Container(
+                width: 96,
+                height: 96,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: SP.error),
+                child: Center(
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A0A09),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HoldProgressPainter extends CustomPainter {
+  final double progress;
+  const _HoldProgressPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final rect = (Offset.zero & size).deflate(1.5);
+    final paint = Paint()
+      ..color = SP.error
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, -pi / 2, 2 * pi * progress, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HoldProgressPainter oldDelegate) => oldDelegate.progress != progress;
 }

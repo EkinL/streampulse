@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../../app/theme.dart';
 import '../../domain/stream_model.dart';
+import 'audio_waveform.dart';
 
 class StreamCard extends StatelessWidget {
   final StreamModel stream;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
   final VoidCallback? onEdit;
+  /// Cœur plein plutôt que contour — utilisé par l'écran Favoris.
+  final bool favoriteFilled;
 
-  const StreamCard({super.key, required this.stream, this.onTap, this.onFavorite, this.onEdit});
+  const StreamCard({
+    super.key,
+    required this.stream,
+    this.onTap,
+    this.onFavorite,
+    this.onEdit,
+    this.favoriteFilled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +38,7 @@ class StreamCard extends StatelessWidget {
             Container(
               width: 96,
               height: 96,
+              padding: stream.isLive ? const EdgeInsets.symmetric(horizontal: 14, vertical: 18) : null,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 gradient: LinearGradient(
@@ -38,13 +49,11 @@ class StreamCard extends StatelessWidget {
                       : [SP.surfaceVariant, SP.tag],
                 ),
               ),
-              child: Center(
-                child: Icon(
-                  Icons.radio,
-                  size: 36,
-                  color: stream.isLive ? SP.accent : SP.text3.withValues(alpha: 0.5),
-                ),
-              ),
+              child: stream.isLive
+                  ? const AudioWaveform(isActive: true, color: SP.accent, barCount: 5, height: 60)
+                  : const Center(
+                      child: Icon(Icons.mic_off, size: 30, color: SP.textMuted),
+                    ),
             ),
             const SizedBox(width: 16),
             // Content
@@ -69,7 +78,7 @@ class StreamCard extends StatelessWidget {
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatCount(stream.listenerCount),
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: SP.text2),
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: SP.text2),
                                   ),
                                 ],
                               ),
@@ -110,7 +119,26 @@ class StreamCard extends StatelessWidget {
                           const Spacer(),
                           GestureDetector(
                             onTap: onFavorite,
-                            child: const Icon(Icons.favorite_border, size: 18, color: SP.text3),
+                            behavior: HitTestBehavior.opaque,
+                            // Cible tactile 44x44 sans agrandir la place réservée
+                            // dans la mise en page (18x18) : OverflowBox déborde
+                            // visuellement sans changer la taille rapportée au
+                            // parent (Container refuse les marges négatives).
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: OverflowBox(
+                                minWidth: 44,
+                                minHeight: 44,
+                                maxWidth: 44,
+                                maxHeight: 44,
+                                child: Icon(
+                                  favoriteFilled ? Icons.favorite : Icons.favorite_border,
+                                  size: 18,
+                                  color: favoriteFilled ? SP.accent : SP.text3,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -155,9 +183,9 @@ class _StatusBadge extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Text(
-            isLive ? 'LIVE' : 'OFFLINE',
+            isLive ? 'LIVE' : 'HORS LIGNE',
             style: TextStyle(
-              fontSize: 8,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
               color: isLive ? SP.liveText : SP.text2,
@@ -183,11 +211,11 @@ class _FormatTag extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 9,
+        style: const TextStyle(
+          fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.45,
-          color: SP.text2.withValues(alpha: 0.6),
+          color: SP.textMuted,
         ),
       ),
     );

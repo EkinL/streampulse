@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/domain/auth_state.dart';
+import 'live_mini_player.dart';
 import 'mini_player.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -33,10 +34,10 @@ class AppScaffold extends ConsumerWidget {
     }
 
     final tabs = <_NavTab>[
-      const _NavTab(Icons.radio_outlined, Icons.radio, 'STREAMS'),
+      const _NavTab(Icons.radio_outlined, Icons.radio, 'DIRECT'),
       const _NavTab(Icons.queue_music_outlined, Icons.queue_music, 'PLAYLISTS'),
-      const _NavTab(Icons.favorite_border, Icons.favorite, 'FAVORITES'),
-      const _NavTab(Icons.person_outline, Icons.person, 'PROFILE'),
+      const _NavTab(Icons.favorite_border, Icons.favorite, 'FAVORIS'),
+      const _NavTab(Icons.person_outline, Icons.person, 'PROFIL'),
       if (isAdmin) const _NavTab(Icons.admin_panel_settings_outlined, Icons.admin_panel_settings, 'ADMIN'),
     ];
 
@@ -44,6 +45,10 @@ class AppScaffold extends ConsumerWidget {
       body: Column(
         children: [
           Expanded(child: child),
+          // Les deux lecteurs suivent des systèmes distincts (flux en direct
+          // vs. musique téléversée) et peuvent être actifs simultanément :
+          // on empile leurs barres plutôt que de n'en montrer qu'une.
+          const LiveMiniPlayer(),
           const MiniPlayer(),
         ],
       ),
@@ -145,26 +150,27 @@ class AppScaffold extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: () {
                   Navigator.of(sheetCtx).pop();
-                  ref.read(authProvider.notifier).logout();
-                  context.go('/login');
+                  context.push('/account');
                 },
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Sign Out'),
+                icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                label: const Text('Mon compte'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: SP.error,
-                  side: const BorderSide(color: SP.error),
+                  foregroundColor: SP.accent,
+                  side: const BorderSide(color: SP.accent),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            // Droit a l'effacement (RGPD, docs/rgpd.md) : volontairement
-            // discret, sous la deconnexion, et toujours confirme.
+            const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: () => _confirmDeleteAccount(context, sheetCtx, ref),
-              icon: const Icon(Icons.delete_forever_outlined, size: 18),
-              label: const Text('Delete my account'),
+              onPressed: () {
+                Navigator.of(sheetCtx).pop();
+                ref.read(authProvider.notifier).logout();
+                context.go('/login');
+              },
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Sign Out'),
               style: TextButton.styleFrom(foregroundColor: SP.text3),
             ),
             const SizedBox(height: 8),
@@ -172,54 +178,6 @@ class AppScaffold extends ConsumerWidget {
         ),
       ),
     );
-  }
-}
-
-extension on AppScaffold {
-  /// Supprime definitivement le compte apres confirmation explicite, puis
-  /// renvoie a l'ecran de connexion. En cas d'echec la session reste ouverte
-  /// et l'erreur est affichee.
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    BuildContext sheetCtx,
-    WidgetRef ref,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: sheetCtx,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Delete your account?'),
-        content: const Text(
-          'Your account, playlists, favorites and streams will be permanently '
-          'deleted. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: SP.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    // On ferme la feuille avant d'appeler le serveur : un message d'erreur
-    // affiche sous une feuille modale est invisible.
-    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-    try {
-      await ref.read(authProvider.notifier).deleteAccount();
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete account: $e')),
-      );
-      return;
-    }
-    if (context.mounted) context.go('/login');
   }
 }
 
@@ -239,7 +197,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? SP.accent : SP.text2.withValues(alpha: 0.6);
+    final color = selected ? SP.accent : SP.textMuted;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

@@ -9,6 +9,7 @@ import '../widgets/audio_player_bar.dart';
 import '../widgets/listener_count.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/error_widget.dart' as app_error;
+import '../../../favorites/presentation/providers/favorites_provider.dart';
 
 class StreamDetailScreen extends ConsumerStatefulWidget {
   final String streamId;
@@ -45,6 +46,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final streamAsync = ref.watch(streamDetailProvider(widget.streamId));
+    final isFavorite = ref.watch(favoriteIdsProvider).contains(widget.streamId);
 
     return Scaffold(
       backgroundColor: SP.bg,
@@ -55,20 +57,25 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Stream Details'),
+        title: const Text('Détail du flux'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_border),
+            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: isFavorite ? SP.accent : null),
             onPressed: () {
-              ref
-                  .read(streamListProvider.notifier)
-                  .toggleFavorite(widget.streamId)
-                  .then((_) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Added to favorites')),
-                  );
-                }
+              final notifier = ref.read(favoritesProvider.notifier);
+              final action = isFavorite
+                  ? notifier.remove(widget.streamId)
+                  : notifier.add(widget.streamId);
+              action.then((_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isFavorite
+                        ? 'Removed from favorites'
+                        : 'Added to favorites'),
+                  ),
+                );
               });
             },
           ),
@@ -162,7 +169,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                         const SizedBox(height: 24),
                       ],
                       Text(
-                        'Details',
+                        'Détails',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -172,7 +179,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                       const SizedBox(height: 12),
                       _DetailRow(
                         icon: Icons.headphones,
-                        label: 'Listeners',
+                        label: 'Auditeurs',
                         child: ListenerCount(count: stream.listenerCount),
                       ),
                       const SizedBox(height: 8),
@@ -198,7 +205,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                       const SizedBox(height: 8),
                       _DetailRow(
                         icon: Icons.calendar_today,
-                        label: 'Created',
+                        label: 'Créé le',
                         child: Text(
                           DateFormat.yMMMd().add_jm().format(stream.createdAt),
                           style: Theme.of(context)
@@ -234,7 +241,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: isLive ? SP.liveBg.withValues(alpha: 0.15) : SP.offlineBg,
         borderRadius: BorderRadius.circular(8),
@@ -246,16 +253,18 @@ class _StatusBadge extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              margin: const EdgeInsets.only(right: 4),
+              margin: const EdgeInsets.only(right: 5),
               decoration: const BoxDecoration(
                 color: SP.liveBg,
                 shape: BoxShape.circle,
               ),
             ),
           Text(
-            isLive ? 'LIVE' : 'OFFLINE',
+            isLive ? 'LIVE' : 'HORS LIGNE',
             style: TextStyle(
-              color: isLive ? SP.liveText : SP.text3,
+              // Sur ce badge translucide, le texte reprend la teinte claire
+              // (liveBg), pas le liveText foncé prévu pour un fond plein.
+              color: isLive ? SP.liveBg : SP.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),

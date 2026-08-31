@@ -92,11 +92,7 @@ class AudioPlayerBar extends ConsumerWidget {
                       statusText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isReceivingData
-                            ? Colors.green
-                            : isConnected
-                                ? Colors.orange
-                                : SP.text3,
+                        color: isReceivingData ? SP.success : SP.text3,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -110,15 +106,11 @@ class AudioPlayerBar extends ConsumerWidget {
                   height: 10,
                   margin: const EdgeInsets.only(left: 8),
                   decoration: BoxDecoration(
-                    color: isReceivingData ? Colors.green : Colors.orange,
+                    color: isReceivingData ? SP.success : SP.text3,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isReceivingData ? Colors.green : Colors.orange)
-                            .withValues(alpha: 0.4),
-                        blurRadius: 6,
-                      ),
-                    ],
+                    boxShadow: isReceivingData
+                        ? [BoxShadow(color: SP.success.withValues(alpha: 0.5), blurRadius: 6)]
+                        : null,
                   ),
                 ),
             ],
@@ -150,28 +142,48 @@ class AudioPlayerBar extends ConsumerWidget {
       );
     }
 
-    return IconButton(
-      tooltip: isConnected ? 'Stop listening' : 'Listen',
-      icon: Icon(
-        isConnected ? Icons.stop_circle : Icons.play_circle_filled,
-        size: 48,
-        color: isConnected
-            ? SP.error
-            : isLive
-                ? SP.accent
-                : SP.text3.withValues(alpha: 0.3),
-      ),
-      onPressed: isLive || isConnected
-          ? () {
-              if (isConnected) {
-                ref.read(liveStreamProvider.notifier).disconnect();
-              } else {
-                ref
-                    .read(liveStreamProvider.notifier)
-                    .connect(streamId, title: title);
-              }
+    final onPressed = isLive || isConnected
+        ? () {
+            if (isConnected) {
+              ref.read(liveStreamProvider.notifier).disconnect();
+            } else {
+              ref.read(liveStreamProvider.notifier).connect(streamId, title: title);
             }
-          : null,
+          }
+        : null;
+
+    if (isConnected) {
+      // Cercle plein + carré arrondi sombre à l'intérieur, comme la maquette
+      // (Icons.stop_circle ne peut pas rendre ces deux teintes distinctes).
+      return GestureDetector(
+        onTap: onPressed,
+        child: Semantics(
+          button: true,
+          label: 'Stop listening',
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(color: SP.error, shape: BoxShape.circle),
+            child: Center(
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(color: SP.bg, borderRadius: BorderRadius.circular(3)),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return IconButton(
+      tooltip: 'Listen',
+      icon: Icon(
+        Icons.play_circle_filled,
+        size: 48,
+        color: isLive ? SP.accent : SP.text3.withValues(alpha: 0.3),
+      ),
+      onPressed: onPressed,
       padding: EdgeInsets.zero,
     );
   }

@@ -7,6 +7,7 @@ class SP {
 
   // Core backgrounds
   static const Color bg = Color(0xFF0F0F23);
+  static const Color altBg = Color(0xFF111125);
   static const Color surface = Color(0xFF1A1A2E);
   static const Color surfaceVariant = Color(0xFF28283D);
   static const Color tag = Color(0xFF333348);
@@ -15,6 +16,9 @@ class SP {
   static const Color text1 = Color(0xFFE2E0FC);
   static const Color text2 = Color(0xFFC7C4D8);
   static const Color text3 = Color(0xFF918FA1);
+  /// Texte atténué — remplace les usages de `text2.withValues(alpha: 0.6)`,
+  /// dont le contraste sur fond sombre passe sous le seuil d'accessibilité.
+  static const Color textMuted = Color(0xFFA9A6BD);
 
   // Accent
   static const Color accent = Color(0xFFC4C0FF);
@@ -27,9 +31,14 @@ class SP {
   static const Color liveText = Color(0xFF690100);
   static const Color offlineBg = Color(0x4D464555);
   static const Color error = Color(0xFFEF5350);
+  static const Color success = Color(0xFF81C784);
+  /// Libellé texte d'arrêt de diffusion posé sur fond sombre — distinct du
+  /// fond des boutons (`error`), qui lui reste `#EF5350`.
+  static const Color dangerText = Color(0xFFFF8A80);
 
   // Misc
   static const Color divider = Color(0x33464555);
+  static const Color consoleCardBorder = Color(0x17E2E0FC);
   static const Color glow = Color(0x26C4C0FF);
   static const Color navBg = Color(0xB31A1A2E);
   static const Color navShadow = Color(0x146C63FF);
@@ -112,12 +121,12 @@ class AppTheme {
             fontSize: 10,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
-            color: selected ? SP.accent : SP.text2.withValues(alpha: 0.6),
+            color: selected ? SP.accent : SP.textMuted,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return IconThemeData(color: selected ? SP.accent : SP.text2.withValues(alpha: 0.6), size: 22);
+          return IconThemeData(color: selected ? SP.accent : SP.textMuted, size: 22);
         }),
       ),
       snackBarTheme: SnackBarThemeData(
