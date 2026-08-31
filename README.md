@@ -225,6 +225,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 |----------|-----------|
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
+| [docs/accessibilite.md](docs/accessibilite.md) | Utilisation en situation de handicap : lecteur d'ecran, taille du texte, contraste, limites connues |
 | [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
 | [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
