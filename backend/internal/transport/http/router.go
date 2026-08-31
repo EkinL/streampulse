@@ -153,6 +153,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		// Playlists
 		r.Route("/playlists", func(r chi.Router) {
 			r.Get("/", playlistHandler.ListPlaylists)
+			r.Get("/public", playlistHandler.ListPublicPlaylists)
 			r.Post("/", playlistHandler.CreatePlaylist)
 			r.Get("/{id}", playlistHandler.GetPlaylist)
 			r.Put("/{id}", playlistHandler.UpdatePlaylist)

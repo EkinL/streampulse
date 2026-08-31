@@ -2,6 +2,7 @@ class PlaylistModel {
   final String id;
   final String name;
   final String ownerId;
+  final String? ownerUsername;
   final bool isPublic;
   final List<TrackModel> tracks;
   final int trackCount;
@@ -11,6 +12,7 @@ class PlaylistModel {
     required this.id,
     required this.name,
     required this.ownerId,
+    this.ownerUsername,
     required this.isPublic,
     required this.tracks,
     required this.trackCount,
@@ -26,6 +28,9 @@ class PlaylistModel {
       id: json['id'] as String,
       name: json['name'] as String,
       ownerId: json['owner_id'] as String,
+      // Only present on the public-playlists endpoint, where the owner isn't
+      // necessarily the current user.
+      ownerUsername: json['owner_username'] as String?,
       isPublic: json['is_public'] as bool? ?? false,
       tracks: tracks,
       // The list endpoint doesn't include the full `tracks` relation, only
@@ -39,6 +44,7 @@ class PlaylistModel {
     String? id,
     String? name,
     String? ownerId,
+    String? ownerUsername,
     bool? isPublic,
     List<TrackModel>? tracks,
     int? trackCount,
@@ -48,6 +54,7 @@ class PlaylistModel {
       id: id ?? this.id,
       name: name ?? this.name,
       ownerId: ownerId ?? this.ownerId,
+      ownerUsername: ownerUsername ?? this.ownerUsername,
       isPublic: isPublic ?? this.isPublic,
       tracks: tracks ?? this.tracks,
       trackCount: trackCount ?? tracks?.length ?? this.trackCount,

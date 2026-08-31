@@ -51,6 +51,35 @@ func (h *PlaylistHandler) ListPlaylists(w http.ResponseWriter, r *http.Request) 
 	respondPaginated(w, items, page, perPage, total)
 }
 
+func (h *PlaylistHandler) ListPublicPlaylists(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 20
+	}
+
+	playlists, total, err := h.playlistService.ListPublicPlaylists(r.Context(), page, perPage)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list public playlists")
+		return
+	}
+
+	items := make([]dto.PlaylistResponse, 0, len(playlists))
+	for _, p := range playlists {
+		items = append(items, toPlaylistResponse(&p))
+	}
+	respondPaginated(w, items, page, perPage, total)
+}
+
 func (h *PlaylistHandler) CreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r.Context())
 	if claims == nil {
@@ -337,13 +366,14 @@ func toPlaylistResponse(p *domain.Playlist) dto.PlaylistResponse {
 		trackCount = len(p.Tracks)
 	}
 	return dto.PlaylistResponse{
-		ID:         p.ID.String(),
-		Name:       p.Name,
-		OwnerID:    p.OwnerID.String(),
-		IsPublic:   p.IsPublic,
-		Tracks:     tracks,
-		TrackCount: trackCount,
-		CreatedAt:  p.CreatedAt,
-		UpdatedAt:  p.UpdatedAt,
+		ID:            p.ID.String(),
+		Name:          p.Name,
+		OwnerID:       p.OwnerID.String(),
+		OwnerUsername: p.OwnerUsername,
+		IsPublic:      p.IsPublic,
+		Tracks:        tracks,
+		TrackCount:    trackCount,
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
 	}
 }

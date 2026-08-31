@@ -26,6 +26,19 @@ class PlaylistRepository {
     }
   }
 
+  Future<List<PlaylistModel>> listPublicPlaylists() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.publicPlaylists);
+      final body = response.data as Map<String, dynamic>;
+      final items = body['data'] as List<dynamic>? ?? [];
+      return items
+          .map((e) => PlaylistModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw e.toApiException();
+    }
+  }
+
   Future<PlaylistModel> getPlaylist(String id) async {
     try {
       final response = await _dio.get(ApiEndpoints.playlist(id));

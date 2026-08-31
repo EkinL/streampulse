@@ -92,8 +92,11 @@ func (r *PlaylistRepo) ListPublic(ctx context.Context, page, perPage int) ([]dom
 
 	rows, err := r.pool.Query(ctx,
 		`SELECT p.id, p.name, p.owner_id, p.is_public, p.created_at, p.updated_at,
-		        (SELECT COUNT(*) FROM tracks t WHERE t.playlist_id = p.id) AS track_count
-		 FROM playlists p WHERE p.is_public = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`,
+		        (SELECT COUNT(*) FROM tracks t WHERE t.playlist_id = p.id) AS track_count,
+		        u.username
+		 FROM playlists p
+		 JOIN users u ON u.id = p.owner_id
+		 WHERE p.is_public = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`,
 		perPage, offset,
 	)
 	if err != nil {
@@ -101,7 +104,15 @@ func (r *PlaylistRepo) ListPublic(ctx context.Context, page, perPage int) ([]dom
 	}
 	defer rows.Close()
 
-	return r.scanPlaylists(rows, total)
+	var playlists []domain.Playlist
+	for rows.Next() {
+		var p domain.Playlist
+		if err := rows.Scan(&p.ID, &p.Name, &p.OwnerID, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt, &p.TrackCount, &p.OwnerUsername); err != nil {
+			return nil, 0, fmt.Errorf("playlist_repo: list_public scan: %w", err)
+		}
+		playlists = append(playlists, p)
+	}
+	return playlists, total, nil
 }
 
 func (r *PlaylistRepo) Update(ctx context.Context, playlist *domain.Playlist) error {

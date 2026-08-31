@@ -1029,6 +1029,31 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /playlists/public:
+    get:
+      tags: [playlists]
+      operationId: listPublicPlaylists
+      summary: List public playlists from every user
+      description: |
+        Playlists with `is_public = true`, from any owner, most recent first.
+        Each item carries `owner_username` so the client can show who created
+        it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of public playlists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /playlists/{id}:
     parameters:
       - $ref: '#/components/parameters/PlaylistID'
@@ -1851,6 +1876,9 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         owner_id: { type: string, format: uuid }
+        owner_username:
+          type: string
+          description: Only set on `GET /playlists/public`, where the owner isn't necessarily the caller.
         is_public:
           type: boolean
           description: A public playlist is readable by any authenticated user; only the owner can write.

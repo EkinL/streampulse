@@ -44,7 +44,8 @@ class PlaylistTile extends StatelessWidget {
         ),
         subtitle: Text(
           '${playlist.trackCount} titre${playlist.trackCount != 1 ? 's' : ''}'
-          '${playlist.isPublic ? ' \u2022 Public' : ''}',
+          '${playlist.isPublic ? ' \u2022 Public' : ''}'
+          '${playlist.ownerUsername != null ? ' \u2022 ${playlist.ownerUsername}' : ''}',
           style: TextStyle(fontSize: 12, color: context.colors.text3),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
