@@ -24,13 +24,14 @@ type ReorderTracksRequest struct {
 }
 
 type PlaylistResponse struct {
-	ID        string          `json:"id"`
-	Name      string          `json:"name"`
-	OwnerID   string          `json:"owner_id"`
-	IsPublic  bool            `json:"is_public"`
-	Tracks    []TrackResponse `json:"tracks,omitempty"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	ID         string          `json:"id"`
+	Name       string          `json:"name"`
+	OwnerID    string          `json:"owner_id"`
+	IsPublic   bool            `json:"is_public"`
+	Tracks     []TrackResponse `json:"tracks,omitempty"`
+	TrackCount int             `json:"track_count"`
+	CreatedAt  time.Time       `json:"created_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
 }
 
 type TrackResponse struct {

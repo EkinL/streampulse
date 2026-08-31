@@ -4,6 +4,7 @@ class PlaylistModel {
   final String ownerId;
   final bool isPublic;
   final List<TrackModel> tracks;
+  final int trackCount;
   final DateTime createdAt;
 
   const PlaylistModel({
@@ -12,24 +13,27 @@ class PlaylistModel {
     required this.ownerId,
     required this.isPublic,
     required this.tracks,
+    required this.trackCount,
     required this.createdAt,
   });
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
     final rawTracks = json['tracks'] as List<dynamic>? ?? [];
+    final tracks = rawTracks
+        .map((e) => TrackModel.fromJson(e as Map<String, dynamic>))
+        .toList();
     return PlaylistModel(
       id: json['id'] as String,
       name: json['name'] as String,
       ownerId: json['owner_id'] as String,
       isPublic: json['is_public'] as bool? ?? false,
-      tracks: rawTracks
-          .map((e) => TrackModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      tracks: tracks,
+      // The list endpoint doesn't include the full `tracks` relation, only
+      // `track_count`. Fall back to tracks.length for endpoints that do.
+      trackCount: json['track_count'] as int? ?? tracks.length,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
-
-  int get trackCount => tracks.length;
 
   PlaylistModel copyWith({
     String? id,
@@ -37,6 +41,7 @@ class PlaylistModel {
     String? ownerId,
     bool? isPublic,
     List<TrackModel>? tracks,
+    int? trackCount,
     DateTime? createdAt,
   }) {
     return PlaylistModel(
@@ -45,6 +50,7 @@ class PlaylistModel {
       ownerId: ownerId ?? this.ownerId,
       isPublic: isPublic ?? this.isPublic,
       tracks: tracks ?? this.tracks,
+      trackCount: trackCount ?? tracks?.length ?? this.trackCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }

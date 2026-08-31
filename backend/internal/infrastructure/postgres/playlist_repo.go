@@ -56,6 +56,7 @@ func (r *PlaylistRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Play
 		return nil, err
 	}
 	p.Tracks = tracks
+	p.TrackCount = len(tracks)
 	return &p, nil
 }
 
@@ -68,8 +69,9 @@ func (r *PlaylistRepo) ListByOwner(ctx context.Context, ownerID uuid.UUID, page,
 	}
 
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, name, owner_id, is_public, created_at, updated_at
-		 FROM playlists WHERE owner_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+		`SELECT p.id, p.name, p.owner_id, p.is_public, p.created_at, p.updated_at,
+		        (SELECT COUNT(*) FROM tracks t WHERE t.playlist_id = p.id) AS track_count
+		 FROM playlists p WHERE p.owner_id = $1 ORDER BY p.created_at DESC LIMIT $2 OFFSET $3`,
 		ownerID, perPage, offset,
 	)
 	if err != nil {
@@ -89,8 +91,9 @@ func (r *PlaylistRepo) ListPublic(ctx context.Context, page, perPage int) ([]dom
 	}
 
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, name, owner_id, is_public, created_at, updated_at
-		 FROM playlists WHERE is_public = true ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+		`SELECT p.id, p.name, p.owner_id, p.is_public, p.created_at, p.updated_at,
+		        (SELECT COUNT(*) FROM tracks t WHERE t.playlist_id = p.id) AS track_count
+		 FROM playlists p WHERE p.is_public = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`,
 		perPage, offset,
 	)
 	if err != nil {
@@ -251,7 +254,7 @@ func (r *PlaylistRepo) scanPlaylists(rows pgx.Rows, total int) ([]domain.Playlis
 	var playlists []domain.Playlist
 	for rows.Next() {
 		var p domain.Playlist
-		if err := rows.Scan(&p.ID, &p.Name, &p.OwnerID, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.OwnerID, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt, &p.TrackCount); err != nil {
 			return nil, 0, fmt.Errorf("playlist_repo: scan: %w", err)
 		}
 		playlists = append(playlists, p)

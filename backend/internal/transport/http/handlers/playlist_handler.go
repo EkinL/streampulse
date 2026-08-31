@@ -332,13 +332,18 @@ func toPlaylistResponse(p *domain.Playlist) dto.PlaylistResponse {
 			Position: t.Position,
 		})
 	}
+	trackCount := p.TrackCount
+	if p.Tracks != nil {
+		trackCount = len(p.Tracks)
+	}
 	return dto.PlaylistResponse{
-		ID:        p.ID.String(),
-		Name:      p.Name,
-		OwnerID:   p.OwnerID.String(),
-		IsPublic:  p.IsPublic,
-		Tracks:    tracks,
-		CreatedAt: p.CreatedAt,
-		UpdatedAt: p.UpdatedAt,
+		ID:         p.ID.String(),
+		Name:       p.Name,
+		OwnerID:    p.OwnerID.String(),
+		IsPublic:   p.IsPublic,
+		Tracks:     tracks,
+		TrackCount: trackCount,
+		CreatedAt:  p.CreatedAt,
+		UpdatedAt:  p.UpdatedAt,
 	}
 }

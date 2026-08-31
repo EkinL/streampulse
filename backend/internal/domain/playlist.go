@@ -7,13 +7,14 @@ import (
 )
 
 type Playlist struct {
-	ID        uuid.UUID
-	Name      string
-	OwnerID   uuid.UUID
-	IsPublic  bool
-	Tracks    []Track
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         uuid.UUID
+	Name       string
+	OwnerID    uuid.UUID
+	IsPublic   bool
+	Tracks     []Track
+	TrackCount int
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type Track struct {
