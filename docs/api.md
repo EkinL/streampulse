@@ -156,10 +156,12 @@ A broadcaster pushes audio with a single long-lived
 is fanned out to every connected listener. The stream must have been started
 with `POST /streams/{id}/start` first.
 
-Because these connections are long-lived, `ReadTimeout` and `WriteTimeout` are
-set to `0` on the HTTP server — see `cmd/server/main.go`. Note that this is the
-*main* server, so the timeouts are disabled for every route, not just the
-streaming ones. The rationale for SSE over WebSocket is in
+`ReadTimeout` and `WriteTimeout` are enabled by default (30s) on every route
+to bound slow or malicious clients. These three streaming handlers are the
+only exception: each lifts the deadline **for its own connection only**, via
+`http.NewResponseController` (see [ADR 005 - HTTP timeouts](ADR/005-http-timeouts.md)),
+so a long broadcast never times out without disabling protection everywhere
+else. The rationale for SSE over WebSocket is in
 [ADR 003](ADR/003-streaming-sse.md).
 
 ## Metrics
@@ -167,3 +169,31 @@ streaming ones. The rationale for SSE over WebSocket is in
 `GET /metrics` is restricted to `admin`. Prometheus does not use it: it scrapes
 an internal listener on `METRICS_PORT` (default `9091`), reachable only from
 inside the Docker network and never published on the host.
+
+---
+
+## Resume (francais)
+
+Cette page reste volontairement en anglais, comme le veut l'usage du metier
+pour une reference d'API — c'est cette page-la, pas le reste de la
+documentation, qui a le plus de chances d'etre lue par un developpeur non
+francophone. Elle ne repete pas la reference des routes, deja normative
+dans [`backend/api/openapi.yaml`](../backend/api/openapi.yaml) (servie sur
+`GET /openapi.yaml`, visualisee sur `GET /docs`).
+
+**Ce qu'il faut retenir** : chaque reponse est enveloppee dans `{data,
+meta}` (succes), `{data: [], meta: {page, perPage, total, ...}}` (listes
+paginees) ou `{error: {code, message}, meta}` (erreurs) — sauf les 401/403/429
+leves par les middlewares (auth, RBAC, rate limiting), qui repondent en
+texte brut sans enveloppe `meta`, une incoherence connue et documentee sur
+chaque operation concernee. L'authentification suit
+[ADR 006](ADR/006-strategie-auth-jwt.md) : jeton d'acces JWT de 15 minutes,
+refresh token opaque a usage unique de 168 h. Les quatre roles sont
+hierarchises (`anonymous < user < broadcaster < admin`), chacun heritant
+des droits du precedent. `GET /users/me` et `DELETE /users/me` exposent
+directement les droits RGPD d'acces et d'effacement (detail dans
+[rgpd.md](rgpd.md)). Le streaming se consomme par SSE (`/listen`, chunks
+encodes en base64) ou par flux audio brut (`/audio`, ce que consomme
+l'application mobile) ; les deux exigent un flux `live` et une
+authentification. `/metrics` est reserve au role `admin` et Prometheus ne
+l'utilise pas — il scrute un listener interne separe, jamais publie.

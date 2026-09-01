@@ -165,3 +165,23 @@ Le dashboard Grafana pre-configure affiche :
 - Latence HTTP (p50/p95/p99)
 - Nombre d'auditeurs connectes
 - Taux d'erreur
+
+---
+
+## Summary (English)
+
+`make up` starts the full stack (API, Postgres, Grafana, Prometheus) for
+local development; critical production variables are `JWT_SECRET`,
+`DATABASE_URL` (with `sslmode=require`), `APP_ENV=production` (which
+refuses to start with a wildcard CORS origin), `CORS_ALLOWED_ORIGINS`,
+`TRUSTED_PROXIES`, and the TLS file pair. Two HTTPS options are supported:
+**Option A** (recommended) terminates TLS at a bundled Caddy reverse proxy
+(`docker-compose.prod.yml` + `caddy/Caddyfile`), which obtains a
+Let's Encrypt certificate automatically, publishes only Caddy to the
+internet, and adds `Strict-Transport-Security`/`X-Content-Type-Options`
+headers; **Option B** serves HTTPS natively from the Go server once both
+`TLS_CERT_FILE` and `TLS_KEY_FILE` are set (refusing to start with only
+one). In both cases, rate limiting trusts `X-Forwarded-For` only from
+addresses listed in `TRUSTED_PROXIES`, and long-lived stream connections
+(SSE, raw audio) are never buffered. Never run `backend/scripts/seed.sql`
+in production — it creates development-only accounts.

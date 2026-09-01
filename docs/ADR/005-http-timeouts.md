@@ -35,3 +35,27 @@ Le callback `OnListenerChange`, appele hors requete par le hub, pose lui-meme un
 - `docker compose down` et un redeploiement ne bloquent plus 30s sur les auditeurs connectes.
 - Si `SetReadDeadline` echoue (ResponseWriter non deballable), le flux fonctionne quand meme mais sera coupe a `WriteTimeout` : un warning est logue pour le voir tout de suite plutot que de chercher pourquoi tous les auditeurs decrochent a la meme seconde.
 - Tout nouveau handler de flux doit appeler `keepConnectionOpen` ; les tests de `deadline_test.go` (serveur avec timeouts de 150ms, handler qui tient 450ms) documentent le comportement attendu et le cas temoin sans l'appel.
+
+---
+
+## Summary (English)
+
+Three routes must hold their connection open for an entire live broadcast
+(SSE and raw-audio listening, chunked broadcast upload), which previously
+forced `ReadTimeout`/`WriteTimeout` to 0 **globally** — leaving every other
+route vulnerable to slowloris attacks or a client that trickles a request
+body forever, and making graceful shutdown wait the full 30 seconds since
+SSE loops never yield on their own. The fix: global timeouts are on by
+default (30s read/write, 60s idle, 5s header-read against slowloris), and
+only the three streaming handlers lift the deadline **for their own
+connection** via `http.NewResponseController` (`SetReadDeadline`/
+`SetWriteDeadline` with a zero time) — the standard-library mechanism
+provided since Go 1.20 for exactly this case. Music uploads get a 2-minute
+extension instead of an unlimited one. Loop exit is driven by context
+cancellation everywhere, including a deliberate trick for
+`POST /broadcast`: since HTTP/1.1's `r.Body.Read` ignores context
+cancellation, `unblockReadOnCancel` sets an immediate read deadline via
+`context.AfterFunc` the moment the context is cancelled, forcing the read
+to fail and the handler to exit. Rejected alternatives included keeping
+timeouts at zero everywhere, running two separate `http.Server`s, and
+`http.TimeoutHandler` (which buffers responses, breaking SSE flushing).

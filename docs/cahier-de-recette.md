@@ -295,3 +295,28 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $API/auth/refresh \
 Les cas automatises correspondants vivent dans `backend/internal/integration`
 et `backend/internal/transport/http` ; ils se lancent avec
 `cd backend && make test-integration` (voir le [plan de tests](plan-de-tests.md)).
+
+---
+
+## Summary (English)
+
+This document records the manual acceptance run against the running stack:
+58 test cases across system health, authentication, anonymous browsing,
+broadcasting, playlists/favorites, administration, security, and GDPR
+account rights — each with the expected result and the HTTP status/body
+**actually returned by the server**, not a copy of the expectation. 26 of
+the 58 cases are deliberate rejections (wrong password, insufficient role,
+non-ownership, invalid or replayed token): a working happy path proves
+nothing about what happens when a user steps outside the intended
+scenario.
+
+56 of 58 cases passed (97%). Two failed and are documented as findings:
+**A-01** (high severity, now fixed) — rate limiting was keyed on
+`RemoteAddr`, which includes the ephemeral source port, so every request
+got a fresh counter and 60 rapid requests all returned 200 instead of
+throttling after 20; the fix keys on the host only, verified by
+`TestRateLimiterKeyIgnoresSourcePort`. **A-02** (low severity, open) —
+`HEAD /health` returns 405 instead of 200, harmless today since health
+probes use `GET`, but would mislead an orchestrator configured to use
+`HEAD`. Section 6 gives the exact `curl` commands to replay every case
+against a running stack.

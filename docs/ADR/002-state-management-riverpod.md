@@ -33,3 +33,19 @@ Utiliser **flutter_riverpod** comme solution de state management.
 - Syntaxe specifique a apprendre
 - Moins de ressources communautaires que Bloc
 - La generation de code (riverpod_generator) ajoute une etape de build
+
+---
+
+## Summary (English)
+
+The Flutter app uses **flutter_riverpod** for state management (auth,
+real-time stream list, playlists, favorites), chosen over Bloc for less
+boilerplate (no Event/State/Bloc triad per feature), natively overridable
+providers for testing, built-in async handling via `AsyncValue`,
+compile-time safety, and no `BuildContext` dependency for business logic.
+It was also chosen over the legacy `provider` package, which Riverpod
+succeeds and whose known issues (`ProviderNotFoundException`, circular
+dependencies) it resolves. The trade-off: a Riverpod-specific syntax to
+learn, a smaller community than Bloc's, and an extra build step for code
+generation (`riverpod_generator`) — offset by concise, unit-testable code
+(via `ProviderContainer`) and granular rebuild performance.

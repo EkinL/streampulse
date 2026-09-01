@@ -219,3 +219,28 @@ pour le detail et la maniere de les regenerer.
 - [Cahier de recette](cahier-de-recette.md) — le comportement attendu, verifie
 - [API](api.md) et `/docs` — pour integrer StreamPulse a un autre outil
 - [SLO](slo.md) — ce que la plateforme s'engage a tenir
+
+---
+
+## Summary (English)
+
+StreamPulse is used through two clients sharing one account: a mobile app
+(listeners and broadcasters on the move) and a web console (broadcasters
+and admins at a desk). Four cumulative roles — visitor, listener (`user`),
+broadcaster, admin — gate what's available; only an admin can promote an
+account, and a brand-new deployment needs its first admin created directly
+in the database (see [cahier-de-recette.md](cahier-de-recette.md)). Three
+guided onboarding paths cover listening and playlists (~10 min), going live
+as a broadcaster (~15 min), and account/metrics administration (~10 min).
+
+The training plan matches format and duration to audience: listeners are
+fully self-service (if one needs training, the interface is the bug to
+fix), broadcasters get a 45-minute hands-on workshop, admins get one-on-one
+coaching, and developers self-train from the README, ADRs and OpenAPI docs.
+It explicitly adapts to particular needs — non-English readers (this guide
+stays in French), low-literacy users (step-by-step guided demos), and
+disability (see [accessibilite.md](accessibilite.md), plus this guide and
+the accessibility document are also available as an
+[EPUB](accessible/streampulse-documentation.epub) and as
+[synthesized-speech audio](accessible/guide-utilisateur.m4a) for training
+without on-screen reading).
