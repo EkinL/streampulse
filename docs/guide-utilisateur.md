@@ -183,16 +183,25 @@ disponible, ni le meme niveau technique, ni le meme besoin.
 
 ### Accessibilite
 
-L'engagement est de rendre l'application utilisable au lecteur d'ecran, avec un
-contraste conforme et des zones tactiles suffisantes.
+Solutions livrees, verifiees controle par controle dans
+[accessibilite.md](accessibilite.md) : les controles du lecteur audio
+(lecture, volume, navigation) et tous les boutons icone de l'application sont
+annonces par VoiceOver et TalkBack ; les contrastes texte/fond sont mesures et
+conformes au seuil WCAG AA (4,5:1) sur le theme sombre, le theme clair et le
+mode contraste eleve ; la taille de texte du systeme est respectee ; les zones
+tactiles suivent la recommandation Material (48 px) ; la console web a ete
+auditee au clavier (connexion, navigation, focus visible). Ce qui reste a
+faire — audit VoiceOver/TalkBack ecran par ecran, grandes tailles de texte sur
+les cartes denses — est liste avec sa prochaine etape dans le tableau de fin
+de [accessibilite.md](accessibilite.md#etat-des-lieux-et-feuille-de-route).
 
-Ou en est cet engagement, controle par controle — lecteur d'ecran, taille du
-texte, contraste, handicaps auditif et moteur — et ce qui reste a faire : voir
-[accessibilite.md](accessibilite.md). En resume : les controles du lecteur
-audio (lecture, volume, navigation) et tous les boutons icone de l'application
-sont annonces par VoiceOver et TalkBack, la taille de texte du systeme est
-respectee, et les zones tactiles suivent la recommandation Material (48 px) ;
-l'audit ecran par ecran et la mesure des contrastes restent a faire.
+**Pour la formation elle-meme**, ce guide et le document d'accessibilite
+existent aussi en [EPUB](accessible/streampulse-documentation.epub) (police et
+mise en page ajustables, pour la basse vision et la dyslexie) et en
+[audio](accessible/guide-utilisateur.m4a) (narration par synthese vocale, pour
+un accompagnement sans lecture a l'ecran) — voir
+[accessibilite.md](accessibilite.md#accessibilite-de-cette-documentation)
+pour le detail et la maniere de les regenerer.
 
 ## Depannage
 

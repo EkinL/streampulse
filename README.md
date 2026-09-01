@@ -230,6 +230,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | [docs/securite.md](docs/securite.md) | Schema general de securite : zones de confiance, defense en profondeur, RBAC, OWASP Top 10 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
 | [docs/accessibilite.md](docs/accessibilite.md) | Utilisation en situation de handicap : lecteur d'ecran, taille du texte, contraste, limites connues |
+| [docs/accessible/](docs/accessible/streampulse-documentation.epub) | La documentation technique complete en EPUB, plus le guide utilisateur et l'accessibilite en audio (`make docs-accessible`) |
 | [docs/performance.md](docs/performance.md) | Fluidite de l'interface mesuree au profileur Flutter (DevTools / VM timeline), pas a l'oeil |
 | [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
 | [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
