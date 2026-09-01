@@ -15,6 +15,7 @@ import '../../../music/presentation/providers/music_provider.dart';
 import '../../../music/presentation/providers/music_favorites_provider.dart';
 import '../../../music/presentation/widgets/music_tile.dart';
 import '../../../../shared/widgets/edit_dialog.dart';
+import '../../../favorites/presentation/providers/favorites_provider.dart';
 
 class StreamsListScreen extends ConsumerStatefulWidget {
   const StreamsListScreen({super.key});
@@ -23,8 +24,11 @@ class StreamsListScreen extends ConsumerStatefulWidget {
   ConsumerState<StreamsListScreen> createState() => _StreamsListScreenState();
 }
 
+enum _StreamSort { popular, recent }
+
 class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
   Timer? _refreshTimer;
+  _StreamSort _sort = _StreamSort.popular;
 
   @override
   void initState() {
@@ -48,6 +52,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
   Widget build(BuildContext context) {
     final streamsAsync = ref.watch(streamListProvider);
     final musicAsync = ref.watch(musicListProvider);
+    final favoriteIds = ref.watch(favoriteIdsProvider);
     final authState = ref.watch(authProvider);
     final isBroadcaster =
         authState is AuthAuthenticated && authState.user.isBroadcaster;
@@ -55,10 +60,10 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
         authState is AuthAuthenticated ? authState.user.id : '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF111125),
+      backgroundColor: context.colors.altBg,
       body: RefreshIndicator(
-        color: SP.accent,
-        backgroundColor: SP.surface,
+        color: context.colors.accent,
+        backgroundColor: context.colors.surface,
         onRefresh: () async {
           await ref.read(streamListProvider.notifier).fetchStreams();
         },
@@ -67,11 +72,12 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
             // App bar
             SliverAppBar(
               floating: true,
-              backgroundColor: SP.surface,
-              title: const Text('StreamPulse', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+              backgroundColor: context.colors.surface,
+              title: const Text('StreamPulse', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5, fontSize: 20)),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.search, color: SP.text1, size: 22),
+                  icon: Icon(Icons.search, color: context.colors.text1, size: 22),
+                  tooltip: 'Rechercher',
                   onPressed: () => context.push('/search'),
                 ),
               ],
@@ -88,6 +94,16 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                 final liveStreams = streams.where((s) => s.isLive).toList();
                 final allStreams = streams;
 
+                // Populaires : en direct d'abord, puis par nombre d'auditeurs
+                // décroissant. Récents : par date de création décroissante.
+                final sortedStreams = [...allStreams]..sort((a, b) {
+                    if (_sort == _StreamSort.recent) {
+                      return b.createdAt.compareTo(a.createdAt);
+                    }
+                    if (a.isLive != b.isLive) return a.isLive ? -1 : 1;
+                    return b.listenerCount.compareTo(a.listenerCount);
+                  });
+
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   sliver: SliverList(
@@ -97,67 +113,84 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                       const SizedBox(height: 32),
 
                       // Section header
-                      const Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Active Streams',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: SP.text1),
+                            'Flux actifs',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: context.colors.text1),
                           ),
                           Row(
                             children: [
-                              _FilterChip(label: 'Popular', selected: true),
-                              SizedBox(width: 8),
-                              _FilterChip(label: 'Newest', selected: false),
+                              _FilterChip(
+                                label: 'Populaires',
+                                selected: _sort == _StreamSort.popular,
+                                onTap: () => setState(() => _sort = _StreamSort.popular),
+                              ),
+                              const SizedBox(width: 8),
+                              _FilterChip(
+                                label: 'Récents',
+                                selected: _sort == _StreamSort.recent,
+                                onTap: () => setState(() => _sort = _StreamSort.recent),
+                              ),
                             ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      // Stream cards
-                      ...allStreams.map((stream) => Opacity(
-                            opacity: stream.isLive ? 1.0 : 0.6,
-                            child: StreamCard(
-                              stream: stream,
-                              onTap: () => context.push('/streams/${stream.id}'),
-                              onFavorite: () {
-                                ref.read(streamListProvider.notifier).toggleFavorite(stream.id).then((_) {
-                                  if (!context.mounted) return;
-                                  context.showSnackBar('Added to favorites');
-                                }).catchError((_) {
-                                  if (!context.mounted) return;
-                                  context.showSnackBar('Failed', isError: true);
-                                });
-                              },
-                              onEdit: stream.ownerId == currentUserId
-                                  ? () => _showEditStreamDialog(context, ref, stream)
-                                  : null,
-                            ),
-                          )),
+                      // Stream cards — pas d'Opacity sur les flux hors ligne : le
+                      // contraste doit rester porté par les couleurs de la carte,
+                      // pas par une atténuation globale (cf. handoff design).
+                      ...sortedStreams.map((stream) {
+                        final isFavorite = favoriteIds.contains(stream.id);
+                        return StreamCard(
+                            stream: stream,
+                            favoriteFilled: isFavorite,
+                            onTap: () => context.push('/streams/${stream.id}'),
+                            onFavorite: () {
+                              final notifier = ref.read(favoritesProvider.notifier);
+                              final action = isFavorite
+                                  ? notifier.remove(stream.id)
+                                  : notifier.add(stream.id);
+                              action.then((_) {
+                                if (!context.mounted) return;
+                                context.showSnackBar(isFavorite
+                                    ? 'Removed from favorites'
+                                    : 'Added to favorites');
+                              }).catchError((_) {
+                                if (!context.mounted) return;
+                                context.showSnackBar('Failed', isError: true);
+                              });
+                            },
+                            onEdit: stream.ownerId == currentUserId
+                                ? () => _showEditStreamDialog(context, ref, stream)
+                                : null,
+                          );
+                      }),
 
                       const SizedBox(height: 32),
 
                       // Recent Music section
-                      const Text(
+                      Text(
                         'Recent Music',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: SP.text1),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: context.colors.text1),
                       ),
                       const SizedBox(height: 16),
                       musicAsync.when(
-                        loading: () => const Center(child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(color: SP.accent),
+                        loading: () => Center(child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: CircularProgressIndicator(color: context.colors.accent),
                         )),
-                        error: (e, _) => const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('Could not load music', style: TextStyle(color: SP.text3)),
+                        error: (e, _) => Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('Could not load music', style: TextStyle(color: context.colors.text3)),
                         ),
                         data: (musicList) {
                           if (musicList.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text('No music available', style: TextStyle(color: SP.text3)),
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text('No music available', style: TextStyle(color: context.colors.text3)),
                             );
                           }
                           return Column(
@@ -277,7 +310,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       child: Container(
         height: 256,
         decoration: BoxDecoration(
-          color: SP.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         clipBehavior: Clip.antiAlias,
@@ -292,8 +325,8 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                     end: Alignment.bottomRight,
                     colors: [
                       SP.gradEnd.withValues(alpha: 0.7),
-                      SP.accent.withValues(alpha: 0.3),
-                      SP.bg,
+                      context.colors.accent.withValues(alpha: 0.3),
+                      context.colors.bg,
                     ],
                   ),
                 ),
@@ -325,7 +358,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                     children: [
                       if (stream.isLive)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                           decoration: BoxDecoration(
                             color: SP.liveBg,
                             borderRadius: BorderRadius.circular(9999),
@@ -334,21 +367,21 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(width: 6, height: 6, decoration: const BoxDecoration(color: SP.liveText, shape: BoxShape.circle)),
-                              const SizedBox(width: 4),
-                              const Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: SP.liveText)),
+                              const SizedBox(width: 5),
+                              const Text('LIVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: SP.liveText)),
                             ],
                           ),
                         ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0x801E1E32),
+                          color: const Color(0xCC1E1E32),
                           borderRadius: BorderRadius.circular(9999),
                         ),
                         child: Text(
-                          '${stream.format.toUpperCase()} \u2022 320KBPS',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: SP.text2),
+                          '${stream.format.toUpperCase()} \u2022 320 KBPS',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: context.colors.text2),
                         ),
                       ),
                     ],
@@ -357,14 +390,14 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                   // Title
                   Text(
                     stream.title,
-                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: SP.text1, height: 1.25),
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: context.colors.text1, height: 1.25),
                     maxLines: 3,
                   ),
                   if (stream.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       stream.description,
-                      style: const TextStyle(fontSize: 14, color: SP.text2),
+                      style: TextStyle(fontSize: 14, color: context.colors.text2),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -383,12 +416,12 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           return Shimmer.fromColors(
-            baseColor: SP.surface,
-            highlightColor: SP.surfaceVariant,
+            baseColor: context.colors.surface,
+            highlightColor: context.colors.surfaceVariant,
             child: Container(
               height: index == 0 ? 256 : 128,
               margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              decoration: BoxDecoration(color: SP.surface, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: context.colors.surface, borderRadius: BorderRadius.circular(12)),
             ),
           );
         },
@@ -404,11 +437,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: SP.error),
+            Icon(Icons.error_outline, size: 64, color: context.colors.error),
             const SizedBox(height: 16),
-            const Text('Something went wrong', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: SP.text1)),
+            Text('Something went wrong', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: context.colors.text1)),
             const SizedBox(height: 8),
-            Text(error, style: const TextStyle(color: SP.text2), textAlign: TextAlign.center),
+            Text(error, style: TextStyle(color: context.colors.text2), textAlign: TextAlign.center),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => ref.read(streamListProvider.notifier).fetchStreams(),
@@ -426,15 +459,15 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
       children: [
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
-          child: const Center(
+          child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.radio_outlined, size: 80, color: SP.text3),
-                SizedBox(height: 16),
-                Text('No streams available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text2)),
-                SizedBox(height: 8),
-                Text('Pull down to refresh', style: TextStyle(fontSize: 14, color: SP.text3)),
+                Icon(Icons.radio_outlined, size: 80, color: context.colors.text3),
+                const SizedBox(height: 16),
+                Text('No streams available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text2)),
+                const SizedBox(height: 8),
+                Text('Pull down to refresh', style: TextStyle(fontSize: 14, color: context.colors.text3)),
               ],
             ),
           ),
@@ -447,22 +480,27 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
-  const _FilterChip({required this.label, required this.selected});
+  final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? SP.surfaceVariant : Colors.transparent,
+    return Material(
+      color: selected ? context.colors.surfaceVariant : Colors.transparent,
+      borderRadius: BorderRadius.circular(9999),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(9999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: selected ? SP.text1 : SP.text2,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? context.colors.text1 : context.colors.text2,
+            ),
+          ),
         ),
       ),
     );

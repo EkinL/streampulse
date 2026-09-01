@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -51,4 +52,35 @@ func (fs *FileStore) SaveFile(filename string, data io.Reader) (string, error) {
 	}
 
 	return fs.baseURL + "/" + newName, nil
+}
+
+// DeleteFile efface un fichier uploade a partir de son URL publique telle
+// que renvoyee par SaveFile. Une URL qui ne commence pas par baseURL n'a pas
+// ete produite par ce FileStore (un lien externe ajoute via AddMusicByURL,
+// docs/rgpd.md) : DeleteFile ne fait rien plutot que de risquer d'effacer un
+// fichier qui n'est pas le sien.
+//
+// Le fichier absent (deja efface, ou jamais ecrit) n'est pas une erreur :
+// l'appelant nettoie un etat externe qu'il ne controle pas totalement
+// (voir MusicService.DeleteMusic et UserService.DeleteUser).
+func (fs *FileStore) DeleteFile(url string) error {
+	prefix := fs.baseURL + "/"
+	if !strings.HasPrefix(url, prefix) {
+		return nil
+	}
+
+	// filepath.Base retire tout separateur de chemin du nom : meme une URL
+	// forgee avec des ".." ne peut pas sortir de baseDir. Le Clean+prefix ci-
+	// dessous est une seconde barriere, redondante avec Base seul mais peu
+	// couteuse a garder.
+	name := filepath.Base(strings.TrimPrefix(url, prefix))
+	path := filepath.Join(fs.baseDir, name)
+	if !strings.HasPrefix(path, filepath.Clean(fs.baseDir)+string(filepath.Separator)) {
+		return fmt.Errorf("filestore: delete file: refusing to remove path outside base dir")
+	}
+
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("filestore: delete file: %w", err)
+	}
+	return nil
 }

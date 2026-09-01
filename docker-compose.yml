@@ -37,6 +37,17 @@ services:
     restart: unless-stopped
     networks:
       - streampulse
+    # Seul conteneur dont les logs portent des donnees personnelles (IP,
+    # user-agent : middleware/logging.go, docs/rgpd.md). Sans limite, le
+    # pilote json-file par defaut de Docker les conserve indefiniment ; le
+    # pilote local les fait tourner et les compresse. Plafond genereux pour
+    # le dev, la surcouche de production (docker-compose.prod.yml) le resserre
+    # vers la recommandation de 30 jours.
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   postgres:
     image: postgres:16-alpine

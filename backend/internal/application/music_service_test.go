@@ -119,12 +119,61 @@ func TestMusicService_OwnershipOnUpdateAndDelete(t *testing.T) {
 	if _, err := svc.GetMusic(ctx, music.ID); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("apres suppression: attendu ErrNotFound, obtenu %v", err)
 	}
+	// music vient de AddMusicByURL : un lien externe, jamais ecrit sur disque.
+	// Sa suppression ne doit rien tenter de retirer.
 
 	if _, err := svc.UpdateMusic(ctx, uuid.New(), owner, "X", "", "", ""); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("update d'un inconnu: attendu ErrNotFound, obtenu %v", err)
 	}
 	if err := svc.DeleteMusic(ctx, uuid.New(), owner); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("delete d'un inconnu: attendu ErrNotFound, obtenu %v", err)
+	}
+}
+
+// Sans ca, la ligne en base disparait mais le fichier reste dans uploads/,
+// toujours servi par son URL pour qui la connait (limite connue, docs/rgpd.md).
+func TestMusicService_DeleteMusicRemovesUploadedFile(t *testing.T) {
+	ctx := context.Background()
+	svc, _, dir := newMusicService(t)
+	owner := uuid.New()
+
+	music, err := svc.UploadMusic(ctx, "Verse", "Studio", "", 42, "prise.mp3", strings.NewReader("audio"), owner)
+	if err != nil {
+		t.Fatalf("UploadMusic: %v", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Fatalf("attendu 1 fichier avant suppression, obtenu %d", len(entries))
+	}
+
+	if err := svc.DeleteMusic(ctx, music.ID, owner); err != nil {
+		t.Fatalf("DeleteMusic: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("le fichier doit avoir disparu du disque, reste: %v", entries)
+	}
+}
+
+// Un morceau ajoute par URL externe n'a jamais ete ecrit sur disque : sa
+// suppression ne doit rien tenter de retirer (et surtout pas planter).
+func TestMusicService_DeleteMusicOnURLTrackTouchesNoFile(t *testing.T) {
+	ctx := context.Background()
+	svc, _, dir := newMusicService(t)
+	owner := uuid.New()
+
+	music, err := svc.AddMusicByURL(ctx, "Externe", "Artiste", "", 0, "https://cdn.test/track.mp3", owner)
+	if err != nil {
+		t.Fatalf("AddMusicByURL: %v", err)
+	}
+
+	if err := svc.DeleteMusic(ctx, music.ID, owner); err != nil {
+		t.Fatalf("DeleteMusic: %v", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("aucun fichier ne devait exister ni disparaitre, obtenu: %v", entries)
 	}
 }
 

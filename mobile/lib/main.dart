@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'core/audio/audio_handler.dart';
+import 'shared/providers/theme_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,14 +53,24 @@ class StreamPulseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final highContrast = ref.watch(highContrastProvider);
+    final textScaleFactor = ref.watch(textScaleProvider).factor;
 
     return MaterialApp.router(
       title: 'StreamPulse',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      theme: highContrast ? AppTheme.lightHighContrastTheme : AppTheme.lightTheme,
+      darkTheme: highContrast ? AppTheme.darkHighContrastTheme : AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) {
+        if (textScaleFactor == null || child == null) return child ?? const SizedBox.shrink();
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScaleFactor)),
+          child: child,
+        );
+      },
     );
   }
 }

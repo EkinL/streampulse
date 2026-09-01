@@ -2,98 +2,69 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/auth_state.dart';
 import '../providers/playlist_provider.dart';
 import '../widgets/playlist_tile.dart';
 import '../../../../core/utils/extensions.dart';
 
-class PlaylistsScreen extends ConsumerWidget {
+class PlaylistsScreen extends ConsumerStatefulWidget {
   const PlaylistsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playlistsAsync = ref.watch(playlistListProvider);
+  ConsumerState<PlaylistsScreen> createState() => _PlaylistsScreenState();
+}
+
+class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final currentUserId =
+        authState is AuthAuthenticated ? authState.user.id : '';
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.altBg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         title: const Text('Playlists'),
-      ),
-      body: RefreshIndicator(
-        color: SP.accent,
-        onRefresh: () async {
-          await ref.read(playlistListProvider.notifier).fetch();
-        },
-        child: playlistsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
-          error: (error, _) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Error: $error', style: const TextStyle(color: SP.text2)),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    ref.read(playlistListProvider.notifier).fetch();
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-          data: (playlists) {
-            if (playlists.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.queue_music,
-                      size: 80,
-                      color: SP.text3,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No playlists yet',
-                      style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: SP.text3,
-                              ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Create your first playlist',
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: SP.text3,
-                              ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: playlists.length,
-              itemBuilder: (context, index) {
-                final playlist = playlists[index];
-                return PlaylistTile(
-                  playlist: playlist,
-                  onTap: () => context.push('/playlists/${playlist.id}'),
-                  onDelete: () {
-                    _showDeleteConfirmation(context, ref, playlist.id);
-                  },
-                );
-              },
-            );
-          },
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: context.colors.accent,
+          unselectedLabelColor: context.colors.text3,
+          indicatorColor: context.colors.accent,
+          tabs: const [
+            Tab(text: 'Mes playlists'),
+            Tab(text: 'Découvrir'),
+          ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _MyPlaylistsTab(currentUserId: currentUserId),
+          _PublicPlaylistsTab(currentUserId: currentUserId),
+        ],
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: FloatingActionButton(
-          backgroundColor: SP.accent,
+          backgroundColor: context.colors.accent,
           foregroundColor: SP.btnText,
           onPressed: () => _showCreateDialog(context, ref),
           child: const Icon(Icons.add),
@@ -110,8 +81,8 @@ class PlaylistsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: SP.surface,
-          title: const Text('Create Playlist', style: TextStyle(color: SP.text1)),
+          backgroundColor: context.colors.surface,
+          title: Text('Create Playlist', style: TextStyle(color: context.colors.text1)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -124,9 +95,9 @@ class PlaylistsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               SwitchListTile(
-                title: const Text('Public', style: TextStyle(color: SP.text1)),
+                title: Text('Public', style: TextStyle(color: context.colors.text1)),
                 value: isPublic,
-                activeThumbColor: SP.accent,
+                activeThumbColor: context.colors.accent,
                 onChanged: (v) => setDialogState(() => isPublic = v),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -135,7 +106,7 @@ class PlaylistsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+              child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
             ),
             FilledButton(
               onPressed: () {
@@ -155,22 +126,69 @@ class PlaylistsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _MyPlaylistsTab extends ConsumerWidget {
+  final String currentUserId;
+
+  const _MyPlaylistsTab({required this.currentUserId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playlistsAsync = ref.watch(playlistListProvider);
+
+    return RefreshIndicator(
+      color: context.colors.accent,
+      onRefresh: () async {
+        await ref.read(playlistListProvider.notifier).fetch();
+      },
+      child: playlistsAsync.when(
+        loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
+        error: (error, _) => _ErrorView(
+          message: 'Error: $error',
+          onRetry: () => ref.read(playlistListProvider.notifier).fetch(),
+        ),
+        data: (playlists) {
+          if (playlists.isEmpty) {
+            return const _EmptyView(
+              title: 'No playlists yet',
+              subtitle: 'Create your first playlist',
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: playlists.length,
+            itemBuilder: (context, index) {
+              final playlist = playlists[index];
+              return PlaylistTile(
+                playlist: playlist,
+                onTap: () => context.push('/playlists/${playlist.id}'),
+                onDelete: () {
+                  _showDeleteConfirmation(context, ref, playlist.id);
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
 
   void _showDeleteConfirmation(
       BuildContext context, WidgetRef ref, String id) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: SP.surface,
-        title: const Text('Delete Playlist', style: TextStyle(color: SP.text1)),
-        content: const Text(
+        backgroundColor: context.colors.surface,
+        title: Text('Delete Playlist', style: TextStyle(color: context.colors.text1)),
+        content: Text(
           'Are you sure you want to delete this playlist? This action cannot be undone.',
-          style: TextStyle(color: SP.text2),
+          style: TextStyle(color: context.colors.text2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+            child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
           ),
           FilledButton(
             onPressed: () {
@@ -179,9 +197,118 @@ class PlaylistsScreen extends ConsumerWidget {
               context.showSnackBar('Playlist deleted');
             },
             style: FilledButton.styleFrom(
-              backgroundColor: SP.error,
+              backgroundColor: context.colors.error,
             ),
             child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PublicPlaylistsTab extends ConsumerWidget {
+  final String currentUserId;
+
+  const _PublicPlaylistsTab({required this.currentUserId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playlistsAsync = ref.watch(publicPlaylistListProvider);
+
+    return RefreshIndicator(
+      color: context.colors.accent,
+      onRefresh: () async {
+        await ref.read(publicPlaylistListProvider.notifier).fetch();
+      },
+      child: playlistsAsync.when(
+        loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
+        error: (error, _) => _ErrorView(
+          message: 'Error: $error',
+          onRetry: () => ref.read(publicPlaylistListProvider.notifier).fetch(),
+        ),
+        data: (playlists) {
+          // Playlists the current user owns already show up under "Mes
+          // playlists" — no need to list them twice here.
+          final others =
+              playlists.where((p) => p.ownerId != currentUserId).toList();
+          if (others.isEmpty) {
+            return const _EmptyView(
+              title: 'No public playlists yet',
+              subtitle: 'Playlists made public by other users will show up here',
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: others.length,
+            itemBuilder: (context, index) {
+              final playlist = others[index];
+              return PlaylistTile(
+                playlist: playlist,
+                onTap: () => context.push('/playlists/${playlist.id}'),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _EmptyView({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.queue_music,
+            size: 80,
+            color: context.colors.text3,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: context.colors.text3,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.colors.text3,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(message, style: TextStyle(color: context.colors.text2)),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
           ),
         ],
       ),

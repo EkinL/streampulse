@@ -121,13 +121,14 @@ func buildSuite(t *testing.T) *suite {
 
 	jwtManager := auth.NewJWTManager(jwtSecret, 15*time.Minute, time.Hour)
 	hub := streaming.NewHub(logger)
+	fileStore := filestore.NewFileStore(uploadDir, uploadsBaseURL)
 
 	router := transport.NewRouter(transport.RouterConfig{
 		AuthService:       application.NewAuthService(userRepo, refreshTokenRepo, jwtManager),
 		StreamService:     application.NewStreamService(streamRepo, hub),
 		PlaylistService:   application.NewPlaylistService(playlistRepo),
-		UserService:       application.NewUserService(userRepo, streamRepo, hub),
-		MusicService:      application.NewMusicService(musicRepo, filestore.NewFileStore(uploadDir, uploadsBaseURL)),
+		UserService:       application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore),
+		MusicService:      application.NewMusicService(musicRepo, fileStore),
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,
@@ -312,7 +313,7 @@ func (s *suite) register(t *testing.T, role domain.Role) account {
 	username := string(role) + "-" + email[:8]
 
 	r := s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-		"email": email, "username": username, "password": password,
+		"email": email, "username": username, "password": password, "accepted_terms": true,
 	}).expect(t, http.StatusCreated, "")
 	d := r.data(t)
 	user, _ := d["user"].(map[string]any)

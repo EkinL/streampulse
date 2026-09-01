@@ -16,7 +16,7 @@ class ConsoleDeniedScreen extends ConsumerWidget {
         authState is AuthAuthenticated ? authState.user.username : null;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -28,14 +28,14 @@ class ConsoleDeniedScreen extends ConsumerWidget {
                 Container(
                   width: 72,
                   height: 72,
-                  decoration: const BoxDecoration(
-                    color: SP.surfaceVariant,
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceVariant,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_outline,
                     size: 34,
-                    color: SP.text3,
+                    color: context.colors.text3,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -53,7 +53,7 @@ class ConsoleDeniedScreen extends ConsumerWidget {
                           'change your role, or use the mobile app to listen.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: SP.text3,
+                        color: context.colors.text3,
                       ),
                 ),
                 const SizedBox(height: 32),
@@ -62,8 +62,8 @@ class ConsoleDeniedScreen extends ConsumerWidget {
                   icon: const Icon(Icons.logout, size: 16),
                   label: const Text('Sign out'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: SP.error,
-                    side: const BorderSide(color: SP.error),
+                    foregroundColor: context.colors.error,
+                    side: BorderSide(color: context.colors.error),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 14,

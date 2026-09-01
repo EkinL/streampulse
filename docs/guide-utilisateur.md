@@ -189,8 +189,9 @@ contraste conforme et des zones tactiles suffisantes.
 Ou en est cet engagement, controle par controle — lecteur d'ecran, taille du
 texte, contraste, handicaps auditif et moteur — et ce qui reste a faire : voir
 [accessibilite.md](accessibilite.md). En resume : les controles du lecteur
-audio (lecture, volume, navigation) sont annonces par VoiceOver et TalkBack et
-la taille de texte du systeme est respectee ; la description des pochettes,
+audio (lecture, volume, navigation) et tous les boutons icone de l'application
+sont annonces par VoiceOver et TalkBack, la taille de texte du systeme est
+respectee, et les zones tactiles suivent la recommandation Material (48 px) ;
 l'audit ecran par ecran et la mesure des contrastes restent a faire.
 
 ## Depannage

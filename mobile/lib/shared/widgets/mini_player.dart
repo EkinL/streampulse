@@ -25,9 +25,9 @@ class MiniPlayer extends ConsumerWidget {
       onTap: () => context.push('/player'),
       child: Container(
         height: 64,
-        decoration: const BoxDecoration(
-          color: SP.surface,
-          border: Border(top: BorderSide(color: SP.divider, width: 0.5)),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          border: Border(top: BorderSide(color: context.colors.divider, width: 0.5)),
         ),
         child: Column(
           children: [
@@ -37,7 +37,7 @@ class MiniPlayer extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: Colors.transparent,
-                valueColor: const AlwaysStoppedAnimation<Color>(SP.accent),
+                valueColor: AlwaysStoppedAnimation<Color>(context.colors.accent),
               ),
             ),
             Expanded(
@@ -45,20 +45,22 @@ class MiniPlayer extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    // Album art placeholder
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [SP.gradEnd, SP.accent],
+                    // Album art placeholder — decorative, title/artist beside it carry the info
+                    ExcludeSemantics(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [SP.gradEnd, context.colors.accent],
+                          ),
                         ),
+                        child: const Icon(Icons.music_note,
+                            color: SP.btnText, size: 24),
                       ),
-                      child: const Icon(Icons.music_note,
-                          color: SP.btnText, size: 24),
                     ),
                     const SizedBox(width: 12),
                     // Title + Artist
@@ -69,10 +71,10 @@ class MiniPlayer extends ConsumerWidget {
                         children: [
                           Text(
                             track.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: SP.text1,
+                              color: context.colors.text1,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -82,9 +84,9 @@ class MiniPlayer extends ConsumerWidget {
                             track.artist.isNotEmpty
                                 ? track.artist
                                 : 'Unknown artist',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: SP.text2,
+                              color: context.colors.text2,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -96,11 +98,12 @@ class MiniPlayer extends ConsumerWidget {
                     IconButton(
                       onPressed: () =>
                           ref.read(playerProvider.notifier).togglePlayPause(),
+                      tooltip: playerState.isPlaying ? 'Pause' : 'Lecture',
                       icon: Icon(
                         playerState.isPlaying
                             ? Icons.pause_circle_filled
                             : Icons.play_circle_filled,
-                        color: SP.accent,
+                        color: context.colors.accent,
                         size: 36,
                       ),
                     ),

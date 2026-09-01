@@ -40,10 +40,10 @@ class AdminUsersScreen extends ConsumerWidget {
     final usersAsync = ref.watch(adminProvider);
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         title: const Text('User Management'),
         actions: [
           IconButton(
@@ -75,17 +75,17 @@ class AdminUsersScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        color: SP.accent,
+        color: context.colors.accent,
         onRefresh: () async {
           await ref.read(adminProvider.notifier).fetchUsers();
         },
         child: usersAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: SP.accent)),
+          loading: () => Center(child: CircularProgressIndicator(color: context.colors.accent)),
           error: (error, _) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Error: $error', style: const TextStyle(color: SP.text2)),
+                Text('Error: $error', style: TextStyle(color: context.colors.text2)),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
@@ -98,8 +98,8 @@ class AdminUsersScreen extends ConsumerWidget {
           ),
           data: (users) {
             if (users.isEmpty) {
-              return const Center(
-                child: Text('No users found.', style: TextStyle(color: SP.text3)),
+              return Center(
+                child: Text('No users found.', style: TextStyle(color: context.colors.text3)),
               );
             }
             return ListView.builder(
@@ -108,7 +108,7 @@ class AdminUsersScreen extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final user = users[index];
                 return Card(
-                  color: SP.surface,
+                  color: context.colors.surface,
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 4,
@@ -122,13 +122,13 @@ class AdminUsersScreen extends ConsumerWidget {
                       vertical: 8,
                     ),
                     leading: CircleAvatar(
-                      backgroundColor: SP.surfaceVariant,
+                      backgroundColor: context.colors.surfaceVariant,
                       child: Text(
                         user.username.isNotEmpty
                             ? user.username[0].toUpperCase()
                             : '?',
-                        style: const TextStyle(
-                          color: SP.accent,
+                        style: TextStyle(
+                          color: context.colors.accent,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -137,21 +137,21 @@ class AdminUsersScreen extends ConsumerWidget {
                       user.username,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: SP.text1,
+                            color: context.colors.text1,
                           ),
                     ),
                     subtitle: Text(
                       user.email,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: SP.text3,
+                            color: context.colors.text3,
                           ),
                     ),
                     trailing: DropdownButton<String>(
                       value: user.role,
                       underline: const SizedBox(),
                       borderRadius: BorderRadius.circular(8),
-                      dropdownColor: SP.surfaceVariant,
-                      style: const TextStyle(color: SP.text2),
+                      dropdownColor: context.colors.surfaceVariant,
+                      style: TextStyle(color: context.colors.text2),
                       items: [
                         for (final role in roleOptionsFor(user.role))
                           DropdownMenuItem(

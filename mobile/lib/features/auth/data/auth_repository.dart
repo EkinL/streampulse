@@ -16,6 +16,7 @@ class AuthRepository {
     required String username,
     required String email,
     required String password,
+    required bool acceptedTerms,
   }) async {
     try {
       final response = await _dio.post(
@@ -24,6 +25,7 @@ class AuthRepository {
           'username': username,
           'email': email,
           'password': password,
+          'accepted_terms': acceptedTerms,
         },
       );
       final body = response.data as Map<String, dynamic>;
@@ -71,6 +73,24 @@ class AuthRepository {
   Future<void> deleteAccount() async {
     try {
       await _dio.delete(ApiEndpoints.usersMe);
+    } on DioException catch (e) {
+      throw e.toApiException();
+    }
+  }
+
+  /// Change l'email et le nom d'utilisateur du compte connecte (droit de
+  /// rectification, docs/rgpd.md).
+  Future<Map<String, dynamic>> updateProfile({
+    required String email,
+    required String username,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        ApiEndpoints.usersMe,
+        data: {'email': email, 'username': username},
+      );
+      final body = response.data as Map<String, dynamic>;
+      return body['data'] as Map<String, dynamic>;
     } on DioException catch (e) {
       throw e.toApiException();
     }

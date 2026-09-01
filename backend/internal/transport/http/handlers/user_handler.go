@@ -59,12 +59,59 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, dto.ProfileDTO{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		Username:  user.Username,
-		Role:      string(user.Role),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:              user.ID.String(),
+		Email:           user.Email,
+		Username:        user.Username,
+		Role:            string(user.Role),
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+		TermsAcceptedAt: user.TermsAcceptedAt,
+	})
+}
+
+type UpdateProfileRequest struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+}
+
+// UpdateMe change l'email et le nom d'utilisateur du compte connecte. C'est
+// le droit de rectification (RGPD art. 16) : jusqu'ici seul un administrateur
+// pouvait le faire, directement en base (docs/rgpd.md).
+func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	id, ok := currentUserID(w, r)
+	if !ok {
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+		return
+	}
+
+	user, err := h.userService.UpdateProfile(r.Context(), id, req.Email, req.Username)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrInvalidInput):
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid email or username")
+		case errors.Is(err, domain.ErrAlreadyExists):
+			respondError(w, http.StatusConflict, "CONFLICT", "email already registered")
+		case errors.Is(err, domain.ErrNotFound):
+			respondError(w, http.StatusNotFound, "NOT_FOUND", "user not found")
+		default:
+			respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update profile")
+		}
+		return
+	}
+
+	respondJSON(w, http.StatusOK, dto.ProfileDTO{
+		ID:              user.ID.String(),
+		Email:           user.Email,
+		Username:        user.Username,
+		Role:            string(user.Role),
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+		TermsAcceptedAt: user.TermsAcceptedAt,
 	})
 }
 

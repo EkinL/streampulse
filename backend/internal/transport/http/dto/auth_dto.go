@@ -6,6 +6,10 @@ type RegisterRequest struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	// AcceptedTerms doit valoir true : case a cocher obligatoire de
+	// l'ecran d'inscription, revalidee ici pour ne pas dependre du seul
+	// client (docs/rgpd.md).
+	AcceptedTerms bool `json:"accepted_terms"`
 }
 
 type LoginRequest struct {

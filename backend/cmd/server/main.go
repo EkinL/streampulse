@@ -122,7 +122,7 @@ func main() {
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
-	userService := application.NewUserService(userRepo, streamRepo, hub)
+	userService := application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore)
 	musicService := application.NewMusicService(musicRepo, fileStore)
 
 	// Initialize router
