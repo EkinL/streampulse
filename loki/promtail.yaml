@@ -1,0 +1,35 @@
+# Promtail decouvre les conteneurs via l'API Docker (socket monte en lecture
+# seule dans le compose) et streame leurs logs vers Loki. Passer par l'API
+# plutot que par /var/lib/docker/containers permet de fonctionner aussi sur
+# Docker Desktop (macOS/Windows), ou ce chemin n'est pas montable.
+server:
+  http_listen_port: 9080
+
+# Position de lecture par conteneur, persistee dans le volume promtail-data
+# pour ne pas re-ingerer tous les logs a chaque redemarrage de Promtail.
+positions:
+  filename: /positions/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          # On ne collecte que les conteneurs geres par Docker Compose, pour
+          # ignorer d'eventuels conteneurs sans rapport sur la meme machine.
+          - name: label
+            values: ["com.docker.compose.project"]
+    relabel_configs:
+      # Nom du conteneur sans le / initial que renvoie l'API Docker,
+      # ex. streampulse-api-1 -> label {container="streampulse-api-1"}.
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+      # Nom du service compose (api, postgres, grafana...), plus stable que le
+      # nom de conteneur pour ecrire des requetes LogQL.
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: service
