@@ -224,6 +224,10 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | Document | Pour quoi |
 |----------|-----------|
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
+| [docs/user-stories.md](docs/user-stories.md) | Fonctionnalites sous forme de user stories, tracees vers les cas d'usage et les tests |
+| [docs/diagrammes.md](docs/diagrammes.md) | Diagrammes UML et BPMN (cas d'usage, classes, sequences, etats, processus, composants) |
+| [docs/base-de-donnees.md](docs/base-de-donnees.md) | Modele conceptuel (MCD), modele physique et dictionnaire de donnees |
+| [docs/securite.md](docs/securite.md) | Schema general de securite : zones de confiance, defense en profondeur, RBAC, OWASP Top 10 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
 | [docs/accessibilite.md](docs/accessibilite.md) | Utilisation en situation de handicap : lecteur d'ecran, taille du texte, contraste, limites connues |
 | [docs/performance.md](docs/performance.md) | Fluidite de l'interface mesuree au profileur Flutter (DevTools / VM timeline), pas a l'oeil |
