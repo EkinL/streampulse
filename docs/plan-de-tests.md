@@ -13,11 +13,11 @@ automatise et rejouable par `make`.
 
 ## 1. Objectifs et regles
 
-| Objectif | Mesure | Etat au 2026-08-30 |
+| Objectif | Mesure | Etat au 2026-09-01 |
 |----------|--------|--------------------|
 | Chaque cas d'usage du sujet a au moins un test automatise a chaque niveau applicable | cartographie de la section 3 | 19/19 cas couverts |
 | Couverture de code du module Go | `make cover-check` | **91,1 %** (94,1 % hors `cmd/server`) — cible 80 % atteinte, seuil CI releve a 80 % |
-| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **19,7 %** (54 tests) — seuil 15 %, releve avec l'iteration 2 |
+| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **80,1 %** (394 tests) — cible 80 % atteinte, seuil CI releve a 80 % (iteration 3) |
 | Aucun test rouge sur `develop` | CI `backend.yml` / `mobile.yml` | vert |
 | Tout defaut trouve donne d'abord un test rouge, puis un correctif | section 6 | 4 defauts, 4 corriges |
 
@@ -25,10 +25,10 @@ Regles appliquees a chaque PR :
 
 - **Le test est ecrit avec le code, pas apres.** Une PR qui ajoute un
   comportement ajoute le test qui le decrit ; la CI echoue sous le seuil de
-  couverture (`COVERAGE_MIN` : 80 % backend, 15 % mobile aujourd'hui, releve
-  a chaque iteration). Le chiffre de chaque run est ecrit dans le resume du
-  job GitHub Actions et le rapport (`coverage.out`, `lcov.info`) est publie
-  en artefact de PR : la trajectoire se lit d'une PR a l'autre.
+  couverture (`COVERAGE_MIN` : 80 % backend et mobile). Le chiffre de chaque
+  run est ecrit dans le resume du job GitHub Actions et le rapport
+  (`coverage.out`, `lcov.info`) est publie en artefact de PR : la trajectoire
+  se lit d'une PR a l'autre.
 - **Un defaut commence par un test rouge.** Les quatre anomalies de la
   section 6 ont chacune un test qui echouait avant le correctif.
 - **Les cas de refus comptent autant que les cas nominaux.** Chaque endpoint
@@ -50,7 +50,7 @@ Regles appliquees a chaque PR :
 | **Integration API** | Le serveur complet — request id, tracing, CORS, rate-limit, JWT, RBAC, services, repositories, Hub — vu par un client HTTP, scenario par scenario et role par role | Tout est reel sauf l'exporteur OTEL (muet) et le dossier d'upload (temporaire) ; schema dedie `it_api` | `internal/integration/` | `make test-integration` |
 | **Securite** | Jetons forges (payload modifie, autre secret, `alg=none`, expire), rejeu de refresh token, injection SQL, mass assignment, matrice role x endpoint, propriete distincte du role, rate limiting, secrets haches, correlation des erreurs | Unitaire et integration | `auth/jwt_test.go`, `middleware/*_test.go`, `integration/security_test.go`, `integration/rbac_test.go` | les deux commandes |
 | **Charge** | Le Hub encaisse N auditeurs sans bloquer ni fuir | Hub reel, 1000 clients | branche `test/hub-load-proof` (PR ouverte) | `make bench`, `make load-test` a la fusion |
-| **Mobile** | Demarrage et redirection vers la connexion sans session, routes API attendues par le client, stockage securise des jetons, console web (roles admin, destinations, ecran de connexion) | `flutter_test`, sources natives remplacees par des faux | `mobile/test/` | `make test-mobile-cover` |
+| **Mobile** | Modeles et repositories (parsing, branches d'erreur HTTP), providers Riverpod (etats, appels reseau simules), intercepteur d'authentification (refresh de jeton, retry, echec), widgets partages et de features, ecrans (listes, details, formulaires, dialogues, navigation), console web (roles admin, destinations, ecran de connexion) | `flutter_test`, `mocktail` pour les repositories/`Dio`, sources natives (stockage, lecteur audio) remplacees par des faux, `HttpOverrides` pour l'intercepteur HTTP | `mobile/test/` | `make test-mobile-cover` |
 | **Recette manuelle** | L'API telle qu'un client la consomme, avec les codes et corps reellement observes | Stack `docker compose` | [cahier-de-recette.md](cahier-de-recette.md) | `curl` |
 
 ### Isolation des tests d'integration
@@ -96,9 +96,9 @@ ne s'applique pas.
 | UC-14 | Configuration 12-Factor (2.3) | `config_test.go` (defauts, `.env`, format de logs invalide refuse) | — | secret JWT requis au demarrage | — |
 | UC-15 | Observabilite : logs JSON, correlation, traces (4.1, 4.2) | `logger_test.go`, `requestid_test.go`, `logging_test.go` | `TestRequestIDIsCorrelatedEndToEnd`, `TestSecurity_EveryResponseIsCorrelated` | les 401/403 portent aussi `X-Request-ID` | R-01 |
 | UC-16 | Contrat OpenAPI servi et exact | `docs_handler_test.go` | `TestOpenAPICoversEveryRoute`, `TestOpenAPIOperationIDsAreUnique`, `TestDescriptionRoutesArePublic` | — | R-02, R-03 |
-| UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart` | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) | guide utilisateur |
+| UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart`, `auth_provider_test.dart`, `api_client_interceptors_test.dart` (refresh de jeton, retry, echec) | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) ; retry unique et purge des jetons sur refresh rejete (`api_client_interceptors_test.dart`) | guide utilisateur |
 | UC-18 | Console web diffuseur / admin | `console_*_test.dart` (roles admin, destinations par role, ecran de connexion, shell) | — | destinations filtrees par role | guide utilisateur |
-| UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | — (iteration 2) | — | — | guide utilisateur, recette manuelle sur simulateur |
+| UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | Lecteur : `player_provider_test.dart`, `mini_player_test.dart`, `music_player_screen_test.dart` (file d'attente, volume, ajout a une playlist). Diffuseur : ecran hors perimetre (iteration 4), voir section 5 | — | — | guide utilisateur, recette manuelle sur simulateur |
 | UC-20 | Droits RGPD : acces et effacement de son compte (Ce3.1.4) | `TestUserService_DeleteUser`, `TestPurgeExpiredRefreshTokens` | `TestUsers_AccessAndErasure` (profil sans hash, cascade sur 6 tables, refresh et login refuses, email libere), `TestCascadeOnUserDelete` | `TestRBAC_EndpointMatrix` (`/users/me` authentifie) ; jeton encore valide → 404 | R-80 a R-85 |
 | UC-21 | Admin : effacement sur demande (Ce3.1.4) | `TestUserService_DeleteUser` | `TestAdmin_DeleteUser` (id invalide, inconnu, disparition de la liste) | `TestRBAC_EndpointMatrix` (`adminOnly`), user → 403 | R-86, R-87 |
 | UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul, joker CORS refuse en production) | — | TLS 1.2 minimum ; API non publiee derriere Caddy (`docker-compose.prod.yml`) | R-88 a R-90 |
