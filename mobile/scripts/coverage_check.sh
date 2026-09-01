@@ -4,18 +4,20 @@
 #
 # Lit coverage/lcov.info produit par `flutter test --coverage` et calcule la
 # couverture de lignes (LH / LF sur tous les fichiers). Echoue si elle est
-# sous COVERAGE_MIN (15 % aujourd'hui, a relever avec les tests du lecteur
-# et de l'ecran diffuseur).
+# sous COVERAGE_MIN (objectif 80 % sur mobile, cf. docs/plan-de-tests.md).
+# Reste hors de portee sans refactor : broadcaster_screen.dart (enregistrement
+# micro) et la connexion live de live_stream_provider.dart (HttpClient +
+# AudioSession non injectables).
 #
 # Usage :
 #   flutter test --coverage && scripts/coverage_check.sh
-#   COVERAGE_MIN=20 scripts/coverage_check.sh
+#   COVERAGE_MIN=85 scripts/coverage_check.sh
 #
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LCOV="$MOBILE_DIR/coverage/lcov.info"
-COVERAGE_MIN="${COVERAGE_MIN:-15}"
+COVERAGE_MIN="${COVERAGE_MIN:-80}"
 
 if [ ! -f "$LCOV" ]; then
   echo "coverage/lcov.info introuvable : lancer d'abord \`flutter test --coverage\`" >&2
