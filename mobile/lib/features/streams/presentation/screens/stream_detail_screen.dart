@@ -9,6 +9,7 @@ import '../widgets/audio_player_bar.dart';
 import '../widgets/listener_count.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/error_widget.dart' as app_error;
+import '../../../chat/presentation/widgets/stream_chat_panel.dart';
 import '../../../favorites/presentation/providers/favorites_provider.dart';
 
 class StreamDetailScreen extends ConsumerStatefulWidget {
@@ -220,6 +221,17 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                   ),
                 ),
               ),
+              // Un salon de chat par live, pour ceux qui sont dans le live.
+              // Le panneau (et sa connexion WebSocket) disparaît quand le
+              // flux n'est plus en direct.
+              if (stream.isLive)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    height: 280,
+                    child: StreamChatPanel(streamId: stream.id),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: AudioPlayerBar(
