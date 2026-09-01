@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/config"
 	"github.com/streampulse/backend/internal/infrastructure/filestore"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
@@ -107,6 +108,9 @@ func main() {
 		}()
 	}
 
+	// Salon de chat par flux en direct (bonus WebSocket, docs/ADR/009).
+	chatHub := chat.NewHub(logger)
+
 	// Contexte de base des requetes HTTP et des taches de fond qui touchent
 	// la base : annule explicitement a l'arret, AVANT pool.Close (differe),
 	// pour liberer les connexions longues (SSE, audio, broadcast) et arreter
@@ -138,6 +142,7 @@ func main() {
 		MusicRepo:         musicRepo,
 		JWTManager:        jwtManager,
 		Hub:               hub,
+		ChatHub:           chatHub,
 		Logger:            logger,
 		Metrics:           metrics,
 		CORSOrigins:       cfg.CORSAllowedOrigins,

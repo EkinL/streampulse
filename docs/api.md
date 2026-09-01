@@ -164,6 +164,26 @@ so a long broadcast never times out without disabling protection everywhere
 else. The rationale for SSE over WebSocket is in
 [ADR 003](ADR/003-streaming-sse.md).
 
+## Live chat
+
+Every live stream has one ephemeral chat room, open to the people in the
+live. `GET /streams/{id}/chat/ws` upgrades the connection to a **WebSocket**
+(this is the one bidirectional endpoint of the API — rationale in
+[ADR 009](ADR/009-chat-websocket.md)):
+
+- authentication: standard `Bearer` header, or `?token=` as a fallback for
+  browsers (their WebSocket handshake cannot carry headers);
+- the stream must be `live`; when the broadcaster stops it, the room closes
+  and every participant receives a close frame (`1001`, "stream ended");
+- the client only ever sends `{"text": "..."}` (≤ 500 characters); author and
+  timestamp are set server-side from the token, so nobody can speak in
+  someone else's name;
+- every server frame is one JSON `ChatMessage` (`type` = `message`,
+  `user_joined` or `user_left`); on join, the last 50 messages are replayed.
+
+Nothing is persisted: the room and its history live in memory and die with
+the live.
+
 ## Metrics
 
 `GET /metrics` is restricted to `admin`. Prometheus does not use it: it scrapes
@@ -195,5 +215,10 @@ directement les droits RGPD d'acces et d'effacement (detail dans
 [rgpd.md](rgpd.md)). Le streaming se consomme par SSE (`/listen`, chunks
 encodes en base64) ou par flux audio brut (`/audio`, ce que consomme
 l'application mobile) ; les deux exigent un flux `live` et une
-authentification. `/metrics` est reserve au role `admin` et Prometheus ne
-l'utilise pas — il scrute un listener interne separe, jamais publie.
+authentification. Chaque live a son salon de chat ephemere en WebSocket
+(`/streams/{id}/chat/ws`, [ADR 009](ADR/009-chat-websocket.md)) : messages
+limites a 500 caracteres, identite posee cote serveur depuis le jeton,
+historique des 50 derniers messages rejoue a l'arrivee, salon ferme avec le
+live, rien n'est persiste. `/metrics` est reserve au role `admin` et
+Prometheus ne l'utilise pas — il scrute un listener interne separe, jamais
+publie.

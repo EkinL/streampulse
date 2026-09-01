@@ -15,6 +15,7 @@ import (
 
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/streaming"
 	"github.com/streampulse/backend/internal/transport/http/middleware"
 	"github.com/streampulse/backend/testutil"
@@ -31,7 +32,7 @@ func newStreamHarness() *streamHarness {
 	hub := streaming.NewHub(zerolog.Nop())
 	svc := application.NewStreamService(repo, hub)
 	return &streamHarness{
-		handler: NewStreamHandler(svc, hub, zerolog.Nop(), testMetrics),
+		handler: NewStreamHandler(svc, hub, chat.NewHub(zerolog.Nop()), zerolog.Nop(), testMetrics),
 		repo:    repo,
 		hub:     hub,
 	}

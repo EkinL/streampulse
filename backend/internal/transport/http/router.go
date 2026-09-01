@@ -10,6 +10,7 @@ import (
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/streaming"
 	"github.com/streampulse/backend/internal/transport/http/handlers"
@@ -28,6 +29,7 @@ type RouterConfig struct {
 	MusicRepo         domain.MusicRepository
 	JWTManager        *auth.JWTManager
 	Hub               *streaming.Hub
+	ChatHub           *chat.Hub
 	Logger            zerolog.Logger
 	Metrics           *observability.Metrics
 	CORSOrigins       string
@@ -69,7 +71,8 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	healthHandler := handlers.NewHealthHandler()
 	docsHandler := handlers.NewDocsHandler()
 	authHandler := handlers.NewAuthHandler(cfg.AuthService)
-	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.Logger, cfg.Metrics)
+	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.ChatHub, cfg.Logger, cfg.Metrics)
+	chatHandler := handlers.NewChatHandler(cfg.StreamService, cfg.ChatHub, cfg.Logger, cfg.Metrics)
 	playlistHandler := handlers.NewPlaylistHandler(cfg.PlaylistService)
 	adminHandler := handlers.NewAdminHandler(cfg.UserService)
 	userHandler := handlers.NewUserHandler(cfg.UserService)
@@ -106,6 +109,14 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 
 	// Global search
 	r.Get("/search", musicHandler.GlobalSearch)
+
+	// Chat en direct d'un flux, en WebSocket. Groupe a part : la poignee de
+	// main WebSocket d'un navigateur ne peut pas porter de header
+	// Authorization, le middleware accepte donc aussi `?token=`.
+	r.Group(func(r chi.Router) {
+		r.Use(authMw.AuthenticateWebSocket)
+		r.Get("/streams/{id}/chat/ws", chatHandler.ServeWS)
+	})
 
 	// Authenticated routes
 	r.Group(func(r chi.Router) {

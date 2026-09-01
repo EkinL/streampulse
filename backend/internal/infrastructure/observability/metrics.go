@@ -12,6 +12,8 @@ type Metrics struct {
 	ActiveListeners      prometheus.Gauge
 	StreamDisconnections prometheus.Counter
 	StreamBytesSentTotal prometheus.Counter
+	ChatConnections      prometheus.Gauge
+	ChatMessagesTotal    prometheus.Counter
 }
 
 func NewMetrics() *Metrics {
@@ -53,6 +55,18 @@ func NewMetrics() *Metrics {
 			prometheus.CounterOpts{
 				Name: "stream_bytes_sent_total",
 				Help: "Total bytes sent to stream listeners",
+			},
+		),
+		ChatConnections: promauto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "chat_active_connections",
+				Help: "Number of currently connected chat participants",
+			},
+		),
+		ChatMessagesTotal: promauto.NewCounter(
+			prometheus.CounterOpts{
+				Name: "chat_messages_total",
+				Help: "Total number of chat messages published",
 			},
 		),
 	}
