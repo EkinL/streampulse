@@ -4,7 +4,7 @@
 #
 # Lit coverage/lcov.info produit par `flutter test --coverage` et calcule la
 # couverture de lignes (LH / LF sur tous les fichiers). Echoue si elle est
-# sous COVERAGE_MIN (80 % : seuil atteint, cf. docs/plan-de-tests.md).
+# sous COVERAGE_MIN (objectif 80 % sur mobile, cf. docs/plan-de-tests.md).
 # Reste hors de portee sans refactor : broadcaster_screen.dart (enregistrement
 # micro) et la connexion live de live_stream_provider.dart (HttpClient +
 # AudioSession non injectables).

@@ -184,7 +184,50 @@ testable unitairement). Couverture par paquet :
 | `infrastructure/streaming` | 97,7 % | `cmd/server` | 0 % |
 | `infrastructure/config` | 96,2 % | `transport/http/middleware` | 93,5 % |
 
-### Iteration 3 — planifiee (suite des travaux)
+### Iteration 3 — couverture mobile a 80 % (2026-09-01)
+
+L'exigence du sujet « code testable unitairement a 80 % minimum » est
+desormais couverte et verrouillee cote Flutter aussi : `COVERAGE_MIN` passe
+de 15 a 80 dans `mobile/scripts/coverage_check.sh`, la CI echoue desormais
+sous ce seuil (`mobile.yml`).
+
+Point de depart : 54 tests, 19,7 % — uniquement `core/audio`,
+`shared/providers` et l'ecran console. Tout le reste de l'application
+(repositories, providers metier, intercepteur HTTP, widgets, ecrans) tournait
+sans le moindre test.
+
+| Ajout | Ou | Gain |
+|-------|----|-----:|
+| Modeles de domaine et repositories (`music`, `stream`, `playlist`, `favorites`, `auth`) : parsing JSON, branches nominales et branches d'erreur HTTP par methode, via `mocktail` sur `Dio` | `test/features/*/data`, `test/features/*/domain` | 19,7 % → 28,0 % |
+| Providers Riverpod (state notifiers), y compris les factories des providers eux-memes (`overrideWithValue` sur le repository plutot que sur le provider, pour exercer le vrai code de branchement) | `test/features/*/presentation/providers` | 28,0 % → 33,1 % |
+| Intercepteur d'authentification de `api_client.dart` : bearer token, refresh sur 401 (succes, echec, absence de refresh token), rejeu de la requete d'origine ; `token_store_io.dart` (canal `flutter_secure_storage` simule) ; `validators.dart`, `extensions.dart` | `test/core/network/api_client_interceptors_test.dart`, `test/core/storage/`, `test/core/utils/` | 33,1 % → 35,6 % |
+| Widgets partages et de features (`AppScaffold`, `MiniPlayer`, `VolumeControl`, `StreamCard`, `MusicTile`, `EditDialog`, etc.) | `test/shared/widgets`, `test/features/*/presentation/widgets` | 35,6 % → 47,4 % |
+| Ecrans : favoris, playlists, admin, inscription, recherche, details stream/playlist, liste des streams, lecteur musique ; branches d'erreur residuelles des repositories | `test/features/*/presentation/screens` | 47,4 % → **80,1 %** |
+
+Resultat : 394 tests, couverture **80,1 %**, `flutter analyze` sans avertissement.
+
+Reste hors perimetre, a dessein — pas testable sans faire evoluer le code de
+production d'abord :
+
+| Fichier | Couverture | Raison |
+|---------|-----------:|--------|
+| `broadcaster_screen.dart` | 0,3 % | Enregistrement micro (`flutter_sound` recorder + `permission_handler`) |
+| `live_stream_provider.dart`, methode `connect()` | 31,7 % (le reste de la classe est teste) | `HttpClient` et `AudioSession` instancies en dur dans le constructeur, non injectables |
+
+Ces deux points demandent d'extraire la logique derriere une interface
+injectable avant de pouvoir la tester unitairement — meme traitement que
+celui applique a `api_client.dart` dans cette iteration. Reporte en
+iteration 5.
+
+Decouverte en cours de route, a reutiliser : `audioHandlerProvider` leve
+volontairement une `UnimplementedError` si non surcharge (garde-fou deja en
+place dans `lib/core/audio/audio_handler.dart`) — un simple
+`ProviderScope(overrides: [audioHandlerProvider.overrideWithValue(fakeHandler)])`
+suffit a rendre testables tous les widgets qui en dependent, y compris
+`AudioPlayerBar` : `flutter_sound` ne plante pas dans l'environnement de
+test, contrairement a ce qu'on aurait pu croire avant de l'essayer.
+
+### Iteration 4 — planifiee (backend)
 
 1. Completer `observability` (exporteur OTEL avec collecteur factice) et
    extraire de `cmd/server` un assemblage testable.
@@ -193,18 +236,18 @@ testable unitairement). Couverture par paquet :
    qui lit `/metrics` apres quelques requetes. Sans cela les SLO 1 et 2 de
    [slo.md](slo.md) ne sont pas mesurables.
 3. Traiter O-2 : `http.MaxBytesReader` sur les corps JSON, test a 413.
-4. Mobile : tests widget du lecteur (progression, volume, file d'attente), de
-   l'ecran diffuseur (start/stop) et des gardes de routes par role ; relever
-   le seuil mobile (`COVERAGE_MIN` de `coverage_check.sh`) en consequence.
-5. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
-6. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
+4. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
+5. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
    (rectification) et nettoyage des fichiers audio orphelins, chacun avec
    son test d'integration.
 
-### Iteration 4 — planifiee
+### Iteration 5 — planifiee
 
-- Tests d'integration mobile (`integration_test`) sur simulateur contre la
-  stack `docker compose`, un scenario par role.
+- Mobile : extraire la logique de `live_stream_provider.dart` (`connect()`)
+  et de `broadcaster_screen.dart` derriere des interfaces injectables
+  (`HttpClient`, `AudioSession`, recorder) pour les rendre testables
+  unitairement ; a defaut, tests d'integration mobile (`integration_test`)
+  sur simulateur contre la stack `docker compose`, un scenario par role.
 - Fuzzing (`go test -fuzz`) des decodeurs JSON et de l'analyse des
   identifiants de chemin.
 - Tests des migrations descendantes (`.down.sql`) : appliquer, revenir,
@@ -248,7 +291,7 @@ make test-integration
 make cover-check                                # echoue sous 80 %, comme la CI
 
 # Mobile, avec le seuil de couverture de la CI
-cd .. && make test-mobile-cover           # COVERAGE_MIN=20 make test-mobile-cover pour viser plus haut
+cd .. && make test-mobile-cover           # echoue sous 80 %, comme la CI
 ```
 
 En CI (`.github/workflows/backend.yml`), le job `test` demarre un service
