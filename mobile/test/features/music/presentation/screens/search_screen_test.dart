@@ -13,6 +13,7 @@ import 'package:streampulse/core/network/api_client.dart';
 import 'package:streampulse/core/network/api_endpoints.dart';
 import 'package:streampulse/features/music/presentation/providers/music_favorites_provider.dart';
 import 'package:streampulse/features/music/presentation/screens/search_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -91,7 +92,7 @@ Future<_FakeHandler> _pump(WidgetTester tester, {required _MockDio dio}) async {
         audioHandlerProvider.overrideWithValue(handler),
         musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );
   await tester.pump();
@@ -219,7 +220,7 @@ void main() {
           musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
         ],
         child: MaterialApp(
-          navigatorKey: navigatorKey,
+          theme: AppTheme.darkTheme, navigatorKey: navigatorKey,
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => Navigator.of(context).push(

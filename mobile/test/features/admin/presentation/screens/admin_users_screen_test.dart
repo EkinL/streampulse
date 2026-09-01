@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/network/api_endpoints.dart';
 import 'package:streampulse/features/admin/presentation/providers/admin_provider.dart';
 import 'package:streampulse/features/admin/presentation/screens/admin_users_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -34,7 +35,7 @@ Future<void> _pump(WidgetTester tester, {required _MockDio dio}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [adminProvider.overrideWith((ref) => AdminNotifier(dio))],
-      child: const MaterialApp(home: AdminUsersScreen()),
+      child: MaterialApp(theme: AppTheme.darkTheme, home: const AdminUsersScreen()),
     ),
   );
   await tester.pump();

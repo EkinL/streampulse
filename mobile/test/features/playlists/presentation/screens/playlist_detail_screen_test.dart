@@ -14,6 +14,7 @@ import 'package:streampulse/features/playlists/data/playlist_repository.dart';
 import 'package:streampulse/features/playlists/domain/playlist_model.dart';
 import 'package:streampulse/features/playlists/presentation/providers/playlist_provider.dart';
 import 'package:streampulse/features/playlists/presentation/screens/playlist_detail_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockPlaylistRepository extends Mock implements PlaylistRepository {}
 
@@ -63,7 +64,15 @@ PlaylistModel _playlist({
   bool isPublic = false,
   List<TrackModel> tracks = const [],
 }) =>
-    PlaylistModel(id: id, name: name, ownerId: 'u1', isPublic: isPublic, tracks: tracks, createdAt: DateTime(2026));
+    PlaylistModel(
+      id: id,
+      name: name,
+      ownerId: 'u1',
+      isPublic: isPublic,
+      tracks: tracks,
+      trackCount: tracks.length,
+      createdAt: DateTime(2026),
+    );
 
 Future<_FakeHandler> _pump(
   WidgetTester tester, {
@@ -78,7 +87,7 @@ Future<_FakeHandler> _pump(
         playlistListProvider.overrideWith((ref) => PlaylistNotifier(playlistRepository)),
         playlistDetailProvider.overrideWith((ref, id) => playlistRepository.getPlaylist(id)),
       ],
-      child: const MaterialApp(home: PlaylistDetailScreen(playlistId: 'p1')),
+      child: MaterialApp(theme: AppTheme.darkTheme, home: const PlaylistDetailScreen(playlistId: 'p1')),
     ),
   );
   await tester.pump();
@@ -107,7 +116,7 @@ void main() {
 
     expect(find.text('Chill mix'), findsOneWidget);
     expect(find.text('Public'), findsOneWidget);
-    expect(find.text('0 tracks'), findsOneWidget);
+    expect(find.text('0 titres'), findsOneWidget);
   });
 
   testWidgets('affiche une erreur et permet de reessayer', (tester) async {
@@ -132,8 +141,8 @@ void main() {
     await _pump(tester, playlistRepository: playlistRepository, musicRepository: musicRepository);
     await tester.pump();
 
-    expect(find.text('No tracks yet'), findsOneWidget);
-    expect(find.text('Play All'), findsNothing);
+    expect(find.text('Aucun titre pour l\'instant'), findsOneWidget);
+    expect(find.text('Tout écouter'), findsNothing);
   });
 
   testWidgets('liste les pistes et Play All lance la lecture depuis le debut', (tester) async {
@@ -146,9 +155,9 @@ void main() {
 
     expect(find.text('Song A'), findsOneWidget);
     expect(find.text('Song B'), findsOneWidget);
-    expect(find.text('2 tracks'), findsOneWidget);
+    expect(find.text('2 titres'), findsOneWidget);
 
-    await tester.tap(find.text('Play All'));
+    await tester.tap(find.text('Tout écouter'));
     await tester.pump();
 
     expect(handler.calls, contains('load:https://cdn/t1.mp3'));
@@ -180,7 +189,7 @@ void main() {
     await tester.pump();
 
     verify(() => playlistRepository.removeTrack(playlistId: 'p1', trackId: 't1')).called(1);
-    expect(find.text('Track removed'), findsOneWidget);
+    expect(find.text('Titre retiré'), findsOneWidget);
   });
 
   testWidgets('ouvre la feuille d\'ajout et recherche un morceau', (tester) async {
@@ -194,7 +203,7 @@ void main() {
           playlistDetailProvider.overrideWith((ref, id) => playlistRepository.getPlaylist(id)),
           musicRepositoryProvider.overrideWithValue(musicRepository),
         ],
-        child: const MaterialApp(home: PlaylistDetailScreen(playlistId: 'p1')),
+        child: MaterialApp(theme: AppTheme.darkTheme, home: const PlaylistDetailScreen(playlistId: 'p1')),
       ),
     );
     await tester.pump();
@@ -216,7 +225,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
-    expect(find.text('Add Track'), findsOneWidget);
+    expect(find.text('Ajouter un titre'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'song');
     await tester.pump(const Duration(milliseconds: 350));
@@ -240,6 +249,6 @@ void main() {
           url: 'u',
           duration: 60,
         )).called(1);
-    expect(find.text('Track added'), findsOneWidget);
+    expect(find.text('Titre ajouté'), findsOneWidget);
   });
 }

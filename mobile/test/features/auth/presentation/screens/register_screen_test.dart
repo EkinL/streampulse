@@ -13,6 +13,7 @@ import 'package:streampulse/features/auth/domain/auth_state.dart';
 import 'package:streampulse/features/auth/domain/user_model.dart';
 import 'package:streampulse/features/auth/presentation/providers/auth_provider.dart';
 import 'package:streampulse/features/auth/presentation/screens/register_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _NullStore implements TokenStore {
   @override
@@ -40,8 +41,14 @@ class _FakeAuthNotifier extends AuthNotifier {
     required String username,
     required String email,
     required String password,
+    required bool acceptedTerms,
   }) async {
-    calls.add({'username': username, 'email': email, 'password': password});
+    calls.add({
+      'username': username,
+      'email': email,
+      'password': password,
+      'acceptedTerms': acceptedTerms.toString(),
+    });
     if (errorToThrow != null) {
       state = AuthError(message: errorToThrow!.message);
       return;
@@ -76,7 +83,7 @@ Future<_FakeAuthNotifier> _pump(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [authProvider.overrideWith((ref) => notifier)],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );
   await tester.pump();
@@ -99,6 +106,7 @@ void main() {
     expect(find.text('Email is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
     expect(find.text('Please confirm your password'), findsOneWidget);
+    expect(find.text('Vous devez accepter les conditions d\'utilisation'), findsOneWidget);
     expect(notifier.calls, isEmpty);
   });
 
@@ -122,6 +130,7 @@ void main() {
     await tester.enterText(find.widgetWithText(TextFormField, 'name@example.com'), 'alice@example.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Create a password'), 'password1');
     await tester.enterText(find.widgetWithText(TextFormField, 'Confirm your password'), 'password1');
+    await tester.tap(find.byType(Checkbox));
     await tester.tap(_submitButton);
     await tester.pumpAndSettle();
 
@@ -129,6 +138,7 @@ void main() {
       'username': 'alice',
       'email': 'alice@example.com',
       'password': 'password1',
+      'acceptedTerms': 'true',
     });
     expect(find.text('Streams screen'), findsOneWidget);
   });
@@ -141,6 +151,7 @@ void main() {
     await tester.enterText(find.widgetWithText(TextFormField, 'name@example.com'), 'alice@example.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Create a password'), 'password1');
     await tester.enterText(find.widgetWithText(TextFormField, 'Confirm your password'), 'password1');
+    await tester.tap(find.byType(Checkbox));
     await tester.tap(_submitButton);
     await tester.pump();
 

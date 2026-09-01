@@ -10,6 +10,7 @@ import 'package:streampulse/features/favorites/data/favorites_repository.dart';
 import 'package:streampulse/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:streampulse/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:streampulse/features/streams/domain/stream_model.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockFavoritesRepository extends Mock implements FavoritesRepository {}
 
@@ -43,7 +44,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [favoritesProvider.overrideWith((ref) => FavoritesNotifier(repository))],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );
   await tester.pump();
@@ -114,7 +115,7 @@ void main() {
     when(() => repository.removeFavorite('s1')).thenAnswer((_) async {});
     when(() => repository.listFavorites()).thenAnswer((_) async => []);
 
-    await tester.tap(find.byIcon(Icons.favorite_border));
+    await tester.tap(find.byIcon(Icons.favorite));
     await tester.pump();
     await tester.pump();
 

@@ -10,6 +10,7 @@ import 'package:streampulse/core/audio/audio_handler.dart';
 import 'package:streampulse/features/music/domain/music_model.dart';
 import 'package:streampulse/shared/providers/player_provider.dart';
 import 'package:streampulse/shared/widgets/mini_player.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _FakeHandler extends Fake implements StreamPulseAudioHandler {
   final position = StreamController<Duration>.broadcast();
@@ -92,7 +93,7 @@ void main() {
     return tester.pumpWidget(
       ProviderScope(
         overrides: [playerProvider.overrideWith((ref) => notifier)],
-        child: const MaterialApp(home: Scaffold(body: MiniPlayer())),
+        child: MaterialApp(theme: AppTheme.darkTheme, home: const Scaffold(body: MiniPlayer())),
       ),
     );
   }
@@ -161,7 +162,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [playerProvider.overrideWith((ref) => notifier)],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
       ),
     );
 

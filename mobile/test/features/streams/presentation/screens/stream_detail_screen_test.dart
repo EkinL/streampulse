@@ -8,10 +8,12 @@ import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/audio/audio_handler.dart';
 import 'package:streampulse/core/network/api_exceptions.dart';
 import 'package:streampulse/features/favorites/data/favorites_repository.dart';
+import 'package:streampulse/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:streampulse/features/streams/data/stream_repository.dart';
 import 'package:streampulse/features/streams/domain/stream_model.dart';
 import 'package:streampulse/features/streams/presentation/providers/stream_provider.dart';
 import 'package:streampulse/features/streams/presentation/screens/stream_detail_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockStreamRepository extends Mock implements StreamRepository {}
 
@@ -77,10 +79,10 @@ Future<void> _pump(
       overrides: [
         audioHandlerProvider.overrideWithValue(_FakeHandler()),
         streamRepositoryProvider.overrideWithValue(streamRepository),
-        streamListProvider
-            .overrideWith((ref) => StreamNotifier(streamRepository, favoritesRepository)),
+        streamListProvider.overrideWith((ref) => StreamNotifier(streamRepository)),
+        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository)),
       ],
-      child: const MaterialApp(home: StreamDetailScreen(streamId: 's1')),
+      child: MaterialApp(theme: AppTheme.darkTheme, home: const StreamDetailScreen(streamId: 's1')),
     ),
   );
   await tester.pump();
@@ -94,6 +96,7 @@ void main() {
     streamRepository = _MockStreamRepository();
     favoritesRepository = _MockFavoritesRepository();
     when(() => streamRepository.listStreams()).thenAnswer((_) async => []);
+    when(() => favoritesRepository.listFavorites()).thenAnswer((_) async => []);
   });
 
   testWidgets('affiche un indicateur de chargement puis les details du stream', (tester) async {
@@ -151,12 +154,12 @@ void main() {
     expect(find.text('Added to favorites'), findsOneWidget);
   });
 
-  testWidgets('affiche le badge OFFLINE pour un stream termine', (tester) async {
+  testWidgets('affiche le badge HORS LIGNE pour un stream termine', (tester) async {
     when(() => streamRepository.getStream('s1')).thenAnswer((_) async => _stream(status: 'ended'));
 
     await _pump(tester, streamRepository: streamRepository, favoritesRepository: favoritesRepository);
     await tester.pump();
 
-    expect(find.text('OFFLINE'), findsOneWidget);
+    expect(find.text('HORS LIGNE'), findsOneWidget);
   });
 }

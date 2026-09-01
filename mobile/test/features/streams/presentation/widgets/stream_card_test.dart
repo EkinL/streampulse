@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streampulse/features/streams/domain/stream_model.dart';
 import 'package:streampulse/features/streams/presentation/widgets/stream_card.dart';
+import 'package:streampulse/app/theme.dart';
 
 StreamModel _stream({
   String title = 'My Stream',
@@ -22,7 +23,7 @@ StreamModel _stream({
     );
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
-    tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
+    tester.pumpWidget(MaterialApp(theme: AppTheme.darkTheme, home: Scaffold(body: child)));
 
 void main() {
   testWidgets('affiche le titre, le format et le badge LIVE pour un stream en direct',
@@ -37,11 +38,11 @@ void main() {
     expect(find.text('AAC'), findsOneWidget);
   });
 
-  testWidgets('affiche OFFLINE et masque le compteur d\'auditeurs quand le stream est hors ligne',
+  testWidgets('affiche HORS LIGNE et masque le compteur d\'auditeurs quand le stream est hors ligne',
       (tester) async {
     await _pump(tester, StreamCard(stream: _stream(status: 'ended', listenerCount: 42)));
 
-    expect(find.text('OFFLINE'), findsOneWidget);
+    expect(find.text('HORS LIGNE'), findsOneWidget);
     expect(find.text('42'), findsNothing);
   });
 

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streampulse/features/streams/presentation/widgets/listener_count.dart';
+import 'package:streampulse/app/theme.dart';
 
 Future<void> _pump(WidgetTester tester, int count) =>
-    tester.pumpWidget(MaterialApp(home: Scaffold(body: ListenerCount(count: count))));
+    tester.pumpWidget(MaterialApp(theme: AppTheme.darkTheme, home: Scaffold(body: ListenerCount(count: count))));
 
 void main() {
   testWidgets('affiche le nombre brut sous 1000', (tester) async {

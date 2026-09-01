@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streampulse/features/playlists/domain/playlist_model.dart';
 import 'package:streampulse/features/playlists/presentation/widgets/playlist_tile.dart';
+import 'package:streampulse/app/theme.dart';
 
 PlaylistModel _playlist({
   String name = 'My playlist',
@@ -14,6 +15,7 @@ PlaylistModel _playlist({
       ownerId: 'u1',
       isPublic: isPublic,
       tracks: tracks,
+      trackCount: tracks.length,
       createdAt: DateTime(2026),
     );
 
@@ -21,26 +23,26 @@ TrackModel _track(String id) =>
     TrackModel(id: id, title: 'Track $id', url: 'u', duration: 60, position: 0);
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
-    tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
+    tester.pumpWidget(MaterialApp(theme: AppTheme.darkTheme, home: Scaffold(body: child)));
 
 void main() {
-  testWidgets('affiche le nom et "0 track" pour une playlist vide et privee', (tester) async {
+  testWidgets('affiche le nom et "0 titre" pour une playlist vide et privee', (tester) async {
     await _pump(tester, PlaylistTile(playlist: _playlist(name: 'Empty')));
 
     expect(find.text('Empty'), findsOneWidget);
-    expect(find.text('0 tracks'), findsOneWidget);
+    expect(find.text('0 titres'), findsOneWidget);
   });
 
-  testWidgets('accorde "track" au singulier pour une seule piste', (tester) async {
+  testWidgets('accorde "titre" au singulier pour une seule piste', (tester) async {
     await _pump(tester, PlaylistTile(playlist: _playlist(tracks: [_track('t1')])));
 
-    expect(find.text('1 track'), findsOneWidget);
+    expect(find.text('1 titre'), findsOneWidget);
   });
 
   testWidgets('ajoute le suffixe Public pour une playlist publique', (tester) async {
     await _pump(tester, PlaylistTile(playlist: _playlist(isPublic: true, tracks: [_track('t1')])));
 
-    expect(find.text('1 track • Public'), findsOneWidget);
+    expect(find.text('1 titre • Public'), findsOneWidget);
   });
 
   testWidgets('affiche un chevron sans callback onDelete', (tester) async {

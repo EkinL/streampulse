@@ -15,6 +15,7 @@ import 'package:streampulse/features/playlists/data/playlist_repository.dart';
 import 'package:streampulse/features/playlists/domain/playlist_model.dart';
 import 'package:streampulse/features/playlists/presentation/providers/playlist_provider.dart';
 import 'package:streampulse/shared/providers/player_provider.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -88,6 +89,7 @@ PlaylistModel _playlist(String id, {String name = 'Chill'}) => PlaylistModel(
       ownerId: 'u1',
       isPublic: false,
       tracks: const [],
+      trackCount: 0,
       createdAt: DateTime(2026),
     );
 
@@ -120,7 +122,7 @@ void main() {
           musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
           playlistListProvider.overrideWith((ref) => PlaylistNotifier(playlistRepository)),
         ],
-        child: const MaterialApp(home: MusicPlayerScreen()),
+        child: MaterialApp(theme: AppTheme.darkTheme, home: const MusicPlayerScreen()),
       ),
     );
   }

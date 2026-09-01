@@ -17,7 +17,7 @@ automatise et rejouable par `make`.
 |----------|--------|--------------------|
 | Chaque cas d'usage du sujet a au moins un test automatise a chaque niveau applicable | cartographie de la section 3 | 19/19 cas couverts |
 | Couverture de code du module Go | `make cover-check` | **91,1 %** (94,1 % hors `cmd/server`) — cible 80 % atteinte, seuil CI releve a 80 % |
-| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **80,1 %** (394 tests) — cible 80 % atteinte, seuil CI releve a 80 % (iteration 3) |
+| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **80,4 %** (455 tests) — cible 80 % atteinte, seuil CI releve a 80 % (iteration 3) |
 | Aucun test rouge sur `develop` | CI `backend.yml` / `mobile.yml` | vert |
 | Tout defaut trouve donne d'abord un test rouge, puis un correctif | section 6 | 4 defauts, 4 corriges |
 
@@ -205,6 +205,28 @@ sans le moindre test.
 | Ecrans : favoris, playlists, admin, inscription, recherche, details stream/playlist, liste des streams, lecteur musique ; branches d'erreur residuelles des repositories | `test/features/*/presentation/screens` | 47,4 % → **80,1 %** |
 
 Resultat : 394 tests, couverture **80,1 %**, `flutter analyze` sans avertissement.
+
+#### Iteration 3bis — reconciliation avec la refonte UI (2026-09-01)
+
+La branche avait divergé de `develop` juste avant la fusion de la refonte UI
+(nouveau systeme de theme par `ThemeExtension`, consentement RGPD a
+l'inscription, restructuration de `AppScaffold`/compte utilisateur, refactor
+favoris/flux). La CI GitHub teste le merge de la PR avec la pointe de
+`develop`, pas la branche seule : une reproduction locale de la branche seule
+passait donc a chaque fois, masquant le vrai probleme jusqu'a ce que les logs
+CI detailles montrent 17 erreurs de compilation deterministes.
+
+| Etape | Detail |
+|-------|--------|
+| Fusion de `develop` | 96 fichiers, +4580/-1358 lignes, sans conflit (les fichiers de test etaient nouveaux) |
+| Erreurs de compilation (17) | Nouveaux parametres requis (`acceptedTerms`, `trackCount`), signature de `StreamNotifier` (1 argument au lieu de 2, favoris extraits dans `FavoritesNotifier`), methode `toggleFavorite` supprimee |
+| `flutter analyze` (39 problemes) | `theme:` desormais requis sur chaque `MaterialApp`/`MaterialApp.router` de test (sinon `context.colors` plante au premier rendu) → invalide le `const` de 19 fichiers, qui redevient necessaire sur les constructeurs internes (lint `prefer_const_constructors`, bloquant) |
+| Echecs de test restants (23) | Libelles passes en francais (`OFFLINE`→`HORS LIGNE`, `Active Streams`→`Flux actifs`, nav `FAVORITES`→`FAVORIS`/`PROFILE`→`PROFIL`), suppression de compte deplacee vers `/account`, `LiveMiniPlayer` ajoute a `AppScaffold` (necessite `audioHandlerProvider` surcharge), icone favori plein vs contour selon l'ecran, `AudioWaveform` anime en continu sur un stream live et empeche `pumpAndSettle` de se stabiliser une fois une boite de dialogue ouverte par-dessus |
+| Couverture apres fusion | La refonte a ajoute des ecrans et widgets entierement neufs et non testes (`account_screen.dart`, `privacy_policy_screen.dart`, `live_mini_player.dart`, `theme_provider.dart`) : couverture retombee a **71,7 %** malgre 428 tests verts |
+| Tests ajoutes pour revenir a 80 % | `account_screen_test.dart` (13 tests : RGPD acces/effacement, rectification, preferences d'apparence), `privacy_policy_screen_test.dart`, `live_mini_player_test.dart`, `theme_provider_test.dart` (notifiers + stores `SharedPreferences`), `theme_test.dart` (`SPColors.copyWith`/`lerp`, themes contraste eleve), `router_test.dart` (redirections : route publique, session absente, garde admin/diffuseur, page 404), `audio_player_bar_test.dart`, complements a `playlist_provider_test.dart` (`PublicPlaylistNotifier`) et `volume_provider_test.dart` (`SharedPrefsVolumeStore`) |
+
+Resultat : **455 tests**, couverture **80,4 %**, `flutter analyze` sans
+avertissement, CI a nouveau verte.
 
 Reste hors perimetre, a dessein — pas testable sans faire evoluer le code de
 production d'abord :

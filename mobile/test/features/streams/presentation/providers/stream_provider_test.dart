@@ -2,14 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' hide StreamNotifier;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/network/api_exceptions.dart';
-import 'package:streampulse/features/favorites/data/favorites_repository.dart';
 import 'package:streampulse/features/streams/data/stream_repository.dart';
 import 'package:streampulse/features/streams/domain/stream_model.dart';
 import 'package:streampulse/features/streams/presentation/providers/stream_provider.dart';
 
 class _MockStreamRepository extends Mock implements StreamRepository {}
-
-class _MockFavoritesRepository extends Mock implements FavoritesRepository {}
 
 StreamModel _stream(String id) => StreamModel(
       id: id,
@@ -24,22 +21,19 @@ StreamModel _stream(String id) => StreamModel(
 
 void main() {
   late _MockStreamRepository streamRepository;
-  late _MockFavoritesRepository favoritesRepository;
 
   setUp(() {
     streamRepository = _MockStreamRepository();
-    favoritesRepository = _MockFavoritesRepository();
   });
 
-  StreamNotifier build() => StreamNotifier(streamRepository, favoritesRepository);
+  StreamNotifier build() => StreamNotifier(streamRepository);
 
-  test('streamListProvider construit un StreamNotifier branche sur les repositories reels',
+  test('streamListProvider construit un StreamNotifier branche sur le repository reel',
       () async {
     when(() => streamRepository.listStreams()).thenAnswer((_) async => [_stream('s1')]);
-    final container = ProviderContainer(overrides: [
-      streamRepositoryProvider.overrideWithValue(streamRepository),
-      favoritesRepositoryProvider.overrideWithValue(favoritesRepository),
-    ]);
+    final container = ProviderContainer(
+      overrides: [streamRepositoryProvider.overrideWithValue(streamRepository)],
+    );
     addTearDown(container.dispose);
 
     expect(container.read(streamListProvider.notifier), isA<StreamNotifier>());
@@ -114,29 +108,6 @@ void main() {
       throwsA(isA<ApiException>()),
     );
     verify(() => streamRepository.listStreams()).called(1);
-  });
-
-  test('toggleFavorite appelle le repository de favoris', () async {
-    when(() => streamRepository.listStreams()).thenAnswer((_) async => []);
-    final notifier = build();
-    await Future<void>.delayed(Duration.zero);
-
-    when(() => favoritesRepository.addFavorite('s1')).thenAnswer((_) async {});
-
-    await notifier.toggleFavorite('s1');
-
-    verify(() => favoritesRepository.addFavorite('s1')).called(1);
-  });
-
-  test('toggleFavorite propage l\'exception', () async {
-    when(() => streamRepository.listStreams()).thenAnswer((_) async => []);
-    final notifier = build();
-    await Future<void>.delayed(Duration.zero);
-
-    when(() => favoritesRepository.addFavorite('s1'))
-        .thenThrow(const ApiException(message: 'boom'));
-
-    await expectLater(() => notifier.toggleFavorite('s1'), throwsA(isA<ApiException>()));
   });
 
   test('updateStream rafraichit la liste apres succes', () async {

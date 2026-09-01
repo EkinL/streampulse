@@ -8,6 +8,7 @@ import 'package:streampulse/features/playlists/data/playlist_repository.dart';
 import 'package:streampulse/features/playlists/domain/playlist_model.dart';
 import 'package:streampulse/features/playlists/presentation/providers/playlist_provider.dart';
 import 'package:streampulse/features/playlists/presentation/screens/playlists_screen.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockPlaylistRepository extends Mock implements PlaylistRepository {}
 
@@ -17,6 +18,7 @@ PlaylistModel _playlist(String id, {String name = 'Playlist'}) => PlaylistModel(
       ownerId: 'u1',
       isPublic: false,
       tracks: const [],
+      trackCount: 0,
       createdAt: DateTime(2026),
     );
 
@@ -39,7 +41,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [playlistListProvider.overrideWith((ref) => PlaylistNotifier(repository))],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );
   await tester.pump();

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streampulse/shared/providers/volume_provider.dart';
 import 'package:streampulse/shared/widgets/volume_control.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _FakeVolumeStore implements VolumeStore {
   double? saved;
@@ -20,7 +21,7 @@ Future<void> _pump(WidgetTester tester, Widget child) {
       overrides: [
         volumeProvider.overrideWith((ref) => VolumeNotifier(_FakeVolumeStore())),
       ],
-      child: MaterialApp(home: Scaffold(body: child)),
+      child: MaterialApp(theme: AppTheme.darkTheme, home: Scaffold(body: child)),
     ),
   );
 }

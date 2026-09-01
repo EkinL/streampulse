@@ -14,6 +14,7 @@ PlaylistModel _playlist(String id) => PlaylistModel(
       ownerId: 'u1',
       isPublic: false,
       tracks: const [],
+      trackCount: 0,
       createdAt: DateTime(2026),
     );
 
@@ -68,6 +69,16 @@ void main() {
 
     expect(notifier.state.hasError, isTrue);
     expect(notifier.state.error, 'boom');
+  });
+
+  test('fetch en erreur non-API : etat error avec la representation textuelle', () async {
+    when(() => repository.listPlaylists()).thenThrow(Exception('reseau indisponible'));
+
+    final notifier = PlaylistNotifier(repository);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(notifier.state.hasError, isTrue);
+    expect(notifier.state.error.toString(), contains('reseau indisponible'));
   });
 
   test('create rafraichit la liste apres succes', () async {
@@ -195,5 +206,53 @@ void main() {
       throwsA(isA<ApiException>()),
     );
     verify(() => repository.listPlaylists()).called(1);
+  });
+
+  group('publicPlaylistListProvider', () {
+    test('construit un PublicPlaylistNotifier branche sur le repository reel', () async {
+      when(() => repository.listPublicPlaylists()).thenAnswer((_) async => [_playlist('p1')]);
+      final container = ProviderContainer(
+        overrides: [playlistRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(publicPlaylistListProvider.notifier), isA<PublicPlaylistNotifier>());
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(publicPlaylistListProvider).value, hasLength(1));
+    });
+  });
+
+  group('PublicPlaylistNotifier', () {
+    test('fetch declenche au demarrage et expose la liste en data', () async {
+      when(() => repository.listPublicPlaylists()).thenAnswer((_) async => [_playlist('p1')]);
+
+      final notifier = PublicPlaylistNotifier(repository);
+
+      expect(notifier.state.isLoading, isTrue);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.state.value, hasLength(1));
+    });
+
+    test('fetch en erreur API : etat error avec le message du serveur', () async {
+      when(() => repository.listPublicPlaylists())
+          .thenThrow(const ApiException(message: 'boom', statusCode: 500));
+
+      final notifier = PublicPlaylistNotifier(repository);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.state.hasError, isTrue);
+      expect(notifier.state.error, 'boom');
+    });
+
+    test('fetch en erreur non-API : etat error avec la representation textuelle', () async {
+      when(() => repository.listPublicPlaylists()).thenThrow(Exception('reseau indisponible'));
+
+      final notifier = PublicPlaylistNotifier(repository);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.state.hasError, isTrue);
+      expect(notifier.state.error.toString(), contains('reseau indisponible'));
+    });
   });
 }

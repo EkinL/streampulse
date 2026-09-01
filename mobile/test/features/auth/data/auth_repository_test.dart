@@ -39,6 +39,7 @@ void main() {
               'username': 'alice',
               'email': 'alice@example.com',
               'password': 'secret123',
+              'accepted_terms': true,
             },
           )).thenAnswer((_) async => _response({
             'data': {'user': 'created'},
@@ -48,6 +49,7 @@ void main() {
         username: 'alice',
         email: 'alice@example.com',
         password: 'secret123',
+        acceptedTerms: true,
       );
 
       expect(result, {'user': 'created'});
@@ -64,6 +66,7 @@ void main() {
           username: 'alice',
           email: 'alice@example.com',
           password: 'secret123',
+          acceptedTerms: true,
         ),
         throwsA(isA<ApiException>()),
       );

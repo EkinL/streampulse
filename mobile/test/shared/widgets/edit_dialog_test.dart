@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:streampulse/shared/widgets/edit_dialog.dart';
+import 'package:streampulse/app/theme.dart';
 
 Future<void> _showDialog(
   WidgetTester tester, {
@@ -9,7 +10,7 @@ Future<void> _showDialog(
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: Builder(
+      theme: AppTheme.darkTheme, home: Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: ElevatedButton(

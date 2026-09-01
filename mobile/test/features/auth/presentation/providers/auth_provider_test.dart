@@ -147,9 +147,15 @@ void main() {
             username: 'alice',
             email: 'a@example.com',
             password: 'secret',
+            acceptedTerms: true,
           )).thenAnswer((_) async => tokenResponse());
 
-      await notifier.register(username: 'alice', email: 'a@example.com', password: 'secret');
+      await notifier.register(
+        username: 'alice',
+        email: 'a@example.com',
+        password: 'secret',
+        acceptedTerms: true,
+      );
 
       expect(notifier.state, isA<AuthAuthenticated>());
     });
@@ -159,9 +165,15 @@ void main() {
             username: 'alice',
             email: 'a@example.com',
             password: 'secret',
+            acceptedTerms: true,
           )).thenThrow(const ApiException(message: 'Email already used', statusCode: 409));
 
-      await notifier.register(username: 'alice', email: 'a@example.com', password: 'secret');
+      await notifier.register(
+        username: 'alice',
+        email: 'a@example.com',
+        password: 'secret',
+        acceptedTerms: true,
+      );
 
       final state = notifier.state;
       expect(state, isA<AuthError>());

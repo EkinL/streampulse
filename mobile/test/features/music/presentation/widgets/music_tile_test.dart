@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/features/music/domain/music_model.dart';
 import 'package:streampulse/features/music/presentation/providers/music_favorites_provider.dart';
 import 'package:streampulse/features/music/presentation/widgets/music_tile.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -38,7 +39,7 @@ Future<void> _pump(
           (ref) => MusicFavoritesNotifier(dio ?? _MockDio())..state = favorites,
         ),
       ],
-      child: MaterialApp(home: Scaffold(body: child)),
+      child: MaterialApp(theme: AppTheme.darkTheme, home: Scaffold(body: child)),
     ),
   );
 }

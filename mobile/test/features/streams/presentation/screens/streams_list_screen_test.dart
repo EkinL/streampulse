@@ -17,6 +17,7 @@ import 'package:streampulse/features/auth/domain/auth_state.dart';
 import 'package:streampulse/features/auth/domain/user_model.dart';
 import 'package:streampulse/features/auth/presentation/providers/auth_provider.dart';
 import 'package:streampulse/features/favorites/data/favorites_repository.dart';
+import 'package:streampulse/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:streampulse/features/music/data/music_repository.dart';
 import 'package:streampulse/features/music/domain/music_model.dart';
 import 'package:streampulse/features/music/presentation/providers/music_favorites_provider.dart';
@@ -26,6 +27,7 @@ import 'package:streampulse/features/streams/domain/stream_model.dart';
 import 'package:streampulse/features/streams/presentation/providers/stream_provider.dart';
 import 'package:streampulse/features/streams/presentation/screens/streams_list_screen.dart';
 import 'package:dio/dio.dart';
+import 'package:streampulse/app/theme.dart';
 
 class _MockStreamRepository extends Mock implements StreamRepository {}
 
@@ -134,12 +136,12 @@ Future<void> _pump(
       overrides: [
         audioHandlerProvider.overrideWithValue(_FakeHandler()),
         authProvider.overrideWith((ref) => _FakeAuthNotifier(role)),
-        streamListProvider
-            .overrideWith((ref) => StreamNotifier(streamRepository, favoritesRepository)),
+        streamListProvider.overrideWith((ref) => StreamNotifier(streamRepository)),
+        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository)),
         musicListProvider.overrideWith((ref) => MusicNotifier(musicRepository)),
         musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
       ],
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );
   await tester.pump();
@@ -155,6 +157,7 @@ void main() {
     favoritesRepository = _MockFavoritesRepository();
     musicRepository = _MockMusicRepository();
     when(() => musicRepository.listMusic()).thenAnswer((_) async => []);
+    when(() => favoritesRepository.listFavorites()).thenAnswer((_) async => []);
   });
 
   testWidgets('affiche un etat vide sans stream', (tester) async {
@@ -198,7 +201,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Live show'), findsWidgets);
-    expect(find.text('Active Streams'), findsOneWidget);
+    expect(find.text('Flux actifs'), findsOneWidget);
   });
 
   testWidgets('affiche la musique recente quand disponible', (tester) async {
@@ -296,7 +299,9 @@ void main() {
       title: 'My stream',
       description: 'Desc',
       ownerId: 'u1',
-      status: 'live',
+      // Statut "ended" : un stream live anime en continu AudioWaveform, ce
+      // qui empeche pumpAndSettle de se stabiliser une fois la dialog ouverte.
+      status: 'ended',
       listenerCount: 0,
       format: 'mp3',
       createdAt: DateTime(2026),
