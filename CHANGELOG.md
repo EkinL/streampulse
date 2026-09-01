@@ -93,6 +93,9 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   `golang-jwt` 5.2.1 -> 5.3.0, `x/crypto` 0.21.0 -> 0.53.0,
   `x/net` 0.22.0 -> 0.56.0, `x/text` 0.14.0 -> 0.39.0,
   OpenTelemetry 1.24.0 -> 1.44.0
+- `x/crypto` 0.53.0 -> 0.55.0 pour corriger **CVE-2026-56854 (CRITICAL)** :
+  contournement d'authentification SSH par restriction d'adresse source non
+  appliquee (`golang.org/x/crypto/ssh`). Detectee par le scan Trivy de la PR
 - Image de base `alpine` 3.19 -> 3.22, avec `apk upgrade` au build : sans lui
   l'image embarque les paquets figes a la date de publication de l'etiquette
 - Le conteneur ne tourne plus en **root** : compte de service `streampulse`
