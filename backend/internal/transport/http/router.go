@@ -57,6 +57,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	// verrait pas ce span (un contexte ne remonte pas la chaine), donc Logging
 	// doit venir apres pour pouvoir loguer le trace_id.
 	r.Use(middleware.OTELTracing(cfg.ServiceName))
+	r.Use(middleware.Metrics(cfg.Metrics))
 	r.Use(middleware.Logging(cfg.Logger))
 	r.Use(middleware.CORSHandler(cfg.CORSOrigins).Handler)
 

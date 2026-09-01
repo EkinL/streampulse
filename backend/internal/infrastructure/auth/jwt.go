@@ -12,8 +12,8 @@ import (
 )
 
 type JWTManager struct {
-	secret       []byte
-	expiry       time.Duration
+	secret        []byte
+	expiry        time.Duration
 	refreshExpiry time.Duration
 }
 

@@ -6,12 +6,12 @@ import (
 )
 
 type Metrics struct {
-	HTTPRequestsTotal      *prometheus.CounterVec
-	HTTPRequestDuration    *prometheus.HistogramVec
-	ActiveStreams           prometheus.Gauge
-	ActiveListeners        prometheus.Gauge
-	StreamDisconnections   prometheus.Counter
-	StreamBytesSentTotal   prometheus.Counter
+	HTTPRequestsTotal    *prometheus.CounterVec
+	HTTPRequestDuration  *prometheus.HistogramVec
+	ActiveStreams        prometheus.Gauge
+	ActiveListeners      prometheus.Gauge
+	StreamDisconnections prometheus.Counter
+	StreamBytesSentTotal prometheus.Counter
 }
 
 func NewMetrics() *Metrics {

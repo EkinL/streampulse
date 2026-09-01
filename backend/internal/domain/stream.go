@@ -9,8 +9,8 @@ import (
 type StreamStatus string
 
 const (
-	StreamStatusIdle StreamStatus = "idle"
-	StreamStatusLive StreamStatus = "live"
+	StreamStatusIdle  StreamStatus = "idle"
+	StreamStatusLive  StreamStatus = "live"
 	StreamStatusEnded StreamStatus = "ended"
 )
 
