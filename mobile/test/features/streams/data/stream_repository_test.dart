@@ -92,6 +92,12 @@ void main() {
     expect(stream.isLive, isTrue);
   });
 
+  test('getStream traduit un 404 en NotFoundException', () async {
+    when(() => dio.get(ApiEndpoints.stream('missing'))).thenThrow(_errorResponse(404));
+
+    expect(() => repository.getStream('missing'), throwsA(isA<NotFoundException>()));
+  });
+
   test('createStream envoie titre/description/format et renvoie le stream cree', () async {
     when(() => dio.post(
           ApiEndpoints.streams,
@@ -133,6 +139,16 @@ void main() {
         )).called(1);
   });
 
+  test('createStream propage une ApiException en cas d\'echec', () async {
+    when(() => dio.post(ApiEndpoints.streams, data: any(named: 'data')))
+        .thenThrow(_errorResponse(500));
+
+    expect(
+      () => repository.createStream(title: 't', description: 'd'),
+      throwsA(isA<ServerException>()),
+    );
+  });
+
   test('startStream appelle POST /streams/:id/start', () async {
     when(() => dio.post(ApiEndpoints.streamStart('s1')))
         .thenAnswer((_) async => _response(null));
@@ -142,6 +158,12 @@ void main() {
     verify(() => dio.post(ApiEndpoints.streamStart('s1'))).called(1);
   });
 
+  test('startStream propage une ApiException en cas d\'echec', () async {
+    when(() => dio.post(ApiEndpoints.streamStart('s1'))).thenThrow(_errorResponse(404));
+
+    expect(() => repository.startStream('s1'), throwsA(isA<NotFoundException>()));
+  });
+
   test('stopStream appelle POST /streams/:id/stop', () async {
     when(() => dio.post(ApiEndpoints.streamStop('s1')))
         .thenAnswer((_) async => _response(null));
@@ -149,6 +171,12 @@ void main() {
     await repository.stopStream('s1');
 
     verify(() => dio.post(ApiEndpoints.streamStop('s1'))).called(1);
+  });
+
+  test('stopStream propage une ApiException en cas d\'echec', () async {
+    when(() => dio.post(ApiEndpoints.streamStop('s1'))).thenThrow(_errorResponse(404));
+
+    expect(() => repository.stopStream('s1'), throwsA(isA<NotFoundException>()));
   });
 
   test('updateStream envoie titre/description et renvoie le stream mis a jour', () async {

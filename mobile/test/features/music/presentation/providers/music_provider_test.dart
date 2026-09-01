@@ -25,6 +25,18 @@ void main() {
     repository = _MockMusicRepository();
   });
 
+  test('musicListProvider construit un MusicNotifier branche sur le repository reel', () async {
+    when(() => repository.listMusic()).thenAnswer((_) async => [_track('m1')]);
+    final container = ProviderContainer(
+      overrides: [musicRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(musicListProvider.notifier), isA<MusicNotifier>());
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(musicListProvider).value, hasLength(1));
+  });
+
   test('fetch declenche au demarrage et expose la liste en data', () async {
     when(() => repository.listMusic()).thenAnswer((_) async => [_track('m1')]);
 

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:streampulse/core/network/api_client.dart';
 import 'package:streampulse/core/network/api_endpoints.dart';
 import 'package:streampulse/features/admin/presentation/providers/admin_provider.dart';
 
@@ -33,6 +34,18 @@ void main() {
 
   setUp(() {
     dio = _MockDio();
+  });
+
+  test('adminProvider construit un AdminNotifier branche sur dioProvider', () async {
+    when(() => dio.get(ApiEndpoints.adminUsers)).thenAnswer((_) async => _response({
+          'data': [_userJson('u1')],
+        }));
+    final container = ProviderContainer(overrides: [dioProvider.overrideWithValue(dio)]);
+    addTearDown(container.dispose);
+
+    expect(container.read(adminProvider.notifier), isA<AdminNotifier>());
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(adminProvider).value, hasLength(1));
   });
 
   test('fetchUsers est declenche a la creation et parse la liste', () async {

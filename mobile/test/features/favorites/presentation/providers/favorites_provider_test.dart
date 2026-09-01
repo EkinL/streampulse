@@ -26,6 +26,19 @@ void main() {
     repository = _MockFavoritesRepository();
   });
 
+  test('favoritesProvider construit un FavoritesNotifier branche sur le repository reel',
+      () async {
+    when(() => repository.listFavorites()).thenAnswer((_) async => [_stream('s1')]);
+    final container = ProviderContainer(
+      overrides: [favoritesRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(favoritesProvider.notifier), isA<FavoritesNotifier>());
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(favoritesProvider).value, hasLength(1));
+  });
+
   test('fetch declenche au demarrage et expose la liste en data', () async {
     when(() => repository.listFavorites()).thenAnswer((_) async => [_stream('s1')]);
 

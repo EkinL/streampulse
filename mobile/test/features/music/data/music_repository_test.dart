@@ -62,6 +62,13 @@ void main() {
     expect(tracks.map((t) => t.id), ['m1', 'm2']);
   });
 
+  test('listMusic traduit une erreur en ApiException', () async {
+    when(() => dio.get(ApiEndpoints.music, queryParameters: any(named: 'queryParameters')))
+        .thenThrow(_errorResponse(500));
+
+    expect(() => repository.listMusic(), throwsA(isA<ServerException>()));
+  });
+
   test('getMusic parse un morceau unique', () async {
     when(() => dio.get(ApiEndpoints.musicItem('m1')))
         .thenAnswer((_) async => _response({'data': _musicJson()}));
@@ -91,6 +98,13 @@ void main() {
     expect(results, hasLength(1));
   });
 
+  test('searchMusic traduit une erreur en ApiException', () async {
+    when(() => dio.get(ApiEndpoints.musicSearch, queryParameters: any(named: 'queryParameters')))
+        .thenThrow(_errorResponse(500));
+
+    expect(() => repository.searchMusic('x'), throwsA(isA<ServerException>()));
+  });
+
   test('uploadMusic envoie un FormData avec le fichier et les metadonnees', () async {
     when(() => dio.post(ApiEndpoints.music, data: any(named: 'data')))
         .thenAnswer((invocation) async {
@@ -113,6 +127,20 @@ void main() {
     expect(track.id, 'm1');
   });
 
+  test('uploadMusic traduit une erreur en ApiException', () async {
+    when(() => dio.post(ApiEndpoints.music, data: any(named: 'data'))).thenThrow(_errorResponse(500));
+
+    expect(
+      () => repository.uploadMusic(
+        bytes: Uint8List.fromList([1]),
+        filename: 'f.mp3',
+        title: 't',
+        artist: 'a',
+      ),
+      throwsA(isA<ServerException>()),
+    );
+  });
+
   test('addMusicByUrl envoie les champs attendus', () async {
     when(() => dio.post(
           ApiEndpoints.music,
@@ -133,6 +161,15 @@ void main() {
     );
 
     expect(track.id, 'm1');
+  });
+
+  test('addMusicByUrl traduit une erreur en ApiException', () async {
+    when(() => dio.post(ApiEndpoints.music, data: any(named: 'data'))).thenThrow(_errorResponse(409));
+
+    expect(
+      () => repository.addMusicByUrl(title: 't', artist: 'a', url: 'u'),
+      throwsA(isA<ApiException>()),
+    );
   });
 
   test('globalSearch parse a la fois streams et music', () async {
@@ -164,5 +201,12 @@ void main() {
 
     expect(result.streams, isEmpty);
     expect(result.music, isEmpty);
+  });
+
+  test('globalSearch traduit une erreur en ApiException', () async {
+    when(() => dio.get(ApiEndpoints.globalSearch, queryParameters: any(named: 'queryParameters')))
+        .thenThrow(_errorResponse(500));
+
+    expect(() => repository.globalSearch('x'), throwsA(isA<ServerException>()));
   });
 }

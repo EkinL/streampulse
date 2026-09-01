@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:streampulse/core/network/api_client.dart';
 import 'package:streampulse/core/network/api_endpoints.dart';
 import 'package:streampulse/features/music/presentation/providers/music_favorites_provider.dart';
 
@@ -27,6 +29,14 @@ void main() {
   setUp(() {
     dio = _MockDio();
     notifier = MusicFavoritesNotifier(dio);
+  });
+
+  test('musicFavoritesProvider construit un MusicFavoritesNotifier branche sur dioProvider', () {
+    final container = ProviderContainer(overrides: [dioProvider.overrideWithValue(dio)]);
+    addTearDown(container.dispose);
+
+    expect(container.read(musicFavoritesProvider.notifier), isA<MusicFavoritesNotifier>());
+    expect(container.read(musicFavoritesProvider), isEmpty);
   });
 
   test('l\'etat initial est un ensemble vide', () {

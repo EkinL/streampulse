@@ -24,6 +24,30 @@ void main() {
     repository = _MockPlaylistRepository();
   });
 
+  test('playlistListProvider construit un PlaylistNotifier branche sur le repository reel', () async {
+    when(() => repository.listPlaylists()).thenAnswer((_) async => [_playlist('p1')]);
+    final container = ProviderContainer(
+      overrides: [playlistRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(playlistListProvider.notifier), isA<PlaylistNotifier>());
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(playlistListProvider).value, hasLength(1));
+  });
+
+  test('playlistDetailProvider recupere une playlist via le repository reel', () async {
+    when(() => repository.getPlaylist('p1')).thenAnswer((_) async => _playlist('p1'));
+    final container = ProviderContainer(
+      overrides: [playlistRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final result = await container.read(playlistDetailProvider('p1').future);
+
+    expect(result.id, 'p1');
+  });
+
   test('fetch declenche au demarrage et expose la liste en data', () async {
     when(() => repository.listPlaylists()).thenAnswer((_) async => [_playlist('p1')]);
 

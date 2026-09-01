@@ -95,6 +95,13 @@ void main() {
         )).called(1);
   });
 
+  test('createPlaylist propage une ApiException en cas d\'echec', () async {
+    when(() => dio.post(ApiEndpoints.playlists, data: any(named: 'data')))
+        .thenThrow(_errorResponse(500));
+
+    expect(() => repository.createPlaylist(name: 'New'), throwsA(isA<ServerException>()));
+  });
+
   group('updatePlaylist', () {
     test('n\'envoie que les champs fournis', () async {
       when(() => dio.put(
@@ -123,6 +130,27 @@ void main() {
             data: <String, dynamic>{},
           )).called(1);
     });
+
+    test('transmet isPublic quand fourni', () async {
+      when(() => dio.put(
+            ApiEndpoints.playlist('p1'),
+            data: {'is_public': true},
+          )).thenAnswer((_) async => _response({'data': _playlistJson()}));
+
+      await repository.updatePlaylist(id: 'p1', isPublic: true);
+
+      verify(() => dio.put(
+            ApiEndpoints.playlist('p1'),
+            data: {'is_public': true},
+          )).called(1);
+    });
+
+    test('propage une ApiException en cas d\'echec', () async {
+      when(() => dio.put(ApiEndpoints.playlist('p1'), data: any(named: 'data')))
+          .thenThrow(_errorResponse(500));
+
+      expect(() => repository.updatePlaylist(id: 'p1', name: 'x'), throwsA(isA<ServerException>()));
+    });
   });
 
   test('deletePlaylist appelle DELETE /playlists/:id', () async {
@@ -132,6 +160,12 @@ void main() {
     await repository.deletePlaylist('p1');
 
     verify(() => dio.delete(ApiEndpoints.playlist('p1'))).called(1);
+  });
+
+  test('deletePlaylist propage une ApiException en cas d\'echec', () async {
+    when(() => dio.delete(ApiEndpoints.playlist('p1'))).thenThrow(_errorResponse(404));
+
+    expect(() => repository.deletePlaylist('p1'), throwsA(isA<NotFoundException>()));
   });
 
   test('addTrack envoie title/url/duration', () async {
@@ -153,6 +187,16 @@ void main() {
         )).called(1);
   });
 
+  test('addTrack propage une ApiException en cas d\'echec', () async {
+    when(() => dio.post(ApiEndpoints.playlistTracks('p1'), data: any(named: 'data')))
+        .thenThrow(_errorResponse(404));
+
+    expect(
+      () => repository.addTrack(playlistId: 'p1', title: 't', url: 'u', duration: 1),
+      throwsA(isA<NotFoundException>()),
+    );
+  });
+
   test('reorderTracks envoie l\'ordre complet et renvoie la playlist mise a jour', () async {
     when(() => dio.put(
           ApiEndpoints.playlistTracks('p1'),
@@ -165,6 +209,16 @@ void main() {
     );
 
     expect(playlist.id, 'p1');
+  });
+
+  test('reorderTracks propage une ApiException en cas d\'echec', () async {
+    when(() => dio.put(ApiEndpoints.playlistTracks('p1'), data: any(named: 'data')))
+        .thenThrow(_errorResponse(500));
+
+    expect(
+      () => repository.reorderTracks(playlistId: 'p1', trackIds: ['t1']),
+      throwsA(isA<ServerException>()),
+    );
   });
 
   test('removeTrack appelle DELETE /playlists/:id/tracks/:trackId', () async {

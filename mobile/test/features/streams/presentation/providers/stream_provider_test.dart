@@ -33,6 +33,32 @@ void main() {
 
   StreamNotifier build() => StreamNotifier(streamRepository, favoritesRepository);
 
+  test('streamListProvider construit un StreamNotifier branche sur les repositories reels',
+      () async {
+    when(() => streamRepository.listStreams()).thenAnswer((_) async => [_stream('s1')]);
+    final container = ProviderContainer(overrides: [
+      streamRepositoryProvider.overrideWithValue(streamRepository),
+      favoritesRepositoryProvider.overrideWithValue(favoritesRepository),
+    ]);
+    addTearDown(container.dispose);
+
+    expect(container.read(streamListProvider.notifier), isA<StreamNotifier>());
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(streamListProvider).value, hasLength(1));
+  });
+
+  test('streamDetailProvider recupere un stream via le repository reel', () async {
+    when(() => streamRepository.getStream('s1')).thenAnswer((_) async => _stream('s1'));
+    final container = ProviderContainer(
+      overrides: [streamRepositoryProvider.overrideWithValue(streamRepository)],
+    );
+    addTearDown(container.dispose);
+
+    final result = await container.read(streamDetailProvider('s1').future);
+
+    expect(result.id, 's1');
+  });
+
   test('fetchStreams declenche au demarrage et expose la liste en data', () async {
     when(() => streamRepository.listStreams()).thenAnswer((_) async => [_stream('s1')]);
 
