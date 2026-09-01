@@ -115,10 +115,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Get("/streams/{id}/audio", streamHandler.AudioStream)
 		r.Get("/streams/{id}/listeners", streamHandler.GetListeners)
 
-		// Compte de la personne connectee : droit d'acces et droit a
-		// l'effacement (RGPD, docs/rgpd.md). Ouvert a tout compte
-		// authentifie, quel que soit son role.
+		// Compte de la personne connectee : droit d'acces, droit de
+		// rectification et droit a l'effacement (RGPD, docs/rgpd.md). Ouvert
+		// a tout compte authentifie, quel que soit son role.
 		r.Get("/users/me", userHandler.Me)
+		r.Patch("/users/me", userHandler.UpdateMe)
 		r.Delete("/users/me", userHandler.DeleteMe)
 
 		// Streams - broadcaster only
@@ -152,6 +153,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		// Playlists
 		r.Route("/playlists", func(r chi.Router) {
 			r.Get("/", playlistHandler.ListPlaylists)
+			r.Get("/public", playlistHandler.ListPublicPlaylists)
 			r.Post("/", playlistHandler.CreatePlaylist)
 			r.Get("/{id}", playlistHandler.GetPlaylist)
 			r.Put("/{id}", playlistHandler.UpdatePlaylist)

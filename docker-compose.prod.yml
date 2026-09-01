@@ -14,6 +14,11 @@
 #     X-Forwarded-For pose par Caddy, et lui seul.
 #   - PostgreSQL et le collecteur OTEL ne sont plus publies ; Prometheus et
 #     Grafana ne repondent que sur l'interface locale de l'hote (tunnel SSH).
+#   - Rotation des logs de l'API resserree vers la recommandation de 30 jours
+#     (docs/rgpd.md) : approximative, le pilote local de Docker fait tourner
+#     par taille, pas par date. Une retention exacte par date suppose
+#     d'expedier les logs vers un collecteur (Loki, ELK...), hors perimetre
+#     de cette stack.
 #
 # Variables attendues (fichier .env a la racine ou environnement) :
 #   API_DOMAIN            nom DNS public de l'API (localhost pour un essai local)
@@ -32,6 +37,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:?secret JWT de production}
       TRUSTED_PROXIES: ${DOCKER_SUBNET:-172.28.0.0/16}
       PUBLIC_BASE_URL: https://${API_DOMAIN:-localhost}
+    # ~30 jours a volume de dev normal (30 fichiers de 20 Mo) : approximatif,
+    # voir la note de retention des logs en tete de fichier.
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "30"
 
   caddy:
     image: caddy:2.8-alpine

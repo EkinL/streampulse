@@ -631,8 +631,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := svc.Register(ctx, application.RegisterInput{
-		Email: "valid@test.io", Username: "valid", Password: "longenough",
-	})
+		Email: "valid@test.io", Username: "valid", Password: "longenough", AcceptedTerms: true})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -657,8 +656,7 @@ func TestAuthService_RepoFailures(t *testing.T) {
 		svc := newAuthServiceWithRepos(testutil.NewMockUserRepo(), testutil.NewMockRefreshTokenRepo())
 		// bcrypt refuse les mots de passe de plus de 72 octets.
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email: "long@test.io", Username: "long", Password: strings.Repeat("x", 80),
-		})
+			Email: "long@test.io", Username: "long", Password: strings.Repeat("x", 80), AcceptedTerms: true})
 		if err == nil {
 			t.Fatal("attendu une erreur bcrypt")
 		}
@@ -668,8 +666,7 @@ func TestAuthService_RepoFailures(t *testing.T) {
 		refresh := &stubRefreshRepo{MockRefreshTokenRepo: testutil.NewMockRefreshTokenRepo(), storeErr: errInfra}
 		svc := newAuthServiceWithRepos(testutil.NewMockUserRepo(), refresh)
 		_, err := svc.Register(ctx, application.RegisterInput{
-			Email: "store@test.io", Username: "store", Password: "longenough",
-		})
+			Email: "store@test.io", Username: "store", Password: "longenough", AcceptedTerms: true})
 		wantInfra(t, err)
 	})
 

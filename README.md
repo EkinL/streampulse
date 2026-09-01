@@ -226,6 +226,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
 | [docs/accessibilite.md](docs/accessibilite.md) | Utilisation en situation de handicap : lecteur d'ecran, taille du texte, contraste, limites connues |
+| [docs/performance.md](docs/performance.md) | Fluidite de l'interface mesuree au profileur Flutter (DevTools / VM timeline), pas a l'oeil |
 | [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
 | [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
@@ -256,6 +257,16 @@ En resume, a 100 flux simultanes et 50 auditeurs par flux : **le reseau sature
 en premier** (856 Mbit/s en SSE, soit 86 % d'une carte 1 Gbit/s) alors que le
 serveur tourne a 20 % de sa capacite. Le facteur limitant est la bande
 passante sortante, pas le code.
+
+## Fluidite de l'interface
+
+[docs/performance.md](docs/performance.md) mesure la fluidite de l'app mobile
+avec le profileur Flutter (timeline du VM Service, la meme source que
+Flutter DevTools), pas a l'oeil. En resume : le scroll d'une liste de 66
+elements tient le budget de 16,67 ms (60 Hz) sur 99,3 % des images en mode
+debug (0 image en jank severe) ; le point chaud identifie n'est pas le scroll
+mais le rafraichissement periodique de la liste, qui reconstruit tout au lieu
+de ne mettre a jour que ce qui a change.
 
 ## Contribution
 

@@ -126,6 +126,16 @@ func (s *MusicService) UpdateMusic(ctx context.Context, id, ownerID uuid.UUID, t
 	return music, nil
 }
 
+// DeleteMusic efface le morceau et, s'il s'agit d'un fichier verse (pas d'un
+// lien externe ajoute par AddMusicByURL), le fichier sous-jacent dans
+// uploads/ : sinon il reste sur disque, toujours servi par son URL pour qui
+// la connait (limite connue, docs/rgpd.md). fileStore.DeleteFile ignore
+// silencieusement les URLs qu'il n'a pas produites, donc l'appel est fait
+// dans tous les cas.
+//
+// L'echec de l'effacement du fichier n'annule pas la suppression : la ligne
+// en base est deja partie, et il n'y a rien d'utile a renvoyer au client
+// pour un probleme cote disque qu'il ne peut pas resoudre.
 func (s *MusicService) DeleteMusic(ctx context.Context, id, ownerID uuid.UUID) error {
 	music, err := s.musicRepo.FindByID(ctx, id)
 	if err != nil {
@@ -137,5 +147,6 @@ func (s *MusicService) DeleteMusic(ctx context.Context, id, ownerID uuid.UUID) e
 	if err := s.musicRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("music: delete: %w", err)
 	}
+	_ = s.fileStore.DeleteFile(music.URL)
 	return nil
 }

@@ -25,9 +25,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.authService.Register(r.Context(), application.RegisterInput{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: req.Password,
+		Email:         req.Email,
+		Username:      req.Username,
+		Password:      req.Password,
+		AcceptedTerms: req.AcceptedTerms,
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrAlreadyExists) {

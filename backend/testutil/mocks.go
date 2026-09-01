@@ -89,6 +89,23 @@ func (m *MockUserRepo) UpdateRole(_ context.Context, id uuid.UUID, role domain.R
 	return nil
 }
 
+func (m *MockUserRepo) UpdateProfile(_ context.Context, id uuid.UUID, email, username string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if existing, taken := m.byEmail[email]; taken && existing.ID != id {
+		return domain.ErrAlreadyExists
+	}
+	delete(m.byEmail, u.Email)
+	u.Email = email
+	u.Username = username
+	m.byEmail[email] = u
+	return nil
+}
+
 func (m *MockUserRepo) Delete(_ context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -476,6 +493,18 @@ func (m *MockMusicRepo) ListByUploader(_ context.Context, uploaderID uuid.UUID, 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.filter(func(it *domain.Music) bool { return it.UploadedBy == uploaderID }, page, perPage)
+}
+
+func (m *MockMusicRepo) AllByUploader(_ context.Context, uploaderID uuid.UUID) ([]domain.Music, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []domain.Music
+	for _, it := range m.items {
+		if it.UploadedBy == uploaderID {
+			out = append(out, *it)
+		}
+	}
+	return out, nil
 }
 
 func (m *MockMusicRepo) Update(_ context.Context, music *domain.Music) error {

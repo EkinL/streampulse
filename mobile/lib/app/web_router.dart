@@ -101,12 +101,12 @@ final webRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: SP.text3),
+            Icon(Icons.error_outline, size: 64, color: context.colors.text3),
             const SizedBox(height: 16),
             Text(
               'Page not found',

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _acceptedTerms = false;
+  late final TapGestureRecognizer _privacyPolicyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _privacyPolicyRecognizer = TapGestureRecognizer()..onTap = _openPrivacyPolicy;
+  }
+
+  void _openPrivacyPolicy() {
+    if (mounted) context.push('/privacy');
+  }
 
   @override
   void dispose() {
@@ -31,6 +44,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _privacyPolicyRecognizer.dispose();
     super.dispose();
   }
 
@@ -40,6 +54,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             username: _usernameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
+            acceptedTerms: _acceptedTerms,
           );
     }
   }
@@ -59,7 +74,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final isLoading = authState is AuthLoading;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Stack(
         children: [
           // Top-right purple glow
@@ -73,8 +88,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    SP.accent.withValues(alpha: 0.18),
-                    SP.accent.withValues(alpha: 0.0),
+                    context.colors.accent.withValues(alpha: 0.18),
+                    context.colors.accent.withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -108,10 +123,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8, top: 8),
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back,
-                        color: SP.text1,
+                        color: context.colors.text1,
                       ),
+                      tooltip: 'Retour',
                       onPressed: () => context.go('/login'),
                     ),
                   ),
@@ -131,7 +147,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
-                              color: SP.text1,
+                              color: context.colors.text1,
                               letterSpacing: -1.8,
                             ),
                             textAlign: TextAlign.center,
@@ -142,7 +158,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: SP.text2,
+                              color: context.colors.text2,
                               letterSpacing: 0.35,
                             ),
                             textAlign: TextAlign.center,
@@ -186,6 +202,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     ? Icons.visibility_off
                                     : Icons.visibility,
                               ),
+                              tooltip: _obscurePassword
+                                  ? 'Afficher le mot de passe'
+                                  : 'Masquer le mot de passe',
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
@@ -210,6 +229,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     ? Icons.visibility_off
                                     : Icons.visibility,
                               ),
+                              tooltip: _obscureConfirmPassword
+                                  ? 'Afficher le mot de passe'
+                                  : 'Masquer le mot de passe',
                               onPressed: () {
                                 setState(() {
                                   _obscureConfirmPassword =
@@ -238,7 +260,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: SP.accent.withValues(alpha: 0.10),
+                                    color: context.colors.accent.withValues(alpha: 0.10),
                                     offset: const Offset(0, 10),
                                     blurRadius: 15,
                                     spreadRadius: -3,
@@ -283,7 +305,94 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 16),
+                          // Case a cocher obligatoire (recueil du
+                          // consentement aux conditions d'utilisation, voir
+                          // docs/rgpd.md) : integree au Form pour que
+                          // _handleRegister la refuse comme n'importe quel
+                          // autre champ invalide. Le traitement du compte
+                          // lui-meme reste fonde sur l'execution du contrat,
+                          // pas sur ce consentement ; la case sert de preuve
+                          // que la personne a vu et accepte les conditions.
+                          FormField<bool>(
+                            initialValue: _acceptedTerms,
+                            validator: (value) => (value ?? false)
+                                ? null
+                                : 'Vous devez accepter les conditions d\'utilisation',
+                            builder: (field) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Checkbox(
+                                          value: _acceptedTerms,
+                                          activeColor: context.colors.accent,
+                                          side: BorderSide(color: context.colors.divider),
+                                          onChanged: (checked) {
+                                            setState(() {
+                                              _acceptedTerms = checked ?? false;
+                                            });
+                                            field.didChange(_acceptedTerms);
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // Pas de GestureDetector englobant : le
+                                      // lien "politique de confidentialite"
+                                      // porte deja son propre
+                                      // TapGestureRecognizer, un tap-toggle
+                                      // par-dessus entrerait en conflit avec
+                                      // lui dans l'arene de gestes. Cocher se
+                                      // fait via la case elle-meme.
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            text: 'J\'accepte les conditions d\'utilisation et la ',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: context.colors.text3,
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: 'politique de confidentialité',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: context.colors.accent,
+                                                ),
+                                                recognizer: _privacyPolicyRecognizer,
+                                              ),
+                                              TextSpan(
+                                                text: '.',
+                                                style: GoogleFonts.inter(fontSize: 12, color: context.colors.text3),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (field.hasError)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 34, top: 4),
+                                      child: Text(
+                                        field.errorText!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: context.colors.error,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
                           // Sign In footer
                           GestureDetector(
                             onTap:
@@ -295,7 +404,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  color: SP.text2,
+                                  color: context.colors.text2,
                                 ),
                                 children: [
                                   TextSpan(
@@ -303,7 +412,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: SP.accent,
+                                      color: context.colors.accent,
                                     ),
                                   ),
                                 ],
@@ -332,7 +441,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         style: GoogleFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: SP.text2,
+          color: context.colors.text2,
           letterSpacing: 1.2,
         ),
       ),

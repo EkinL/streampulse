@@ -22,8 +22,8 @@ func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
 
 func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 	query := `
-		INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, email, username, password_hash, role, terms_accepted_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	now := time.Now().UTC()
 	if user.ID == uuid.Nil {
@@ -33,7 +33,7 @@ func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 	user.UpdatedAt = now
 
 	_, err := r.pool.Exec(ctx, query,
-		user.ID, user.Email, user.Username, user.PasswordHash, string(user.Role), user.CreatedAt, user.UpdatedAt,
+		user.ID, user.Email, user.Username, user.PasswordHash, string(user.Role), user.TermsAcceptedAt, user.CreatedAt, user.UpdatedAt,
 	)
 	if err != nil {
 		if isDuplicateKeyError(err) {
@@ -45,12 +45,12 @@ func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 }
 
 func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at FROM users WHERE email = $1`
+	query := `SELECT id, email, username, password_hash, role, terms_accepted_at, created_at, updated_at FROM users WHERE email = $1`
 	return r.scanUser(ctx, query, email)
 }
 
 func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, email, username, password_hash, role, terms_accepted_at, created_at, updated_at FROM users WHERE id = $1`
 	return r.scanUser(ctx, query, id)
 }
 
@@ -64,7 +64,7 @@ func (r *UserRepo) List(ctx context.Context, page, perPage int) ([]domain.User, 
 	}
 
 	rows, err := r.pool.Query(ctx,
-		"SELECT id, email, username, password_hash, role, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+		"SELECT id, email, username, password_hash, role, terms_accepted_at, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
 		perPage, offset,
 	)
 	if err != nil {
@@ -76,7 +76,7 @@ func (r *UserRepo) List(ctx context.Context, page, perPage int) ([]domain.User, 
 	for rows.Next() {
 		var u domain.User
 		var role string
-		if err := rows.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash, &role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.Username, &u.PasswordHash, &role, &u.TermsAcceptedAt, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("user_repo: list scan: %w", err)
 		}
 		u.Role = domain.Role(role)
@@ -95,6 +95,26 @@ func (r *UserRepo) UpdateRole(ctx context.Context, id uuid.UUID, role domain.Rol
 	}
 	if result.RowsAffected() == 0 {
 		return fmt.Errorf("user_repo: update_role: %w", domain.ErrNotFound)
+	}
+	return nil
+}
+
+// UpdateProfile change l'email et le nom d'utilisateur. La contrainte
+// d'unicite sur l'email (migration 001) fait echouer la requete avec
+// ErrAlreadyExists si l'adresse est deja prise par un autre compte.
+func (r *UserRepo) UpdateProfile(ctx context.Context, id uuid.UUID, email, username string) error {
+	result, err := r.pool.Exec(ctx,
+		"UPDATE users SET email = $1, username = $2, updated_at = $3 WHERE id = $4",
+		email, username, time.Now().UTC(), id,
+	)
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("user_repo: update_profile: %w", domain.ErrAlreadyExists)
+		}
+		return fmt.Errorf("user_repo: update_profile: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user_repo: update_profile: %w", domain.ErrNotFound)
 	}
 	return nil
 }
@@ -118,7 +138,7 @@ func (r *UserRepo) scanUser(ctx context.Context, query string, args ...interface
 	var u domain.User
 	var role string
 	err := r.pool.QueryRow(ctx, query, args...).Scan(
-		&u.ID, &u.Email, &u.Username, &u.PasswordHash, &role, &u.CreatedAt, &u.UpdatedAt,
+		&u.ID, &u.Email, &u.Username, &u.PasswordHash, &role, &u.TermsAcceptedAt, &u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

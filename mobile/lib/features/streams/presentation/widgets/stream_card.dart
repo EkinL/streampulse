@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../../app/theme.dart';
 import '../../domain/stream_model.dart';
+import 'audio_waveform.dart';
 
 class StreamCard extends StatelessWidget {
   final StreamModel stream;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
   final VoidCallback? onEdit;
+  /// Cœur plein plutôt que contour — utilisé par l'écran Favoris.
+  final bool favoriteFilled;
 
-  const StreamCard({super.key, required this.stream, this.onTap, this.onFavorite, this.onEdit});
+  const StreamCard({
+    super.key,
+    required this.stream,
+    this.onTap,
+    this.onFavorite,
+    this.onEdit,
+    this.favoriteFilled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +28,7 @@ class StreamCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: SP.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -28,6 +38,7 @@ class StreamCard extends StatelessWidget {
             Container(
               width: 96,
               height: 96,
+              padding: stream.isLive ? const EdgeInsets.symmetric(horizontal: 14, vertical: 18) : null,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 gradient: LinearGradient(
@@ -35,16 +46,14 @@ class StreamCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: stream.isLive
                       ? [SP.gradEnd.withValues(alpha: 0.6), SP.gradStart.withValues(alpha: 0.3)]
-                      : [SP.surfaceVariant, SP.tag],
+                      : [context.colors.surfaceVariant, context.colors.tag],
                 ),
               ),
-              child: Center(
-                child: Icon(
-                  Icons.radio,
-                  size: 36,
-                  color: stream.isLive ? SP.accent : SP.text3.withValues(alpha: 0.5),
-                ),
-              ),
+              child: stream.isLive
+                  ? AudioWaveform(isActive: true, color: context.colors.accent, barCount: 5, height: 60)
+                  : Center(
+                      child: Icon(Icons.mic_off, size: 30, color: context.colors.textMuted),
+                    ),
             ),
             const SizedBox(width: 16),
             // Content
@@ -65,11 +74,11 @@ class StreamCard extends StatelessWidget {
                             if (stream.isLive)
                               Row(
                                 children: [
-                                  const Icon(Icons.headphones, size: 11, color: SP.text2),
+                                  Icon(Icons.headphones, size: 11, color: context.colors.text2),
                                   const SizedBox(width: 4),
                                   Text(
                                     _formatCount(stream.listenerCount),
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: SP.text2),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.colors.text2),
                                   ),
                                 ],
                               ),
@@ -77,7 +86,7 @@ class StreamCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: onEdit,
-                                child: const Icon(Icons.edit, color: SP.text3, size: 16),
+                                child: Icon(Icons.edit, color: context.colors.text3, size: 16),
                               ),
                             ],
                           ],
@@ -88,7 +97,7 @@ class StreamCard extends StatelessWidget {
                     // Title
                     Text(
                       stream.title,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: SP.text1),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -96,7 +105,7 @@ class StreamCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         stream.description,
-                        style: const TextStyle(fontSize: 12, color: SP.text2),
+                        style: TextStyle(fontSize: 12, color: context.colors.text2),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -108,9 +117,37 @@ class StreamCard extends StatelessWidget {
                         _FormatTag(stream.format.toUpperCase()),
                         if (onFavorite != null) ...[
                           const Spacer(),
-                          GestureDetector(
-                            onTap: onFavorite,
-                            child: const Icon(Icons.favorite_border, size: 18, color: SP.text3),
+                          Tooltip(
+                            message: favoriteFilled ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                            child: Semantics(
+                              label: favoriteFilled ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: onFavorite,
+                                behavior: HitTestBehavior.opaque,
+                                // Cible tactile 44x44 sans agrandir la place réservée
+                                // dans la mise en page (18x18) : OverflowBox déborde
+                                // visuellement sans changer la taille rapportée au
+                                // parent (Container refuse les marges négatives).
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: OverflowBox(
+                                    minWidth: 44,
+                                    minHeight: 44,
+                                    maxWidth: 44,
+                                    maxHeight: 44,
+                                    child: ExcludeSemantics(
+                                      child: Icon(
+                                        favoriteFilled ? Icons.favorite : Icons.favorite_border,
+                                        size: 18,
+                                        color: favoriteFilled ? context.colors.accent : context.colors.text3,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -140,7 +177,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isLive ? SP.liveBg : SP.offlineBg,
+        color: isLive ? SP.liveBg : context.colors.offlineBg,
         borderRadius: BorderRadius.circular(2),
       ),
       child: Row(
@@ -155,12 +192,12 @@ class _StatusBadge extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Text(
-            isLive ? 'LIVE' : 'OFFLINE',
+            isLive ? 'LIVE' : 'HORS LIGNE',
             style: TextStyle(
-              fontSize: 8,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
-              color: isLive ? SP.liveText : SP.text2,
+              color: isLive ? SP.liveText : context.colors.text2,
             ),
           ),
         ],
@@ -178,16 +215,16 @@ class _FormatTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: SP.tag,
+        color: context.colors.tag,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.45,
-          color: SP.text2.withValues(alpha: 0.6),
+          color: context.colors.textMuted,
         ),
       ),
     );

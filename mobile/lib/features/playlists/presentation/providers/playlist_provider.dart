@@ -15,6 +15,35 @@ final playlistDetailProvider =
   return repo.getPlaylist(id);
 });
 
+final publicPlaylistListProvider = StateNotifierProvider<
+    PublicPlaylistNotifier, AsyncValue<List<PlaylistModel>>>((ref) {
+  return PublicPlaylistNotifier(ref.read(playlistRepositoryProvider));
+});
+
+/// Read-only: public playlists belong to other users, so there's nothing to
+/// create/update/delete from here (see [PlaylistNotifier] for that).
+class PublicPlaylistNotifier
+    extends StateNotifier<AsyncValue<List<PlaylistModel>>> {
+  final PlaylistRepository _repository;
+
+  PublicPlaylistNotifier(this._repository)
+      : super(const AsyncValue.loading()) {
+    fetch();
+  }
+
+  Future<void> fetch() async {
+    state = const AsyncValue.loading();
+    try {
+      final playlists = await _repository.listPublicPlaylists();
+      state = AsyncValue.data(playlists);
+    } on ApiException catch (e, st) {
+      state = AsyncValue.error(e.message, st);
+    } catch (e, st) {
+      state = AsyncValue.error(e.toString(), st);
+    }
+  }
+}
+
 class PlaylistNotifier
     extends StateNotifier<AsyncValue<List<PlaylistModel>>> {
   final PlaylistRepository _repository;

@@ -30,18 +30,20 @@ class VolumeControl extends ConsumerWidget {
           iconSize: iconSize,
           padding: compact ? EdgeInsets.zero : null,
           constraints: compact
-              ? const BoxConstraints(minWidth: 32, minHeight: 32)
+              // 48x48 minimum tap target (Material recommendation), even though
+              // the visible icon stays small (iconSize 18) to fit the compact bar.
+              ? const BoxConstraints(minWidth: 48, minHeight: 48)
               : null,
           onPressed: notifier.toggleMute,
-          icon: Icon(_iconFor(volume), color: SP.text2),
+          icon: Icon(_iconFor(volume), color: context.colors.text2),
         ),
         Expanded(
           child: SliderTheme(
             data: SliderThemeData(
-              activeTrackColor: SP.text2,
-              inactiveTrackColor: SP.surfaceVariant,
-              thumbColor: SP.text1,
-              overlayColor: SP.text1.withValues(alpha: 0.1),
+              activeTrackColor: context.colors.text2,
+              inactiveTrackColor: context.colors.surfaceVariant,
+              thumbColor: context.colors.text1,
+              overlayColor: context.colors.text1.withValues(alpha: 0.1),
               trackHeight: compact ? 2 : 3,
               thumbShape: RoundSliderThumbShape(
                 enabledThumbRadius: compact ? 4 : 5,
@@ -64,7 +66,7 @@ class VolumeControl extends ConsumerWidget {
             child: Text(
               '$percent%',
               textAlign: TextAlign.end,
-              style: const TextStyle(fontSize: 12, color: SP.text3),
+              style: TextStyle(fontSize: 12, color: context.colors.text3),
             ),
           ),
       ],

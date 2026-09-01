@@ -22,26 +22,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: SP.glow,
+                    color: context.colors.glow,
                     blurRadius: 60,
                     spreadRadius: 20,
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.radio,
                 size: 100,
-                color: SP.accent,
+                color: context.colors.accent,
               ),
             ),
             const SizedBox(height: 24),
@@ -49,11 +49,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               'StreamPulse',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
             ),
             const SizedBox(height: 32),
-            const CircularProgressIndicator(color: SP.accent),
+            CircularProgressIndicator(color: context.colors.accent),
           ],
         ),
       ),

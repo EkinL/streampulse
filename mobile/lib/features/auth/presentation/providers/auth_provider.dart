@@ -94,6 +94,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String username,
     required String email,
     required String password,
+    required bool acceptedTerms,
   }) async {
     state = const AuthLoading();
     try {
@@ -101,6 +102,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         username: username,
         email: email,
         password: password,
+        acceptedTerms: acceptedTerms,
       );
 
       final accessToken = response['access_token'] as String;
@@ -143,5 +145,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     await _authLocalSource.clearTokens();
     state = const AuthUnauthenticated();
+  }
+
+  /// Change l'email et le nom d'utilisateur du compte connecte (droit de
+  /// rectification, docs/rgpd.md). L'erreur remonte a l'appelant, qui
+  /// l'affiche ; l'etat n'est mis a jour qu'en cas de succes.
+  Future<void> updateProfile({
+    required String email,
+    required String username,
+  }) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+
+    final userData = await _authRepository.updateProfile(
+      email: email,
+      username: username,
+    );
+    state = AuthAuthenticated(
+      user: UserModel.fromJson(userData),
+      token: current.token,
+    );
   }
 }

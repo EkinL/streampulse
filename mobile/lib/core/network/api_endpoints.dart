@@ -6,6 +6,7 @@ class ApiEndpoints {
   static const String authRefresh = '/auth/refresh';
   static const String streams = '/streams';
   static const String playlists = '/playlists';
+  static const String publicPlaylists = '/playlists/public';
   static const String adminUsers = '/admin/users';
   static const String usersMe = '/users/me';
   static const String favorites = '/favorites';

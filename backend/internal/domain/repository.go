@@ -12,6 +12,10 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	List(ctx context.Context, page, perPage int) ([]User, int, error)
 	UpdateRole(ctx context.Context, id uuid.UUID, role Role) error
+	// UpdateProfile change l'email et le nom d'utilisateur d'un compte. C'est
+	// le droit de rectification du RGPD (art. 16), exerce par la personne
+	// elle-meme via PATCH /users/me, voir docs/rgpd.md.
+	UpdateProfile(ctx context.Context, id uuid.UUID, email, username string) error
 	// Delete efface le compte et, par cascade en base, tout ce qui s'y
 	// rattache (jetons, flux, playlists, favoris, morceaux). C'est le droit
 	// a l'effacement du RGPD, voir docs/rgpd.md.
@@ -71,6 +75,10 @@ type MusicRepository interface {
 	List(ctx context.Context, page, perPage int) ([]Music, int, error)
 	Search(ctx context.Context, query string, page, perPage int) ([]Music, int, error)
 	ListByUploader(ctx context.Context, uploaderID uuid.UUID, page, perPage int) ([]Music, int, error)
+	// AllByUploader rend tous les morceaux d'un compte, sans pagination : sert
+	// a retrouver les fichiers a effacer du disque quand le compte est
+	// supprime (meme raison d'etre que StreamRepository.ListByOwner).
+	AllByUploader(ctx context.Context, uploaderID uuid.UUID) ([]Music, error)
 	Update(ctx context.Context, music *Music) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }

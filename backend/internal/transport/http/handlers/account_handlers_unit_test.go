@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,19 +25,43 @@ type nopCloser struct{}
 
 func (nopCloser) CloseStream(uuid.UUID) {}
 
+// stubFileRemover note les URLs qu'on lui demande d'effacer, sans toucher au
+// disque : satisfait application.FileRemover pour les tests de handlers.
+type stubFileRemover struct {
+	mu      sync.Mutex
+	deleted []string
+	err     error
+}
+
+func (r *stubFileRemover) DeleteFile(url string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.err != nil {
+		return r.err
+	}
+	r.deleted = append(r.deleted, url)
+	return nil
+}
+
 type accountHarness struct {
-	userRepo   *stubUserRepo
-	streamRepo *stubStreamRepo
-	userSvc    *application.UserService
+	userRepo    *stubUserRepo
+	streamRepo  *stubStreamRepo
+	musicRepo   *stubMusicRepo
+	fileRemover *stubFileRemover
+	userSvc     *application.UserService
 }
 
 func newAccountHarness() *accountHarness {
 	userRepo := &stubUserRepo{MockUserRepo: testutil.NewMockUserRepo()}
 	streamRepo := &stubStreamRepo{MockStreamRepo: testutil.NewMockStreamRepo()}
+	musicRepo := &stubMusicRepo{MockMusicRepo: testutil.NewMockMusicRepo()}
+	fileRemover := &stubFileRemover{}
 	return &accountHarness{
-		userRepo:   userRepo,
-		streamRepo: streamRepo,
-		userSvc:    application.NewUserService(userRepo, streamRepo, nopCloser{}),
+		userRepo:    userRepo,
+		streamRepo:  streamRepo,
+		musicRepo:   musicRepo,
+		fileRemover: fileRemover,
+		userSvc:     application.NewUserService(userRepo, streamRepo, musicRepo, nopCloser{}, fileRemover),
 	}
 }
 
@@ -58,6 +83,7 @@ func TestUserHandlerRequiresAuthentication(t *testing.T) {
 
 	for name, fn := range map[string]http.HandlerFunc{
 		"me":        h.Me,
+		"update me": h.UpdateMe,
 		"delete me": h.DeleteMe,
 	} {
 		t.Run(name+" sans claims", func(t *testing.T) {
@@ -97,6 +123,139 @@ func TestUserHandlerRepoFailures(t *testing.T) {
 			unitClaims(user.ID, domain.RoleUser))
 		h.DeleteMe(rec, req)
 		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
+	})
+
+	t.Run("delete me, morceaux illisibles", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		harness.musicRepo.allByUploaderErr = errInfra
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodDelete, "/users/me", nil),
+			unitClaims(user.ID, domain.RoleUser))
+		h.DeleteMe(rec, req)
+		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
+	})
+
+	t.Run("update me", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		harness.userRepo.profileErr = errInfra
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"new@unit.io","username":"newname"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
+	})
+}
+
+// TestUserHandlerDeleteMeRemovesUploadedFiles verifie que le compte n'est pas
+// le seul a disparaitre : les fichiers audio verses par la personne doivent
+// etre effaces du disque, pas seulement leurs lignes en base (limite connue,
+// docs/rgpd.md). Un morceau ajoute par URL externe ne doit pas etre touche.
+func TestUserHandlerDeleteMeRemovesUploadedFiles(t *testing.T) {
+	harness := newAccountHarness()
+	user := harness.existingUser(t)
+	ctx := context.Background()
+
+	uploaded := &domain.Music{ID: uuid.New(), Title: "Verse", URL: "http://files.test/uploads/a.mp3", UploadedBy: user.ID}
+	external := &domain.Music{ID: uuid.New(), Title: "Externe", URL: "https://cdn.test/b.mp3", UploadedBy: user.ID}
+	for _, m := range []*domain.Music{uploaded, external} {
+		if err := harness.musicRepo.MockMusicRepo.Create(ctx, m); err != nil {
+			t.Fatalf("create music: %v", err)
+		}
+	}
+
+	h := NewUserHandler(harness.userSvc)
+	rec := httptest.NewRecorder()
+	req := reqWithClaims(httptest.NewRequest(http.MethodDelete, "/users/me", nil),
+		unitClaims(user.ID, domain.RoleUser))
+	h.DeleteMe(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	if len(harness.fileRemover.deleted) != 2 {
+		t.Fatalf("URLs effacees = %v, attendu les deux morceaux (le FileRemover decide lui-meme ce qu'il touche)", harness.fileRemover.deleted)
+	}
+}
+
+// TestUserHandlerUpdateMe teste le droit de rectification (RGPD art. 16) :
+// PATCH /users/me, jusqu'ici reserve a un administrateur en base.
+func TestUserHandlerUpdateMe(t *testing.T) {
+	t.Run("succes", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"rectifie@unit.io","username":"rectifie"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+		}
+
+		updated, err := harness.userRepo.FindByID(context.Background(), user.ID)
+		if err != nil {
+			t.Fatalf("find updated user: %v", err)
+		}
+		if updated.Email != "rectifie@unit.io" || updated.Username != "rectifie" {
+			t.Fatalf("profil non rectifie: %+v", updated)
+		}
+	})
+
+	t.Run("corps invalide", func(t *testing.T) {
+		h := NewUserHandler(newAccountHarness().userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader("{pas du json")),
+			unitClaims(uuid.New(), domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email invalide", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"pas-un-email","username":"valide"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("username trop court", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"valide@unit.io","username":"ab"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email deja pris", func(t *testing.T) {
+		harness := newAccountHarness()
+		user := harness.existingUser(t)
+		other := testutil.NewTestUser(domain.RoleUser)
+		other.Email = "prise@unit.io"
+		if err := harness.userRepo.Create(context.Background(), other); err != nil {
+			t.Fatalf("create other user: %v", err)
+		}
+		h := NewUserHandler(harness.userSvc)
+		rec := httptest.NewRecorder()
+		req := reqWithClaims(httptest.NewRequest(http.MethodPatch, "/users/me",
+			strings.NewReader(`{"email":"prise@unit.io","username":"nouveau"}`)),
+			unitClaims(user.ID, domain.RoleUser))
+		h.UpdateMe(rec, req)
+		wantErrorCode(t, rec, http.StatusConflict, "CONFLICT")
 	})
 }
 
@@ -206,7 +365,7 @@ func TestAuthHandlerRepoFailures(t *testing.T) {
 		h := newAuthHandlerHarness(testutil.NewMockUserRepo(), refresh)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/auth/register",
-			strings.NewReader(`{"email":"a@b.io","username":"ab","password":"longenough"}`))
+			strings.NewReader(`{"email":"a@b.io","username":"ab","password":"longenough","accepted_terms":true}`))
 		h.Register(rec, req)
 		wantErrorCode(t, rec, http.StatusInternalServerError, "INTERNAL_ERROR")
 	})

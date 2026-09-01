@@ -9,13 +9,14 @@ import (
 
 func NewTestUser(role domain.Role) *domain.User {
 	return &domain.User{
-		ID:           uuid.New(),
-		Email:        "test-" + uuid.New().String()[:8] + "@example.com",
-		Username:     "testuser",
-		PasswordHash: "$2a$12$dummyhashfortest000000000000000000000000000000000000",
-		Role:         role,
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
+		ID:              uuid.New(),
+		Email:           "test-" + uuid.New().String()[:8] + "@example.com",
+		Username:        "testuser",
+		PasswordHash:    "$2a$12$dummyhashfortest000000000000000000000000000000000000",
+		Role:            role,
+		TermsAcceptedAt: time.Now().UTC(),
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
 	}
 }
 

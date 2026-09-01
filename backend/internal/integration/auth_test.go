@@ -20,7 +20,7 @@ func TestAuth_RegisterLoginRefresh(t *testing.T) {
 	email := uniqueEmail("alice")
 
 	r := s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-		"email": email, "username": "alice", "password": password,
+		"email": email, "username": "alice", "password": password, "accepted_terms": true,
 	}).expect(t, http.StatusCreated, "")
 	d := r.data(t)
 	user, _ := d["user"].(map[string]any)
@@ -85,7 +85,8 @@ func TestAuth_RegisterValidation(t *testing.T) {
 		// Mass assignment : un champ inconnu est refuse, on ne peut pas
 		// s'auto-attribuer un role a l'inscription.
 		{"champ inconnu (role)", map[string]any{"email": uniqueEmail("v"), "username": "v", "password": password, "role": "admin"}, http.StatusBadRequest, "BAD_REQUEST"},
-		{"email deja pris", map[string]any{"email": taken.Email, "username": "autre", "password": password}, http.StatusConflict, "CONFLICT"},
+		{"conditions d'utilisation non acceptees", map[string]any{"email": uniqueEmail("v"), "username": "v", "password": password}, http.StatusBadRequest, "BAD_REQUEST"},
+		{"email deja pris", map[string]any{"email": taken.Email, "username": "autre", "password": password, "accepted_terms": true}, http.StatusConflict, "CONFLICT"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

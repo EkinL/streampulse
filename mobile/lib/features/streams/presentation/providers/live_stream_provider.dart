@@ -14,6 +14,10 @@ import '../../../../shared/providers/volume_provider.dart';
 
 class LiveStreamState {
   final String? streamId;
+  /// Titre du flux — mémorisé pour le mini-lecteur persistant, qui reste
+  /// visible sur des écrans (Playlists, Favoris) sans accès à ses propres
+  /// données de flux.
+  final String? title;
   final bool isConnected;
   final bool isConnecting;
   final bool isReceivingData;
@@ -22,6 +26,7 @@ class LiveStreamState {
 
   const LiveStreamState({
     this.streamId,
+    this.title,
     this.isConnected = false,
     this.isConnecting = false,
     this.isReceivingData = false,
@@ -31,6 +36,7 @@ class LiveStreamState {
 
   LiveStreamState copyWith({
     String? streamId,
+    String? title,
     bool? isConnected,
     bool? isConnecting,
     bool? isReceivingData,
@@ -39,6 +45,7 @@ class LiveStreamState {
   }) {
     return LiveStreamState(
       streamId: streamId ?? this.streamId,
+      title: title ?? this.title,
       isConnected: isConnected ?? this.isConnected,
       isConnecting: isConnecting ?? this.isConnecting,
       isReceivingData: isReceivingData ?? this.isReceivingData,
@@ -97,6 +104,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
 
     state = LiveStreamState(
       streamId: streamId,
+      title: title,
       isConnecting: true,
       statusText: 'Connecting...',
     );
@@ -189,6 +197,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
       if (mounted) {
         state = LiveStreamState(
           streamId: streamId,
+          title: title,
           statusText: e.message,
         );
       }
@@ -196,6 +205,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
       if (mounted) {
         state = LiveStreamState(
           streamId: streamId,
+          title: title,
           statusText: 'Connection failed',
         );
         debugPrint('Audio stream error: $e');
@@ -217,6 +227,7 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
     if (mounted) {
       state = LiveStreamState(
         streamId: state.streamId,
+        title: state.title,
         statusText: reason,
       );
     }

@@ -19,24 +19,24 @@ class AppErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 64,
-              color: SP.error,
+              color: context.colors.error,
             ),
             const SizedBox(height: 16),
             Text(
               'Something went wrong',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: SP.text2,
+                    color: context.colors.text2,
                   ),
               textAlign: TextAlign.center,
             ),
