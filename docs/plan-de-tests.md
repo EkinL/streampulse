@@ -332,3 +332,32 @@ en artefact de la PR.
 |---|---------|
 | Entree | Cas d'usage identifies dans la section 3 ; tests ecrits ou modifies dans la PR qui porte le code |
 | Sortie | CI verte (lint, contrat, tests unitaires et d'integration, seuil de couverture) ; aucun test ignore de facon inattendue ; anomalies trouvees consignees dans la section 6 avec leur test ; `CHANGELOG.md` mis a jour |
+
+---
+
+## Summary (English)
+
+This is StreamPulse's iterative test plan: what is tested, at which level,
+with which tools, and how an iteration is declared done. It answers
+criterion Ce3.2.1 of RNCP 38822 block 3 and the subject's 80%-minimum
+unit-testable-code requirement. Tests are written with the code, never
+after — CI fails below the coverage threshold — and failure paths count as
+much as happy paths: every endpoint is tested anonymous, under-privileged,
+non-owner, with an unknown id and an invalid id. Seven test levels run from
+pure unit tests (mocked repositories) through contract tests (router vs.
+OpenAPI description), real-PostgreSQL integration tests (uniqueness,
+cascades, full-text search, transactional reordering — nothing a mock
+could prove), full HTTP integration tests per role, a dedicated security
+suite mapped to OWASP API Security Top 10 (2023), load tests of the
+fan-out Hub, Flutter widget tests, and the manual acceptance cahier.
+
+All 19 subject use cases are covered by at least one automated test at
+each applicable level. Backend coverage reached 91.1% (94.1% excluding the
+non-unit-testable `cmd/server`), with `COVERAGE_MIN` locked at 80% in CI;
+mobile line coverage is 19.7% across 54 tests. Four defects were found —
+each starting as a red test — and fixed: broken rate limiting
+(`IP:port` used as the counter key instead of the host), and three 500s
+that should have been 404s on unknown stream/playlist/user ids. A handful
+of open observations (unincremented HTTP metrics, unbounded JSON body
+size, `HEAD /health` returning 405) are tracked with a proposed fix rather
+than silently left out.

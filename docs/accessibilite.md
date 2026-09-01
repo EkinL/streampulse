@@ -149,23 +149,48 @@ passage.
 
 ## Accessibilite de cette documentation
 
-La documentation du projet est concue pour rester lisible avec une technologie
-d'assistance :
+Le critere **Ce3.6.4** du bloc 3 (RNCP 38822) demande que la documentation
+technique elle-meme inclue des solutions pour les personnes en situation de
+handicap — pas seulement que l'application en propose. Trois formats
+coexistent, chacun pour un besoin different :
 
-- structure par titres hierarchises, exploitables pour naviguer de section en
-  section au lecteur d'ecran ;
-- tableaux avec ligne d'en-tete, jamais d'information portee uniquement par la
-  mise en forme ou la couleur ;
-- texte brut Markdown, lisible sans outil particulier, compatible avec les
-  plages braille et la synthese vocale ;
-- parcours de prise en main du [guide utilisateur](guide-utilisateur.md)
-  concus pour etre suivis une etape a la fois, y compris en demonstration
-  guidee pour les personnes peu a l'aise avec l'ecrit.
+| Format | Ou | Pour qui |
+|--------|----|----------|
+| Markdown (celui-ci) | `docs/`, lu sur GitHub ou dans un editeur | Lecteur d'ecran et plage braille : texte brut, titres hierarchises exploitables pour naviguer de section en section, tableaux avec ligne d'en-tete, aucune information portee par la seule couleur |
+| **EPUB** — [`docs/accessible/streampulse-documentation.epub`](accessible/streampulse-documentation.epub) | L'ensemble de la documentation technique (README, tous les `docs/*.md`, tous les ADR), en un seul livre navigable | Basse vision et dyslexie : texte reflowable — police, taille, interligne et espacement au choix du lecteur, sans la mise en page figee d'un PDF ; aucune couleur n'est imposee dans le fichier, le theme (clair, sombre, contraste eleve) reste celui de la liseuse |
+| **Audio (`.m4a`)** — [`guide-utilisateur.m4a`](accessible/guide-utilisateur.m4a), [`accessibilite.m4a`](accessible/accessibilite.m4a) | Narration par synthese vocale (voix francaise du systeme) du guide utilisateur et de ce document | Handicap visuel en formation, ou toute personne qui prefere ecouter : les tableaux sont restitues comme des phrases (« Controle : Lecture / pause. Annonce : ... ») plutot que lus colonne par colonne |
 
-Pour la formation, l'atelier diffuseur et l'accompagnement administrateur
-(voir le [plan de formation](guide-utilisateur.md#plan-de-formation))
-s'adaptent au rythme de la personne ; un utilisateur de lecteur d'ecran est
-accompagne sur son propre appareil, avec sa propre configuration.
+Les trois sont generes a partir des memes fichiers Markdown source par
+[`docs/scripts/build_accessible_docs.py`](scripts/build_accessible_docs.py)
+(bibliotheque standard Python uniquement ; l'audio demande en plus `say` et
+`afconvert`, deux outils macOS) :
+
+```bash
+python3 docs/scripts/build_accessible_docs.py
+# ou : make docs-accessible
+```
+
+**Choix assumes et limites** :
+
+- La narration audio ne couvre que le guide utilisateur et ce document
+  d'accessibilite, pas les 24 autres chapitres de l'EPUB : la reference API,
+  les migrations SQL ou le code source des diagrammes Mermaid n'ont pas de
+  valeur ecoutee et produiraient des heures d'audio inexploitables. Le
+  script les affiche comme un texte a part (« extrait de code non lu ici »)
+  plutot que de les lire caractere par caractere.
+- La voix est une synthese vocale systeme (`Thomas`, fr_FR), pas un
+  enregistrement humain : intelligible et suffisante pour de la formation,
+  mais avec la prosodie d'une machine.
+- Les liens internes entre documents (ex. vers [rgpd.md](rgpd.md)) sont
+  reecrits pour pointer vers le bon chapitre a l'interieur de l'EPUB ; un
+  lien vers une page qui n'existe pas dans le livre degrade en texte simple
+  plutot que de rester un lien mort.
+
+Au-dela des formats, l'accompagnement compte autant que le support : pour la
+formation, l'atelier diffuseur et l'accompagnement administrateur (voir le
+[plan de formation](guide-utilisateur.md#plan-de-formation)) s'adaptent au
+rythme de la personne, et un utilisateur de lecteur d'ecran est accompagne
+sur son propre appareil, avec sa propre configuration.
 
 ## Etat des lieux et feuille de route
 
@@ -194,3 +219,33 @@ accompagne sur son propre appareil, avec sa propre configuration.
 - [Guide utilisateur et plan de formation](guide-utilisateur.md) — parcours par
   role et adaptations aux besoins particuliers
 - [Cahier de recette](cahier-de-recette.md) — le comportement attendu, verifie
+
+---
+
+## Summary (English)
+
+The mobile app works with VoiceOver and TalkBack out of the box: player
+controls, all 33 icon-only buttons, and web console tooltips are announced,
+and purely decorative thumbnails are marked so screen readers skip them.
+Text size follows the system setting. Contrast has been measured against
+WCAG AA (4.5:1) for every text/background pair in the dark theme, the light
+theme (which now follows the system setting), and a manually-selectable
+high-contrast mode — the lowest measured ratio is 4.55:1, still conformant.
+Touch targets meet the 48px Material minimum, and the web console has been
+audited for keyboard navigation (tab order, visible focus) on the login
+screen and shell. Known gaps, each with a next step: no full screen-reader
+walkthrough yet (controls are verified individually, not replayed
+end-to-end as a user would); very large system text sizes may truncate on
+dense cards; the two high-contrast palettes are not yet measured; keyboard
+activation (Enter/Space) of a few non-text controls could not be
+conclusively demonstrated with the available automated tooling.
+
+The documentation itself is also accessible: plain structured Markdown
+(screen-reader and braille-display friendly), plus — to meet criterion
+Ce3.6.4 of RNCP 38822 block 3 — a full EPUB edition of the entire technical
+documentation (reflowable text, no imposed colors) and system
+text-to-speech narrations of the user guide and this document, all
+generated by [`docs/scripts/build_accessible_docs.py`](scripts/build_accessible_docs.py).
+The audio deliberately excludes API references, SQL migrations and diagram
+source code, which have no listening value; internal document links are
+rewritten to resolve inside the EPUB rather than left dangling.

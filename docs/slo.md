@@ -163,3 +163,28 @@ modification de quelques lignes dans
 - [ADR 004 — Observabilite](ADR/004-observabilite-otel.md) — comment les
   metriques sont collectees
 - [Cahier de recette](cahier-de-recette.md) — la verification fonctionnelle
+
+---
+
+## Summary (English)
+
+Four SLOs, measured over a rolling 28-day window, define what StreamPulse
+commits to: **99.5%** of HTTP requests complete without a server error
+(4xx excluded — a wrong password isn't an outage); **95%** of non-streaming
+requests answer under 200ms (streaming, broadcast, and the deliberately
+slow bcrypt-cost-12 auth endpoints are excluded, since including them would
+make the indicator meaningless); **99%** of listening sessions end at the
+listener's own initiative rather than dropping abruptly; and **under 1%**
+of listeners lose an audio chunk per session. 99.5% rather than 99.9% is a
+deliberate ceiling: the fan-out Hub lives in a single process's memory, so
+two instances don't share listeners, and promising 99.9% on a
+single-instance architecture would be a commitment the system can't keep.
+
+An error-budget policy ties monitoring to the release calendar: under 50%
+consumed, ship normally; 50-75%, review recent alerts; 75-100%, freeze new
+features and fix reliability only; over 100%, a written post-mortem is
+required before shipping again. Two of the four SLOs are honestly flagged
+as **not yet measurable**: SLO 3 needs a `reason` label added to
+`stream_disconnections_total` to distinguish clean from abrupt
+disconnects, and SLO 4's metric doesn't exist yet at all. Alert rules
+(`prometheus/rules/`) are likewise not yet written.

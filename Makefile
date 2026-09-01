@@ -1,4 +1,4 @@
-.PHONY: up down logs build-all test-backend test-backend-integration test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug
+.PHONY: up down logs build-all test-backend test-backend-integration test-mobile openapi-lint ipa dart-define mobile-devices mobile-run mobile-run-debug docs-accessible
 
 up:
 	docker compose up -d --build
@@ -40,6 +40,11 @@ ipa:
 
 openapi-lint:
 	cd backend && make openapi-lint
+
+# EPUB + audio de la documentation (docs/accessibilite.md, Ce3.6.4). L'audio
+# demande `say`/`afconvert` (macOS) ; l'EPUB se genere partout ailleurs.
+docs-accessible:
+	python3 docs/scripts/build_accessible_docs.py
 
 restart:
 	docker compose restart api

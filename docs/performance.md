@@ -120,3 +120,23 @@ branche.
 - [Scalabilite et couts](scalability.md) — meme demarche de mesure, cote backend
 - [Accessibilite](accessibilite.md) — etat des lieux dans le meme format
 - `mobile/scripts/analyze_frame_timeline.py` — script de reproduction
+
+---
+
+## Summary (English)
+
+Rather than eyeballing Flutter DevTools' sliding performance graph (which
+can show a clean or a polluted window depending on exactly when it's
+captured), this document measures UI smoothness from the raw Dart VM
+Service timeline, sliced with explicit time bounds and analyzed by
+`mobile/scripts/analyze_frame_timeline.py`. Scrolling a 66-item stream list
+on an iPhone 16 simulator (debug build — profile mode isn't available on
+iOS simulators) holds the 60Hz / 16.67ms budget on 99.3% of frames, with
+zero severe jank. Digging past the scroll window surfaced an unrequested
+finding: a `Timer.periodic` in `streams_list_screen.dart` rebuilds all 66
+cards every ~10 seconds regardless of user interaction, producing up to
+30.8% jank on the UI thread during that refresh — the real hot spot is
+periodic refresh, not scrolling. The fix (diff-based update instead of
+full replacement) is scoped but not yet applied. Known gaps: no
+profile/release-mode measurement (needs a physical iOS device), no
+coverage of other screens, and no Android measurement in this environment.

@@ -124,3 +124,30 @@ d'un autre. Les deux controles sont distincts et ne doivent pas etre confondus.
 - [ADR 005 - PostgreSQL](005-choix-postgresql.md) pour le stockage des refresh
   tokens
 - [ADR 003 - Streaming SSE](003-streaming-sse.md) pour les connexions longues
+
+---
+
+## Summary (English)
+
+Authentication combines a short-lived HS256 JWT access token (15 minutes,
+carrying `user_id`/`email`/`username`/`role`) with an opaque, single-use
+refresh token (a random UUID v4, 168 hours, stored as its SHA-256 hash)
+and bcrypt cost-12 password hashing. The server stays stateless — no
+session store, no Redis — because the fan-out Hub already keeps listener
+state in process memory, and adding shared session state would couple
+horizontal scaling to an external store. HS256 (not RS256) is appropriate
+because a single service both signs and verifies tokens; RS256 would only
+earn its complexity once a third party needs to verify tokens without
+being able to issue them. 15 minutes bounds a stolen token's exposure
+window without disrupting long SSE connections, since the token is
+checked once, at connection open. The refresh token is opaque and
+DB-stored specifically so it can be revoked and carries no information if
+leaked; SHA-256 (not bcrypt) is enough for it since it's 122 bits of
+random entropy, not a guessable human password. A four-level role
+hierarchy (`anonymous < user < broadcaster < admin`) replaces granular
+permissions the product doesn't need; resource ownership is checked
+separately, in the application layer. Accepted trade-offs: an access
+token cannot be revoked before it expires (banning a user takes up to 15
+minutes to bite), refreshing revokes **all** of a user's sessions at once,
+and the signing secret is single and global — rotating it invalidates
+every session simultaneously.

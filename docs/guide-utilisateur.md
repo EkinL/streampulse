@@ -183,16 +183,25 @@ disponible, ni le meme niveau technique, ni le meme besoin.
 
 ### Accessibilite
 
-L'engagement est de rendre l'application utilisable au lecteur d'ecran, avec un
-contraste conforme et des zones tactiles suffisantes.
+Solutions livrees, verifiees controle par controle dans
+[accessibilite.md](accessibilite.md) : les controles du lecteur audio
+(lecture, volume, navigation) et tous les boutons icone de l'application sont
+annonces par VoiceOver et TalkBack ; les contrastes texte/fond sont mesures et
+conformes au seuil WCAG AA (4,5:1) sur le theme sombre, le theme clair et le
+mode contraste eleve ; la taille de texte du systeme est respectee ; les zones
+tactiles suivent la recommandation Material (48 px) ; la console web a ete
+auditee au clavier (connexion, navigation, focus visible). Ce qui reste a
+faire — audit VoiceOver/TalkBack ecran par ecran, grandes tailles de texte sur
+les cartes denses — est liste avec sa prochaine etape dans le tableau de fin
+de [accessibilite.md](accessibilite.md#etat-des-lieux-et-feuille-de-route).
 
-Ou en est cet engagement, controle par controle — lecteur d'ecran, taille du
-texte, contraste, handicaps auditif et moteur — et ce qui reste a faire : voir
-[accessibilite.md](accessibilite.md). En resume : les controles du lecteur
-audio (lecture, volume, navigation) et tous les boutons icone de l'application
-sont annonces par VoiceOver et TalkBack, la taille de texte du systeme est
-respectee, et les zones tactiles suivent la recommandation Material (48 px) ;
-l'audit ecran par ecran et la mesure des contrastes restent a faire.
+**Pour la formation elle-meme**, ce guide et le document d'accessibilite
+existent aussi en [EPUB](accessible/streampulse-documentation.epub) (police et
+mise en page ajustables, pour la basse vision et la dyslexie) et en
+[audio](accessible/guide-utilisateur.m4a) (narration par synthese vocale, pour
+un accompagnement sans lecture a l'ecran) — voir
+[accessibilite.md](accessibilite.md#accessibilite-de-cette-documentation)
+pour le detail et la maniere de les regenerer.
 
 ## Depannage
 
@@ -210,3 +219,28 @@ l'audit ecran par ecran et la mesure des contrastes restent a faire.
 - [Cahier de recette](cahier-de-recette.md) — le comportement attendu, verifie
 - [API](api.md) et `/docs` — pour integrer StreamPulse a un autre outil
 - [SLO](slo.md) — ce que la plateforme s'engage a tenir
+
+---
+
+## Summary (English)
+
+StreamPulse is used through two clients sharing one account: a mobile app
+(listeners and broadcasters on the move) and a web console (broadcasters
+and admins at a desk). Four cumulative roles — visitor, listener (`user`),
+broadcaster, admin — gate what's available; only an admin can promote an
+account, and a brand-new deployment needs its first admin created directly
+in the database (see [cahier-de-recette.md](cahier-de-recette.md)). Three
+guided onboarding paths cover listening and playlists (~10 min), going live
+as a broadcaster (~15 min), and account/metrics administration (~10 min).
+
+The training plan matches format and duration to audience: listeners are
+fully self-service (if one needs training, the interface is the bug to
+fix), broadcasters get a 45-minute hands-on workshop, admins get one-on-one
+coaching, and developers self-train from the README, ADRs and OpenAPI docs.
+It explicitly adapts to particular needs — non-English readers (this guide
+stays in French), low-literacy users (step-by-step guided demos), and
+disability (see [accessibilite.md](accessibilite.md), plus this guide and
+the accessibility document are also available as an
+[EPUB](accessible/streampulse-documentation.epub) and as
+[synthesized-speech audio](accessible/guide-utilisateur.m4a) for training
+without on-screen reading).

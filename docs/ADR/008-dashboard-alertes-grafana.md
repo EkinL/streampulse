@@ -65,3 +65,30 @@ otel-collector --[traces]--> Tempo --[datasource]--> Grafana
 - Pas d'agregation de logs (Loki) : les logs JSON sortent correctement mais ne sont indexes/cherchables nulle part pour l'instant.
 - Le seuil de l'alerte "deconnexions brutales" (`increase() > 3` sur 5 minutes) reste une estimation : pense pour l'echelle reelle du projet (poignee d'auditeurs en demo/soutenance, pas de la production a grande echelle) plutot que pour un vrai historique de trafic, qui n'existe pas encore.
 - Chaque developpeur doit recreer son propre `.env` (`DISCORD_WEBHOOK_URL`) apres un `git clone` : sans ca, Grafana demarre avec un webhook vide et les alertes ne notifient personne, silencieusement.
+
+---
+
+## Summary (English)
+
+Building on ADR 004's OTEL/Prometheus/logging foundation, this decision
+makes observability actually operational rather than merely configured on
+paper: a Grafana dashboard, database-reaching distributed traces, and
+live alerts — directly addressing RNCP 38822 block 3's production
+supervision criteria (Ce3.3.x, Ce3.5.x). Everything is **provisioned by
+file**, never through the Grafana UI, so `docker compose up` reproduces
+the exact same stack on any machine. Tempo (not Jaeger) stores traces,
+chosen for its native Grafana datasource integration and single-binary,
+local-storage footprint — no Elasticsearch or Cassandra needed. Since a
+full OpenTelemetry Dart SDK would add a fragile OTLP-reachability
+dependency for marginal benefit at this stage, the Flutter client instead
+generates a synthetic W3C `traceparent` per request, which is enough to
+carry one trace id from the mobile app through the API to the database
+(via `otelpgx`-instrumented spans). Alerts route to the team's existing
+Discord channel via a webhook URL that is never committed and only
+injected from a git-ignored `.env`. Two separate alert rules — technical
+(e.g. API errors) and business (e.g. abrupt listener disconnects) — mirror
+the same technical/business split already present on the dashboard.
+Known limits: the mobile "trace" is an id, not a real exported span, so
+client-side latency isn't measurable; there's no log aggregation (Loki)
+yet; and the disconnect-spike alert threshold is a reasoned estimate for
+demo-scale traffic, not one derived from real production history.

@@ -213,3 +213,24 @@ make load-test   # 1000 auditeurs sur le Hub, puis 500 clients SSE reels
 
 Les tests de charge tournent sous `-race` a chaque `go test ./...`, ce qui
 garantit que les chiffres ci-dessus decrivent du code sans course de donnees.
+
+---
+
+## Summary (English)
+
+All figures here are measured (`make bench`, `make load-test`), never
+estimated. The in-memory fan-out Hub alone is essentially free: cost per
+listener stays flat (530-721ns) from 10 to 10,000 listeners, at 8.3 GB/s
+throughput. The full HTTP/SSE pipeline delivers 384 MiB/s end-to-end —
+about 20x slower than the Hub alone, meaning the bottleneck is the
+surrounding write path (socket I/O, SSE base64 framing, middleware), not
+the Hub itself. Extrapolating to 100 concurrent streams x 50 listeners
+each (5,000 listeners): CPU sits at 0.14% (fan-out) to 20% (full
+pipeline), memory is negligible in the normal case but could reach 5 GiB
+in the worst case (every listener's 256-chunk buffer full), and **the
+network saturates first** — 856 Mbit/s of a 1 Gbit/s link over SSE, at
+roughly 4x the CPU utilization. The actionable conclusion: optimizing the
+Hub is pointless; favoring the raw-audio endpoint over SSE saves 33%
+bandwidth immediately, and the Hub being purely in-process memory means
+horizontal scaling needs sticky sessions or a cross-instance message bus —
+not urgent, since one instance already saturates a 1 Gbit/s NIC.

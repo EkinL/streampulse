@@ -55,6 +55,32 @@ Trois approches etaient possibles :
 - Negatif : irreversible et immediat. Un delai de grace (compte desactive
   puis purge a J+30) reste possible plus tard en ajoutant `deleted_at` et une
   tache de purge, sans changer le contrat REST.
-- Les fichiers audio deposes dans `uploads/` ne sont pas supprimes (meme
-  limite que `DELETE /music/{id}`) : ils ne contiennent pas de donnees
-  personnelles, un nettoyage des orphelins est a prevoir.
+- ~~Les fichiers audio deposes dans `uploads/` ne sont pas supprimes (meme
+  limite que `DELETE /music/{id}`)~~. Resolu : `DELETE /music/{id}` et la
+  suppression de compte effacent desormais aussi le fichier sous-jacent
+  dans `uploads/` (`FileStore.DeleteFile`), pas seulement la ligne en base
+  ([rgpd.md](../rgpd.md#6-limites-connues-et-suite)).
+
+---
+
+## Summary (English)
+
+Account deletion is **immediate, physical, and cascading**: `DELETE
+/users/me` (self-service) or `DELETE /admin/users/{id}` (admin, on behalf
+of someone else) removes the row from `users`, and `ON DELETE CASCADE` —
+already declared on every foreign key back to `users(id)` since migrations
+001-005 — takes every related row (refresh tokens, streams, playlists,
+tracks, favorites, uploaded music) with it in one statement, verified by
+`TestCascadeOnUserDelete` and `TestUsers_AccessAndErasure`. A still-valid
+access token survives cryptographically for up to 15 minutes but no
+longer resolves to an account (`GET /users/me` returns 404), the refresh
+token is gone with the account, and the email address is immediately
+reusable. Soft deletion was rejected because every read path would have
+to remember to filter `deleted_at IS NULL` — one omission re-exposes
+supposedly erased data — and anonymization was rejected because an
+orphaned stream can no longer start and an orphaned playlist has no owner
+to make sense for, so the added complexity of two account states wasn't
+worth it. The accepted trade-off is that erasure is irreversible with no
+grace period — deferred until the project has a way to email the affected
+person, since a silent grace period would just be a bug waiting to
+surprise someone.
