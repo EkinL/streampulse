@@ -26,6 +26,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
+  late final TapGestureRecognizer _privacyPolicyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _privacyPolicyRecognizer = TapGestureRecognizer()..onTap = _openPrivacyPolicy;
+  }
+
+  void _openPrivacyPolicy() {
+    if (mounted) context.push('/privacy');
+  }
 
   @override
   void dispose() {
@@ -33,6 +44,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _privacyPolicyRecognizer.dispose();
     super.dispose();
   }
 
@@ -353,8 +365,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                   fontWeight: FontWeight.w700,
                                                   color: context.colors.accent,
                                                 ),
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () => context.push('/privacy'),
+                                                recognizer: _privacyPolicyRecognizer,
                                               ),
                                               TextSpan(
                                                 text: '.',

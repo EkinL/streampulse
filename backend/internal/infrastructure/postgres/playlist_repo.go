@@ -112,6 +112,9 @@ func (r *PlaylistRepo) ListPublic(ctx context.Context, page, perPage int) ([]dom
 		}
 		playlists = append(playlists, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("playlist_repo: list_public: %w", err)
+	}
 	return playlists, total, nil
 }
 
@@ -269,6 +272,9 @@ func (r *PlaylistRepo) scanPlaylists(rows pgx.Rows, total int) ([]domain.Playlis
 			return nil, 0, fmt.Errorf("playlist_repo: scan: %w", err)
 		}
 		playlists = append(playlists, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("playlist_repo: scan: %w", err)
 	}
 	return playlists, total, nil
 }

@@ -208,5 +208,8 @@ func scanMusicRows(rows pgx.Rows) ([]domain.Music, error) {
 		}
 		tracks = append(tracks, m)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("music_repo: scan: %w", err)
+	}
 	return tracks, nil
 }

@@ -72,8 +72,8 @@ reference).
 
 | Thread | Images | Moyenne | p50 | p90 | p99 | Max | Images en jank (>16,67 ms) |
 |--------|-------:|--------:|----:|----:|----:|----:|:---------------------------:|
-| UI (build) | 138 | 3,40 ms | 2,52 ms | 5,46 ms | 15,44 ms | 19,17 ms | 1 / 138 (0,7 %) |
-| Raster | 138 | 1,61 ms | 1,36 ms | 1,77 ms | 7,71 ms | 23,80 ms | 1 / 138 (0,7 %) |
+| UI (build) | 138 | 3,40 ms | 2,51 ms | 4,71 ms | 15,44 ms | 19,17 ms | 1 / 138 (0,7 %) |
+| Raster | 138 | 1,61 ms | 1,35 ms | 1,75 ms | 7,71 ms | 23,80 ms | 1 / 138 (0,7 %) |
 
 Aucune image en jank severe (>33,33 ms) sur les deux threads. Marge tres
 confortable sous le budget de 16,67 ms : le scroll de la liste tient le 60 Hz
@@ -89,8 +89,8 @@ remplace la liste complete et reconstruit les 66 cartes visibles.
 
 | Thread | Images | Moyenne | p90 | p99 (= max) | Images en jank (>16,67 ms) | Jank severe (>33,33 ms) |
 |--------|-------:|--------:|----:|------------:|:---------------------------:|:------------------------:|
-| UI (build) | 39 | 11,37 ms | 30,70 ms | 43,27 ms | 12 / 39 (30,8 %) | 2 / 39 (5,1 %) |
-| Raster | 39 | 12,14 ms | 57,49 ms | 122,60 ms | 4 / 39 (10,3 %) | 4 / 39 (10,3 %) |
+| UI (build) | 39 | 11,37 ms | 30,25 ms | 43,27 ms | 12 / 39 (30,8 %) | 2 / 39 (5,1 %) |
+| Raster | 39 | 12,14 ms | 14,04 ms | 122,60 ms | 4 / 39 (10,3 %) | 4 / 39 (10,3 %) |
 
 Echantillon petit (39 images sur ~80 s, dont une partie correspond a mes
 propres interactions avec l'outillage de debogage pendant la mesure — a

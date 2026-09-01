@@ -92,9 +92,15 @@ plus faible est `text3` sur `surfaceVariant` a 4,55:1, toujours conforme.
 L'accent, plus clair et peu contraste sur fond sombre, devient un indigo plus
 sature en theme clair pour rester lisible en texte/icone sur fond blanc.
 
-> **Limite connue.** Il n'existe pas de mode contraste eleve distinct (au-dela
-> du theme clair et du theme sombre) — pas de troisieme palette a contraste
-> renforce pour repondre specifiquement au reglage systeme "Contraste eleve".
+Un mode contraste eleve existe egalement, active manuellement depuis le profil
+(independant du theme clair/sombre) : palettes dediees
+(`SPColors.darkHighContrast` / `lightHighContrast` dans `app/theme.dart`) et
+bordures renforcees (1,5 a 2 px) sur les champs et cartes.
+
+> **Limite connue.** Les ratios de contraste de ces deux palettes dediees
+> n'ont pas encore ete mesures (seuls le theme sombre et le theme clair
+> standard le sont, ci-dessus) ; le mode ne suit pas non plus automatiquement
+> le reglage systeme "Contraste eleve", il se choisit dans l'application.
 
 ## Zones tactiles
 
@@ -176,10 +182,10 @@ accompagne sur son propre appareil, avec sa propre configuration.
 | Bouton de connexion : `MaterialButton` -> `TextButton` | Fait | — |
 | Crash de navigation diffuseur <-> admin (console web) | Fait | — |
 | Theme clair (mobile + console web), suit le reglage systeme | Fait | — |
+| Mode contraste eleve (palette dediee, active manuellement) | Fait | Mesurer les ratios WCAG de ces deux palettes |
 | Activation clavier (Entree/Espace) des elements non textuels | A verifier | Test manuel au clavier physique dans Chrome (non concluant avec l'outillage automatise) |
 | Audit VoiceOver / TalkBack ecran par ecran (mobile) | A faire | Derouler les parcours 1 a 3 du guide utilisateur au lecteur d'ecran et consigner les ecarts |
 | Grandes tailles de texte sur cartes denses | A faire | Verifier a l'echelle de texte systeme maximale |
-| Mode contraste eleve (troisieme palette dediee) | A faire | Definir un besoin reel avant de designer une palette specifique |
 | Audit clavier console web ecran par ecran (au-dela login/shell/admin) | A faire | Playlists, recherche, autres ecrans non encore testes |
 | Transcription / sous-titrage des flux | Non prevu a ce stade | A reevaluer avec les diffuseurs |
 

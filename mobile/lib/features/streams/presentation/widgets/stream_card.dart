@@ -117,25 +117,34 @@ class StreamCard extends StatelessWidget {
                         _FormatTag(stream.format.toUpperCase()),
                         if (onFavorite != null) ...[
                           const Spacer(),
-                          GestureDetector(
-                            onTap: onFavorite,
-                            behavior: HitTestBehavior.opaque,
-                            // Cible tactile 44x44 sans agrandir la place réservée
-                            // dans la mise en page (18x18) : OverflowBox déborde
-                            // visuellement sans changer la taille rapportée au
-                            // parent (Container refuse les marges négatives).
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: OverflowBox(
-                                minWidth: 44,
-                                minHeight: 44,
-                                maxWidth: 44,
-                                maxHeight: 44,
-                                child: Icon(
-                                  favoriteFilled ? Icons.favorite : Icons.favorite_border,
-                                  size: 18,
-                                  color: favoriteFilled ? context.colors.accent : context.colors.text3,
+                          Tooltip(
+                            message: favoriteFilled ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                            child: Semantics(
+                              label: favoriteFilled ? 'Retirer des favoris' : 'Ajouter aux favoris',
+                              button: true,
+                              child: GestureDetector(
+                                onTap: onFavorite,
+                                behavior: HitTestBehavior.opaque,
+                                // Cible tactile 44x44 sans agrandir la place réservée
+                                // dans la mise en page (18x18) : OverflowBox déborde
+                                // visuellement sans changer la taille rapportée au
+                                // parent (Container refuse les marges négatives).
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: OverflowBox(
+                                    minWidth: 44,
+                                    minHeight: 44,
+                                    maxWidth: 44,
+                                    maxHeight: 44,
+                                    child: ExcludeSemantics(
+                                      child: Icon(
+                                        favoriteFilled ? Icons.favorite : Icons.favorite_border,
+                                        size: 18,
+                                        color: favoriteFilled ? context.colors.accent : context.colors.text3,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

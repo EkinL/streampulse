@@ -63,7 +63,11 @@ def summarize(name, durs_us, lo_us, hi_us):
     avg = sum(ms) / n
 
     def pct(p):
-        return ms[min(n - 1, int(n * p))]
+        # Nearest-rank on a 0-indexed, already-sorted list: p=0 -> first
+        # element, p=1 -> last. `int(n * p)` is off by one at the top end
+        # (e.g. n=10, p=0.9 -> index 9, the max, not the 90th percentile).
+        idx = round(p * (n - 1))
+        return ms[min(n - 1, max(0, idx))]
 
     jank = sum(1 for x in ms if x > JANK_MS)
     severe = sum(1 for x in ms if x > SEVERE_JANK_MS)
