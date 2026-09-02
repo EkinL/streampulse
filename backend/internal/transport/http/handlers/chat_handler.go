@@ -128,12 +128,12 @@ func (h *ChatHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		h.hub.Leave(streamID, client)
 		h.metrics.ChatConnections.Dec()
 		h.hub.Publish(streamID, chat.NewPresenceMessage(chat.TypeUserLeft, streamID, userID, claims.Username))
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	// A l'arret du serveur, la lecture bloquee sur la socket ne regarde pas
 	// le contexte : on ferme la connexion pour la debloquer.
-	stopAfterFunc := context.AfterFunc(r.Context(), func() { conn.Close() })
+	stopAfterFunc := context.AfterFunc(r.Context(), func() { _ = conn.Close() })
 	defer stopAfterFunc()
 
 	// Pompe d'ecriture : messages du salon + pings de keepalive. Fermer la
@@ -142,7 +142,7 @@ func (h *ChatHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		ticker := time.NewTicker(chatPingPeriod)
 		defer ticker.Stop()
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		for {
 			select {
 			case <-client.Done():

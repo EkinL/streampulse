@@ -38,7 +38,7 @@ func dialChat(t *testing.T, srv *httptest.Server, streamID uuid.UUID, token stri
 		}
 		t.Fatalf("dial chat: %v (status %d)", err, status)
 	}
-	t.Cleanup(func() { conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 	return conn
 }
 
@@ -91,7 +91,7 @@ func TestChatFanOutBetweenParticipants(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial with query token: %v", err)
 	}
-	defer connBob.Close()
+	defer func() { _ = connBob.Close() }()
 
 	// Les deux voient l'arrivee de bob.
 	for name, conn := range map[string]*websocket.Conn{"alice": connAlice, "bob": connBob} {
@@ -129,7 +129,7 @@ func TestChatFanOutBetweenParticipants(t *testing.T) {
 	}
 
 	// Le depart de bob est annonce aux autres.
-	connBob.Close()
+	_ = connBob.Close()
 	// alice a aussi le user_joined de carol en file avant le user_left.
 	if m := readChatMessage(t, connAlice); m.Type != chat.TypeUserJoined || m.Username != carol.Username {
 		t.Fatalf("alice: got %+v, want carol's user_joined", m)
@@ -167,7 +167,7 @@ func TestChatStopStreamClosesRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stop stream: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("stop stream: status %d, want 200", resp.StatusCode)
 	}
