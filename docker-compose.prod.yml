@@ -23,6 +23,7 @@
 #   API_DOMAIN            nom DNS public de l'API (localhost pour un essai local)
 #   CORS_ALLOWED_ORIGINS  origines de la console web, separees par des virgules
 #   JWT_SECRET            secret de signature des jetons
+#   DISCORD_WEBHOOK_URL   webhook Discord pour les notifications d'alerte Grafana
 #   DOCKER_SUBNET         optionnel, sous-reseau du reseau Docker
 #
 # La syntaxe `!override` exige Docker Compose 2.24 ou plus recent.
@@ -74,6 +75,8 @@ services:
   grafana:
     ports: !override
       - "127.0.0.1:3000:3000"
+    environment:
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:?webhook Discord pour les notifications d'alerte}
 
   otel-collector:
     ports: !override []
