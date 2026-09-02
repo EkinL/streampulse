@@ -45,21 +45,35 @@ void main() {
     expect(find.text('1 titre • Public'), findsOneWidget);
   });
 
-  testWidgets('affiche un chevron sans callback onDelete', (tester) async {
+  testWidgets('affiche un chevron sans callback proprietaire', (tester) async {
     await _pump(tester, PlaylistTile(playlist: _playlist()));
 
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
   });
 
-  testWidgets('affiche un bouton delete et le declenche quand onDelete est fourni',
+  testWidgets('le menu declenche onDelete quand on choisit Supprimer',
       (tester) async {
     var deleted = false;
-    await _pump(tester, PlaylistTile(playlist: _playlist(), onDelete: () => deleted = true));
+    await _pump(tester,
+        PlaylistTile(playlist: _playlist(), onDelete: () => deleted = true));
 
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
     expect(deleted, isTrue);
+  });
+
+  testWidgets('le menu declenche onRename quand on choisit Renommer',
+      (tester) async {
+    var renamed = false;
+    await _pump(tester,
+        PlaylistTile(playlist: _playlist(), onRename: () => renamed = true));
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Renommer'));
+    expect(renamed, isTrue);
   });
 
   testWidgets('declenche onTap au tap sur la tuile', (tester) async {

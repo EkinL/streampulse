@@ -148,7 +148,9 @@ void main() {
     when(() => repository.deletePlaylist('p1')).thenAnswer((_) async {});
     when(() => repository.listPlaylists()).thenAnswer((_) async => []);
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
     await tester.pumpAndSettle();
     expect(find.text('Delete Playlist'), findsOneWidget);
 
@@ -164,12 +166,37 @@ void main() {
     await _pump(tester, repository: repository);
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
     verifyNever(() => repository.deletePlaylist(any()));
     expect(find.text('Keep me'), findsOneWidget);
+  });
+
+  testWidgets('renommer une playlist appelle updatePlaylist puis rafraichit', (tester) async {
+    when(() => repository.listPlaylists()).thenAnswer((_) async => [_playlist('p1', name: 'Old name')]);
+    await _pump(tester, repository: repository);
+    await tester.pump();
+
+    when(() => repository.updatePlaylist(id: 'p1', name: 'New name'))
+        .thenAnswer((_) async => _playlist('p1', name: 'New name'));
+    when(() => repository.listPlaylists())
+        .thenAnswer((_) async => [_playlist('p1', name: 'New name')]);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Renommer'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'New name');
+    await tester.tap(find.widgetWithText(FilledButton, 'Renommer'));
+    await tester.pumpAndSettle();
+
+    verify(() => repository.updatePlaylist(id: 'p1', name: 'New name')).called(1);
+    expect(find.text('New name'), findsOneWidget);
   });
 }

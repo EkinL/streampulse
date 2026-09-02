@@ -5,6 +5,7 @@ import '../../../../app/theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/domain/auth_state.dart';
 import '../providers/playlist_provider.dart';
+import '../../domain/playlist_model.dart';
 import '../widgets/playlist_tile.dart';
 import '../../../../core/utils/extensions.dart';
 
@@ -163,6 +164,9 @@ class _MyPlaylistsTab extends ConsumerWidget {
               return PlaylistTile(
                 playlist: playlist,
                 onTap: () => context.push('/playlists/${playlist.id}'),
+                onRename: () {
+                  _showRenameDialog(context, ref, playlist);
+                },
                 onDelete: () {
                   _showDeleteConfirmation(context, ref, playlist.id);
                 },
@@ -170,6 +174,59 @@ class _MyPlaylistsTab extends ConsumerWidget {
             },
           );
         },
+      ),
+    );
+  }
+
+  void _showRenameDialog(
+      BuildContext context, WidgetRef ref, PlaylistModel playlist) {
+    final nameController = TextEditingController(text: playlist.name);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: context.colors.surface,
+        title: Text('Renommer la playlist',
+            style: TextStyle(color: context.colors.text1)),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Nom',
+            hintText: 'Nom de la playlist',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text('Annuler',
+                style: TextStyle(color: context.colors.text3)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty || name == playlist.name) {
+                Navigator.of(dialogContext).pop();
+                return;
+              }
+              Navigator.of(dialogContext).pop();
+              try {
+                await ref
+                    .read(playlistListProvider.notifier)
+                    .update(id: playlist.id, name: name);
+                if (context.mounted) {
+                  context.showSnackBar('Playlist renommée');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  context.showSnackBar('Échec du renommage : $e',
+                      isError: true);
+                }
+              }
+            },
+            child: const Text('Renommer'),
+          ),
+        ],
       ),
     );
   }
