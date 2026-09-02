@@ -199,7 +199,7 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 	// est le cas par defaut : le contexte de la requete s'annule aussi bien
 	// quand l'auditeur se deconnecte que quand le serveur s'arrete, ce qui
 	// est la sortie normale.
-	reason := "client"
+	reason := observability.DisconnectReasonClient
 	defer func() {
 		h.hub.Unregister(streamID, client)
 		h.metrics.ActiveListeners.Dec()
@@ -217,7 +217,7 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial connected event
 	if _, err := fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\",\"stream_id\":\"%s\"}\n\n", streamID); err != nil {
-		reason = "abrupt"
+		reason = observability.DisconnectReasonAbrupt
 		return
 	}
 	flusher.Flush()
@@ -233,16 +233,16 @@ func (h *StreamHandler) Listen(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-client.Done():
-			reason = "stream_closed"
+			reason = observability.DisconnectReasonStreamClosed
 			return
 		case data, ok := <-client.Ch:
 			if !ok {
-				reason = "stream_closed"
+				reason = observability.DisconnectReasonStreamClosed
 				return
 			}
 			encoded := base64.StdEncoding.EncodeToString(data)
 			if _, err := fmt.Fprintf(w, "data: %s\n\n", encoded); err != nil {
-				reason = "abrupt"
+				reason = observability.DisconnectReasonAbrupt
 				h.logger.Debug().Err(err).
 					Str("client_id", client.ID.String()).
 					Msg("sse write failed, closing stream")
@@ -300,7 +300,7 @@ func (h *StreamHandler) AudioStream(w http.ResponseWriter, r *http.Request) {
 	h.hub.Register(streamID, client)
 	h.metrics.ActiveListeners.Inc()
 
-	reason := "client"
+	reason := observability.DisconnectReasonClient
 	defer func() {
 		h.hub.Unregister(streamID, client)
 		h.metrics.ActiveListeners.Dec()
@@ -329,15 +329,15 @@ func (h *StreamHandler) AudioStream(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-client.Done():
-			reason = "stream_closed"
+			reason = observability.DisconnectReasonStreamClosed
 			return
 		case data, ok := <-client.Ch:
 			if !ok {
-				reason = "stream_closed"
+				reason = observability.DisconnectReasonStreamClosed
 				return
 			}
 			if _, err := w.Write(data); err != nil {
-				reason = "abrupt"
+				reason = observability.DisconnectReasonAbrupt
 				return
 			}
 			flusher.Flush()

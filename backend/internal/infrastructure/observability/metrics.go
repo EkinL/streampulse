@@ -5,6 +5,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// Valeurs possibles du label "reason" de StreamDisconnections, utilisees a
+// la fois ici (pour preenregistrer chaque serie a zero) et dans les
+// handlers de streaming qui les incrementent.
+const (
+	DisconnectReasonClient       = "client"
+	DisconnectReasonStreamClosed = "stream_closed"
+	DisconnectReasonAbrupt       = "abrupt"
+)
+
+var disconnectReasons = []string{DisconnectReasonClient, DisconnectReasonStreamClosed, DisconnectReasonAbrupt}
+
 type Metrics struct {
 	HTTPRequestsTotal     *prometheus.CounterVec
 	HTTPRequestDuration   *prometheus.HistogramVec
@@ -19,7 +30,7 @@ type Metrics struct {
 }
 
 func NewMetrics() *Metrics {
-	return &Metrics{
+	m := &Metrics{
 		HTTPRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "http_requests_total",
@@ -85,4 +96,15 @@ func NewMetrics() *Metrics {
 			},
 		),
 	}
+
+	// Sans appel initial, un CounterVec n'expose aucune serie tant qu'aucun
+	// disconnect ne s'est produit pour un "reason" donne : /metrics
+	// n'afficherait alors pas stream_disconnections_total du tout. On
+	// preenregistre chaque raison a zero pour que la metrique soit toujours
+	// visible, comme l'etait l'ancien Counter simple.
+	for _, reason := range disconnectReasons {
+		m.StreamDisconnections.WithLabelValues(reason)
+	}
+
+	return m
 }
