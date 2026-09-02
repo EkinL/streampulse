@@ -103,4 +103,15 @@ void main() {
 
     expect(find.text('Tap play to listen'), findsOneWidget);
   });
+
+  testWidgets('le meme stream redevenu live remplace le libelle "Stream ended"', (tester) async {
+    final liveNotifier = await _pump(tester, streamId: 's1');
+    // Etat laisse par une deconnexion : le flux a ete coupe puis redemarre.
+    liveNotifier.setTestState(const LiveStreamState(streamId: 's1', statusText: 'Stream ended'));
+    await tester.pump(); // rebuild : le callback post-frame signale le retour en live
+    await tester.pump(); // applique le nouvel etat
+
+    expect(find.text('Stream ended'), findsNothing);
+    expect(find.text('Stream is live! Tap to listen'), findsOneWidget);
+  });
 }

@@ -33,9 +33,12 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch music favorites on init
+    // Fetch music favorites on init (inutile sans compte : l'endpoint
+    // répondrait 401)
     Future.microtask(() {
-      ref.read(musicFavoritesProvider.notifier).fetch();
+      if (ref.read(authProvider) is AuthAuthenticated) {
+        ref.read(musicFavoritesProvider.notifier).fetch();
+      }
     });
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) ref.read(streamListProvider.notifier).fetchStreams();
@@ -54,6 +57,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
     final musicAsync = ref.watch(musicListProvider);
     final favoriteIds = ref.watch(favoriteIdsProvider);
     final authState = ref.watch(authProvider);
+    final isGuest = authState is! AuthAuthenticated;
     final isBroadcaster =
         authState is AuthAuthenticated && authState.user.isBroadcaster;
     final currentUserId =
@@ -149,6 +153,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                             favoriteFilled: isFavorite,
                             onTap: () => context.push('/streams/${stream.id}'),
                             onFavorite: () {
+                              if (isGuest) {
+                                context.promptLogin(
+                                    'Connectez-vous pour gérer vos favoris');
+                                return;
+                              }
                               final notifier = ref.read(favoritesProvider.notifier);
                               final action = isFavorite
                                   ? notifier.remove(stream.id)
@@ -193,11 +202,20 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                               child: Text('No music available', style: TextStyle(color: context.colors.text3)),
                             );
                           }
+                          final shown = musicList.take(5).toList();
                           return Column(
-                            children: musicList.take(5).map((music) => MusicTile(
+                            children: shown.map((music) => MusicTile(
                               music: music,
                               onTap: () {
-                                ref.read(playerProvider.notifier).play(music);
+                                if (isGuest) {
+                                  context.promptLogin(
+                                      'Connectez-vous pour écouter');
+                                  return;
+                                }
+                                // Les titres affiches partent dans la file :
+                                // next/previous naviguent entre eux.
+                                ref.read(playerProvider.notifier).playPlaylist(
+                                    shown, shown.indexOf(music));
                               },
                               onEdit: music.uploadedBy == currentUserId
                                   ? () => _showEditMusicDialog(context, ref, music)

@@ -105,7 +105,7 @@ Future<void> _pump(
       authProvider.overrideWith((ref) => _FakeAuthNotifier(authState)),
       audioHandlerProvider.overrideWithValue(_FakeHandler()),
       streamListProvider.overrideWith((ref) => StreamNotifier(streamRepository)),
-      favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository)),
+      favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository, enabled: true)),
       musicListProvider.overrideWith((ref) => MusicNotifier(musicRepository)),
       musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
     ],
@@ -133,9 +133,19 @@ void main() {
   });
 
   testWidgets('route protegee sans session redirige vers /login', (tester) async {
+    await _pump(tester, authState: const AuthUnauthenticated(), initialLocation: '/playlists');
+
+    expect(find.text('Continuer sans compte'), findsOneWidget);
+  });
+
+  testWidgets('sans session, /streams reste accessible en consultation', (tester) async {
     await _pump(tester, authState: const AuthUnauthenticated(), initialLocation: '/streams');
 
-    expect(find.text('StreamPulse'), findsOneWidget);
+    // On est bien sur la liste des flux (onglet DIRECT actif), pas sur le login.
+    expect(find.byIcon(Icons.radio), findsOneWidget);
+    expect(find.text('Continuer sans compte'), findsNothing);
+    // L'onglet profil devient une invitation a se connecter.
+    expect(find.text('CONNEXION'), findsOneWidget);
   });
 
   testWidgets('authentifie sur /login est redirige vers /streams', (tester) async {

@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,13 +17,18 @@ type AuthService struct {
 	userRepo         domain.UserRepository
 	refreshTokenRepo domain.RefreshTokenRepository
 	jwt              *auth.JWTManager
+	// oauth verifie les ID tokens Google/Apple. Nil quand la connexion
+	// sociale n'est pas cablee (tests) : LoginWithOAuth repond alors
+	// ErrProviderNotConfigured.
+	oauth domain.OAuthVerifier
 }
 
-func NewAuthService(userRepo domain.UserRepository, refreshTokenRepo domain.RefreshTokenRepository, jwt *auth.JWTManager) *AuthService {
+func NewAuthService(userRepo domain.UserRepository, refreshTokenRepo domain.RefreshTokenRepository, jwt *auth.JWTManager, oauth domain.OAuthVerifier) *AuthService {
 	return &AuthService{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		jwt:              jwt,
+		oauth:            oauth,
 	}
 }
 
@@ -127,6 +134,120 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult,
 		ExpiresAt:    tokenPair.ExpiresAt,
 		User:         user,
 	}, nil
+}
+
+type OAuthLoginInput struct {
+	// Provider : domain.ProviderGoogle ou domain.ProviderApple.
+	Provider string
+	// IDToken est l'ID token (JWT signe par le fournisseur) obtenu par
+	// l'application mobile via le SDK Google Sign-In ou Sign in with Apple.
+	IDToken string
+}
+
+// LoginWithOAuth ouvre une session a partir d'un ID token Google ou Apple.
+// Premier passage : le compte est cree (ou relie par email verifie a un
+// compte existant). Passages suivants : simple connexion via (provider, sub).
+func (s *AuthService) LoginWithOAuth(ctx context.Context, input OAuthLoginInput) (*AuthResult, error) {
+	if input.Provider == "" || input.IDToken == "" {
+		return nil, fmt.Errorf("auth: oauth login: %w", domain.ErrInvalidInput)
+	}
+	if s.oauth == nil {
+		return nil, fmt.Errorf("auth: oauth login: %w", domain.ErrProviderNotConfigured)
+	}
+
+	identity, err := s.oauth.Verify(ctx, input.Provider, input.IDToken)
+	if err != nil {
+		return nil, fmt.Errorf("auth: oauth login: %w", err)
+	}
+
+	user, err := s.userRepo.FindByProviderSubject(ctx, identity.Provider, identity.Subject)
+	if errors.Is(err, domain.ErrNotFound) {
+		user, err = s.findOrCreateOAuthUser(ctx, identity)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("auth: oauth login: %w", err)
+	}
+
+	// Meme ouverture de session que Login : revocation des refresh tokens
+	// existants puis emission d'une nouvelle paire.
+	_ = s.refreshTokenRepo.DeleteByUserID(ctx, user.ID)
+
+	tokenPair, err := s.jwt.GenerateTokenPair(user)
+	if err != nil {
+		return nil, fmt.Errorf("auth: oauth login: %w", err)
+	}
+
+	tokenHash := auth.HashToken(tokenPair.RefreshToken)
+	expiresAt := time.Now().Add(s.jwt.RefreshExpiry())
+	if err := s.refreshTokenRepo.Store(ctx, user.ID, tokenHash, expiresAt); err != nil {
+		return nil, fmt.Errorf("auth: oauth login: store refresh token: %w", err)
+	}
+
+	return &AuthResult{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		ExpiresAt:    tokenPair.ExpiresAt,
+		User:         user,
+	}, nil
+}
+
+// findOrCreateOAuthUser gere la premiere connexion sociale : reliaison a un
+// compte existant quand l'email est verifie par le fournisseur, creation
+// d'un compte user sinon.
+func (s *AuthService) findOrCreateOAuthUser(ctx context.Context, identity *domain.OAuthIdentity) (*domain.User, error) {
+	if identity.Email == "" {
+		return nil, fmt.Errorf("email missing from identity token: %w", domain.ErrInvalidInput)
+	}
+
+	existing, err := s.userRepo.FindByEmail(ctx, identity.Email)
+	if err == nil {
+		// On ne relie que si le fournisseur atteste l'adresse : sinon un
+		// compte cree chez lui avec l'email d'autrui ouvrirait la session
+		// StreamPulse de la victime.
+		if !identity.EmailVerified {
+			return nil, fmt.Errorf("email not verified by provider: %w", domain.ErrAlreadyExists)
+		}
+		if err := s.userRepo.LinkProviderSubject(ctx, existing.ID, identity.Provider, identity.Subject); err != nil {
+			return nil, err
+		}
+		existing.AuthProvider = identity.Provider
+		existing.ProviderSubject = identity.Subject
+		return existing, nil
+	}
+	if !errors.Is(err, domain.ErrNotFound) {
+		return nil, err
+	}
+
+	user := &domain.User{
+		ID:       uuid.New(),
+		Email:    identity.Email,
+		Username: usernameFromIdentity(identity),
+		// Pas de mot de passe : '' ne matche jamais un hash bcrypt, le
+		// login classique reste donc ferme pour ce compte.
+		PasswordHash: "",
+		Role:         domain.RoleUser,
+		// L'ecran de connexion affiche les conditions d'utilisation a cote
+		// des boutons sociaux : le premier login social vaut acceptation.
+		TermsAcceptedAt: time.Now().UTC(),
+		AuthProvider:    identity.Provider,
+		ProviderSubject: identity.Subject,
+	}
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// usernameFromIdentity derive un nom d'affichage : nom donne par le
+// fournisseur, sinon partie locale de l'email.
+func usernameFromIdentity(identity *domain.OAuthIdentity) string {
+	if identity.Name != "" {
+		return identity.Name
+	}
+	if at := strings.IndexByte(identity.Email, '@'); at > 0 {
+		return identity.Email[:at]
+	}
+	return identity.Provider + "-user"
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*AuthResult, error) {

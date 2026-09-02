@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/auth_repository.dart';
 import '../../data/auth_local_source.dart';
+import '../../data/social_auth_service.dart';
 import '../../domain/auth_state.dart';
 import '../../domain/user_model.dart';
 import '../../../../core/network/api_exceptions.dart';
@@ -10,15 +11,19 @@ final authProvider =
   return AuthNotifier(
     ref.read(authRepositoryProvider),
     ref.read(authLocalSourceProvider),
+    ref.read(socialAuthServiceProvider),
   );
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   final AuthLocalSource _authLocalSource;
+  final SocialAuthService _socialAuth;
 
-  AuthNotifier(this._authRepository, this._authLocalSource)
-      : super(const AuthLoading());
+  AuthNotifier(this._authRepository, this._authLocalSource,
+      [SocialAuthService? socialAuth])
+      : _socialAuth = socialAuth ?? SocialAuthService(),
+        super(const AuthLoading());
 
   Future<void> checkAuth() async {
     state = const AuthLoading();
@@ -83,6 +88,52 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: UserModel.fromJson(userData),
         token: accessToken,
       );
+    } on ApiException catch (e) {
+      state = AuthError(message: e.message);
+    } catch (e) {
+      state = AuthError(message: e.toString());
+    }
+  }
+
+  /// Connexion via Google Sign-In : le SDK rend un ID token, le backend le
+  /// verifie et cree le compte au premier passage.
+  Future<void> loginWithGoogle() =>
+      _loginWithProvider('google', _socialAuth.getGoogleIdToken);
+
+  /// Connexion via Sign in with Apple (iOS).
+  Future<void> loginWithApple() =>
+      _loginWithProvider('apple', _socialAuth.getAppleIdToken);
+
+  Future<void> _loginWithProvider(
+    String provider,
+    Future<String> Function() getIdToken,
+  ) async {
+    state = const AuthLoading();
+    try {
+      final idToken = await getIdToken();
+      final response = await _authRepository.oauthLogin(
+        provider: provider,
+        idToken: idToken,
+      );
+
+      final accessToken = response['access_token'] as String;
+      final refreshToken = response['refresh_token'] as String;
+      final userData = response['user'] as Map<String, dynamic>;
+
+      await _authLocalSource.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+
+      state = AuthAuthenticated(
+        user: UserModel.fromJson(userData),
+        token: accessToken,
+      );
+    } on SocialAuthCancelledException {
+      // Fenetre fermee par la personne : retour a l'ecran sans message.
+      state = const AuthUnauthenticated();
+    } on SocialAuthException catch (e) {
+      state = AuthError(message: e.message);
     } on ApiException catch (e) {
       state = AuthError(message: e.message);
     } catch (e) {

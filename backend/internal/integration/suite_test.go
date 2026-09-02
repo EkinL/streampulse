@@ -127,7 +127,7 @@ func buildSuite(t *testing.T) *suite {
 	fileStore := filestore.NewFileStore(uploadDir, uploadsBaseURL)
 
 	router := transport.NewRouter(transport.RouterConfig{
-		AuthService:       application.NewAuthService(userRepo, refreshTokenRepo, jwtManager),
+		AuthService:       application.NewAuthService(userRepo, refreshTokenRepo, jwtManager, nil),
 		StreamService:     application.NewStreamService(streamRepo, hub),
 		PlaylistService:   application.NewPlaylistService(playlistRepo),
 		UserService:       application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore),

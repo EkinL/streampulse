@@ -31,6 +31,11 @@ services:
       TLS_KEY_FILE: ""
       PUBLIC_BASE_URL: ""
       REFRESH_TOKEN_PURGE_INTERVAL: 1h
+      # Connexion sociale : vides par defaut (fournisseurs desactives).
+      # Renseigner les client IDs OAuth crees dans la console Google Cloud
+      # et le portail Apple Developer, voir backend/.env.example.
+      GOOGLE_OAUTH_CLIENT_IDS: ""
+      APPLE_OAUTH_CLIENT_IDS: ""
     depends_on:
       postgres:
         condition: service_healthy

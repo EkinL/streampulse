@@ -70,6 +70,14 @@ replaying a refresh token returns `401`.
 Authorization: Bearer <access_token>
 ```
 
+Social login: `POST /auth/oauth` takes `{"provider": "google"|"apple",
+"id_token": "..."}` — the ID token produced by Google Sign-In or Sign in with
+Apple on the device. The server verifies it against the provider's public
+JWKS and returns the same token pair as `/auth/login`, creating the account
+on first sign-in. Providers are enabled by listing their OAuth client IDs in
+`GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_OAUTH_CLIENT_IDS` (otherwise `503`); setup
+guide in `docs/social-login.md`.
+
 ### Quickstart
 
 ```bash

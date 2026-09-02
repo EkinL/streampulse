@@ -26,6 +26,12 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ## [Non publie]
 
 ### Ajoute
+- Connexion sociale Google et Apple : `POST /auth/oauth` verifie l'ID token
+  du fournisseur (JWKS, emetteur, audience) et ouvre la meme session que le
+  login classique ; boutons cables sur l'ecran de connexion mobile
+  (`google_sign_in`, `sign_in_with_apple`). Fournisseurs actives par
+  `GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_OAUTH_CLIENT_IDS`, guide dans
+  `docs/social-login.md`
 - Canal de retour utilisateur (Ce3.4.3) : `POST /feedback` permet a tout compte
   authentifie de signaler un bug ou une suggestion ; `GET /admin/feedback`
   (filtrable par statut) et `PUT /admin/feedback/{id}/status` permettent a

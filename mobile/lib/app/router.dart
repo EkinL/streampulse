@@ -66,8 +66,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isAuthenticated ? '/streams' : '/login';
       }
 
+      // Consultation ouverte aux anonymes (exigence 1.2 du sujet) : la
+      // liste des flux, le détail d'un flux et la recherche. Les actions
+      // (écoute, favoris, chat) restent gardées dans les écrans eux-mêmes.
+      final isGuestAllowed = currentPath == '/streams' ||
+          currentPath.startsWith('/streams/') ||
+          currentPath == '/search';
+
       // Not authenticated: redirect to login
-      if (!isAuthenticated && !isOnAuthPath) {
+      if (!isAuthenticated && !isOnAuthPath && !isGuestAllowed) {
         return '/login';
       }
 

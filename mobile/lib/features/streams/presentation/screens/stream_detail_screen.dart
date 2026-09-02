@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
 import '../providers/stream_provider.dart';
@@ -11,6 +12,9 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/error_widget.dart' as app_error;
 import '../../../chat/presentation/widgets/stream_chat_panel.dart';
 import '../../../favorites/presentation/providers/favorites_provider.dart';
+import '../../../auth/domain/auth_state.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/utils/extensions.dart';
 
 class StreamDetailScreen extends ConsumerStatefulWidget {
   final String streamId;
@@ -48,6 +52,7 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
   Widget build(BuildContext context) {
     final streamAsync = ref.watch(streamDetailProvider(widget.streamId));
     final isFavorite = ref.watch(favoriteIdsProvider).contains(widget.streamId);
+    final isGuest = ref.watch(authProvider) is! AuthAuthenticated;
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -66,6 +71,10 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
                 color: isFavorite ? context.colors.accent : null),
             tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
             onPressed: () {
+              if (isGuest) {
+                context.promptLogin('Connectez-vous pour gérer vos favoris');
+                return;
+              }
               final notifier = ref.read(favoritesProvider.notifier);
               final action = isFavorite
                   ? notifier.remove(widget.streamId)
@@ -223,8 +232,14 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
               ),
               // Un salon de chat par live, pour ceux qui sont dans le live.
               // Le panneau (et sa connexion WebSocket) disparaît quand le
-              // flux n'est plus en direct.
-              if (stream.isLive)
+              // flux n'est plus en direct. Sans compte, pas de WebSocket :
+              // on affiche une invitation à se connecter à la place.
+              if (stream.isLive && isGuest)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _GuestChatInvite(),
+                ),
+              if (stream.isLive && !isGuest)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
@@ -243,6 +258,41 @@ class _StreamDetailScreenState extends ConsumerState<StreamDetailScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Remplace le panneau de chat pour un visiteur sans compte.
+class _GuestChatInvite extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.chat_bubble_outline,
+              size: 18, color: context.colors.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Connectez-vous pour rejoindre le chat du live',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: context.colors.text2),
+            ),
+          ),
+          TextButton(
+            onPressed: () => context.go('/login'),
+            child: const Text('Se connecter'),
+          ),
+        ],
       ),
     );
   }

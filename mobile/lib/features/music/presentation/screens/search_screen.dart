@@ -9,7 +9,10 @@ import '../../domain/music_model.dart';
 import '../../../streams/domain/stream_model.dart';
 import '../../../streams/presentation/widgets/stream_card.dart';
 import '../widgets/music_tile.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../shared/providers/player_provider.dart';
+import '../../../auth/domain/auth_state.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -200,7 +203,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ..._musicResults.map((music) => MusicTile(
                 music: music,
                 onTap: () {
-                  ref.read(playerProvider.notifier).play(music);
+                  if (ref.read(authProvider) is! AuthAuthenticated) {
+                    context.promptLogin('Connectez-vous pour écouter');
+                    return;
+                  }
+                  // Toute la liste de resultats part dans la file : next et
+                  // previous parcourent les resultats de la recherche.
+                  ref.read(playerProvider.notifier).playPlaylist(
+                      _musicResults, _musicResults.indexOf(music));
                 },
               )),
         ],

@@ -54,6 +54,27 @@ class AuthRepository {
     }
   }
 
+  /// Connexion sociale : envoie l'ID token obtenu du SDK Google ou Apple,
+  /// le serveur le verifie et rend la meme paire de jetons que le login.
+  Future<Map<String, dynamic>> oauthLogin({
+    required String provider,
+    required String idToken,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.authOAuth,
+        data: {
+          'provider': provider,
+          'id_token': idToken,
+        },
+      );
+      final body = response.data as Map<String, dynamic>;
+      return body['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw e.toApiException();
+    }
+  }
+
   Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
     try {
       final response = await _dio.post(

@@ -15,6 +15,14 @@ const (
 	RoleAdmin       Role = "admin"
 )
 
+// Fournisseurs d'identite acceptes pour la connexion sociale. "local"
+// designe un compte cree par email + mot de passe.
+const (
+	ProviderLocal  = "local"
+	ProviderGoogle = "google"
+	ProviderApple  = "apple"
+)
+
 func (r Role) IsValid() bool {
 	switch r {
 	case RoleAnonymous, RoleUser, RoleBroadcaster, RoleAdmin:
@@ -53,6 +61,15 @@ type User struct {
 	// et revalidee cote serveur). Sert de preuve en cas de controle
 	// (obligation de rendre compte, docs/rgpd.md).
 	TermsAcceptedAt time.Time
+	// AuthProvider dit d'ou vient l'identite du compte : ProviderLocal pour
+	// un compte email + mot de passe, ProviderGoogle/ProviderApple pour un
+	// compte cree ou relie via la connexion sociale.
+	AuthProvider string
+	// ProviderSubject est l'identifiant stable ("sub") delivre par le
+	// fournisseur d'identite. Vide pour un compte local. C'est lui, et non
+	// l'email (changeant, ou relais prive chez Apple), qui identifie le
+	// compte social.
+	ProviderSubject string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

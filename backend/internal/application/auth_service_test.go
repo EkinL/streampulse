@@ -16,7 +16,7 @@ func newAuthService() (*application.AuthService, *testutil.MockUserRepo, *testut
 	userRepo := testutil.NewMockUserRepo()
 	refreshTokenRepo := testutil.NewMockRefreshTokenRepo()
 	jwtManager := auth.NewJWTManager("test-secret-key-for-unit-tests", 15*time.Minute, 168*time.Hour)
-	svc := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
+	svc := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager, nil)
 	return svc, userRepo, refreshTokenRepo
 }
 

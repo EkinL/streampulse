@@ -342,7 +342,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: SizedBox(
                               height: 48,
                               child: OutlinedButton(
-                                onPressed: isLoading ? null : () {},
+                                onPressed: isLoading
+                                    ? null
+                                    : () => ref
+                                        .read(authProvider.notifier)
+                                        .loginWithApple(),
                                 style: OutlinedButton.styleFrom(
                                   backgroundColor: context.colors.surface,
                                   shape: RoundedRectangleBorder(
@@ -363,7 +367,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: SizedBox(
                               height: 48,
                               child: OutlinedButton(
-                                onPressed: isLoading ? null : () {},
+                                onPressed: isLoading
+                                    ? null
+                                    : () => ref
+                                        .read(authProvider.notifier)
+                                        .loginWithGoogle(),
                                 style: OutlinedButton.styleFrom(
                                   backgroundColor: context.colors.surface,
                                   shape: RoundedRectangleBorder(
@@ -407,6 +415,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Consultation sans compte (rôle anonyme du sujet) :
+                      // accès en lecture seule au direct et à la recherche.
+                      TextButton(
+                        onPressed:
+                            isLoading ? null : () => context.go('/streams'),
+                        child: Text(
+                          'Continuer sans compte',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: context.colors.text2,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

@@ -623,7 +623,7 @@ func TestMusicService_SearchNormalizesPagination(t *testing.T) {
 
 func newAuthServiceWithRepos(userRepo domain.UserRepository, refreshRepo domain.RefreshTokenRepository) *application.AuthService {
 	jwt := auth.NewJWTManager("unit-test-secret", 15*time.Minute, 24*time.Hour)
-	return application.NewAuthService(userRepo, refreshRepo, jwt)
+	return application.NewAuthService(userRepo, refreshRepo, jwt, nil)
 }
 
 func TestAuthService_ValidateToken(t *testing.T) {

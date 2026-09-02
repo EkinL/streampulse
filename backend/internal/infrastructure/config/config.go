@@ -55,6 +55,14 @@ type Config struct {
 	// Intervalle de purge des refresh tokens expires. Politique de retention
 	// (docs/rgpd.md) : un jeton expire ne sert plus a rien, on ne le garde pas.
 	RefreshTokenPurgeInterval time.Duration `env:"REFRESH_TOKEN_PURGE_INTERVAL,default=1h"`
+
+	// Connexion sociale : audiences (client IDs OAuth) acceptees dans les ID
+	// tokens, en liste separee par des virgules. Google en attend souvent
+	// plusieurs (client web + client iOS) ; Apple attend le bundle id de
+	// l'app (dev.streampulse.app) et, pour le web, le Service ID. Liste
+	// vide = fournisseur desactive, POST /auth/oauth repond 503 pour lui.
+	GoogleOAuthClientIDs []string `env:"GOOGLE_OAUTH_CLIENT_IDS"`
+	AppleOAuthClientIDs  []string `env:"APPLE_OAUTH_CLIENT_IDS"`
 }
 
 func Load() (*Config, error) {
