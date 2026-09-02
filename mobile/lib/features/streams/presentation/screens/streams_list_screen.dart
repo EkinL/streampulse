@@ -202,8 +202,9 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                               child: Text('No music available', style: TextStyle(color: context.colors.text3)),
                             );
                           }
+                          final shown = musicList.take(5).toList();
                           return Column(
-                            children: musicList.take(5).map((music) => MusicTile(
+                            children: shown.map((music) => MusicTile(
                               music: music,
                               onTap: () {
                                 if (isGuest) {
@@ -211,7 +212,10 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                                       'Connectez-vous pour écouter');
                                   return;
                                 }
-                                ref.read(playerProvider.notifier).play(music);
+                                // Les titres affiches partent dans la file :
+                                // next/previous naviguent entre eux.
+                                ref.read(playerProvider.notifier).playPlaylist(
+                                    shown, shown.indexOf(music));
                               },
                               onEdit: music.uploadedBy == currentUserId
                                   ? () => _showEditMusicDialog(context, ref, music)

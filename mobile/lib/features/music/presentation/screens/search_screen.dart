@@ -207,7 +207,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     context.promptLogin('Connectez-vous pour écouter');
                     return;
                   }
-                  ref.read(playerProvider.notifier).play(music);
+                  // Toute la liste de resultats part dans la file : next et
+                  // previous parcourent les resultats de la recherche.
+                  ref.read(playerProvider.notifier).playPlaylist(
+                      _musicResults, _musicResults.indexOf(music));
                 },
               )),
         ],

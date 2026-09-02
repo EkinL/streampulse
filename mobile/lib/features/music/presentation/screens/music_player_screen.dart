@@ -516,10 +516,16 @@ class MusicPlayerScreen extends ConsumerWidget {
                     const SizedBox(width: 24),
                     IconButton(
                       tooltip: 'Next',
-                      onPressed: () =>
-                          ref.read(playerProvider.notifier).next(),
+                      // Grise en fin de file (previous reste actif : il
+                      // redemarre la piste au-dela de 3 s de lecture).
+                      onPressed: playerState.hasNext
+                          ? () => ref.read(playerProvider.notifier).next()
+                          : null,
                       icon: Icon(Icons.skip_next,
-                          color: context.colors.text1, size: 36),
+                          color: playerState.hasNext
+                              ? context.colors.text1
+                              : context.colors.text3,
+                          size: 36),
                     ),
                   ],
                 ),

@@ -242,12 +242,17 @@ class LiveStreamNotifier extends StateNotifier<LiveStreamState> {
 
   /// Called when a stream comes online.
   void onStreamLive(String streamId) {
-    if (!state.isConnected && !state.isConnecting) {
-      state = state.copyWith(
-        streamId: streamId,
-        statusText: 'Stream is live! Tap to listen',
-      );
+    if (state.isConnected || state.isConnecting) return;
+    // Appele a chaque frame par AudioPlayerBar : ne notifier que si quelque
+    // chose change, sinon boucle rebuild -> notification -> rebuild.
+    if (state.streamId == streamId &&
+        state.statusText == 'Stream is live! Tap to listen') {
+      return;
     }
+    state = state.copyWith(
+      streamId: streamId,
+      statusText: 'Stream is live! Tap to listen',
+    );
   }
 
   @override

@@ -35,7 +35,9 @@ class AudioPlayerBar extends ConsumerWidget {
       if (!isLive && isConnected) {
         ref.read(liveStreamProvider.notifier).onStreamEnded();
       }
-      if (isLive && !isConnected && !isConnecting && liveState.streamId != streamId) {
+      // Meme stream inclus : un flux coupe puis redemarre gardait sinon son
+      // libelle "Stream ended" et semblait injoignable.
+      if (isLive && !isConnected && !isConnecting) {
         ref.read(liveStreamProvider.notifier).onStreamLive(streamId);
       }
     });
