@@ -282,6 +282,21 @@ de ne mettre a jour que ce qui a change.
 3. Ouvrir une PR vers `develop`
 4. Review + CI verte requise
 
+## Repartition des taches
+
+Projet realise a plusieurs, sans decoupage rigide backend/mobile : chacun est
+intervenu sur les deux, avec un domaine de predilection. Repartition etablie
+a partir de l'historique Git (`git shortlog`, contributions par dossier), pas
+d'une attribution a posteriori.
+
+| Contributeur | Domaine principal | Contributions notables |
+|---|---|---|
+| **Jules Roche** | Streaming & documentation | Hub de streaming SSE (`infrastructure/streaming`), handlers HTTP et repository PostgreSQL, feature `streams` cote mobile, provisioning Grafana/alerting ; redaction de la documentation (ADR 003 SSE, ADR 008 dashboard/alertes, plan de tests, RGPD, accessibilite, guide utilisateur) et de l'edition accessible EPUB/audio |
+| **Zeyoman (Alex)** | Backend & CI/CD | Handlers HTTP, config et repositories PostgreSQL, RBAC et gestion des tokens ; features `streams`/`playlists`/`music` cote mobile ; pipelines CI (`backend.yml`, `mobile.yml`) ; ADR Riverpod, timeouts HTTP, effacement RGPD ; contrat OpenAPI et cahier de recette |
+| **Lilian Hammache (EkinL)** | Architecture & authentification | Structuration Clean Architecture du backend, authentification (JWT, social login), observabilite (OTEL) ; feature `auth` cote mobile ; pipelines CI additionnels (`security.yml`, `release.yml`, dependabot) ; ADR Clean Architecture, choix PostgreSQL, strategie JWT, observabilite |
+
+Le detail commit par commit reste consultable via `git log --author="<nom>"`.
+
 ## Licence
 
 MIT
@@ -318,3 +333,17 @@ erasure, Grafana alerting). Scalability measurements
 saturates well before CPU at realistic load (856 Mbit/s of a 1 Gbit/s link
 at 100 concurrent streams x 50 listeners, against 20% server capacity
 used) — the platform's real ceiling is bandwidth, not code.
+
+### Task split (English)
+
+Team project with no rigid backend/mobile split — everyone touched both
+sides, each with an area of focus. Breakdown derived from Git history
+(`git shortlog`, per-directory contributions), not assigned after the fact.
+
+| Contributor | Main area | Notable contributions |
+|---|---|---|
+| **Jules Roche** | Streaming & documentation | SSE streaming Hub (`infrastructure/streaming`), HTTP handlers and PostgreSQL repositories, mobile `streams` feature, Grafana/alerting provisioning; wrote most of the documentation (ADR 003 SSE, ADR 008 dashboard/alerting, test plan, GDPR, accessibility, user guide) and the accessible EPUB/audio edition |
+| **Zeyoman (Alex)** | Backend & CI/CD | HTTP handlers, PostgreSQL config and repositories, RBAC and token handling; mobile `streams`/`playlists`/`music` features; CI pipelines (`backend.yml`, `mobile.yml`); ADRs for Riverpod, HTTP timeouts, GDPR erasure; OpenAPI contract and acceptance test book |
+| **Lilian Hammache (EkinL)** | Architecture & authentication | Clean Architecture structuring of the backend, authentication (JWT, social login), observability (OTEL); mobile `auth` feature; additional CI pipelines (`security.yml`, `release.yml`, dependabot); ADRs for Clean Architecture, PostgreSQL choice, JWT strategy, observability |
+
+Commit-level detail remains available via `git log --author="<name>"`.
