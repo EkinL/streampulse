@@ -191,6 +191,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     // fin de file : retour au debut, pret a rejouer
     await _handler.pause();
     await _handler.seek(Duration.zero);
+    // le notifier a pu etre dispose pendant les await ci-dessus
+    if (!mounted) return;
     state = state.copyWith(isPlaying: false, position: Duration.zero);
   }
 
