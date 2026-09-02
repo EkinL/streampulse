@@ -293,8 +293,10 @@ MIT
 StreamPulse is a real-time audio streaming platform: a Go API (chi router,
 Clean Architecture — domain/application/infrastructure/transport layers)
 paired with a Flutter mobile app and web console, sharing one account
-across four hierarchical roles (`anonymous < user < broadcaster < admin`).
-Audio fans out from a broadcaster to any number of listeners through an
+across three hierarchical roles (`user < broadcaster < admin`) — the app
+requires an account for everything, though the API itself still answers a
+handful of read routes without a token. Audio fans out from a broadcaster
+to any number of listeners through an
 in-memory Hub over goroutines and channels, served either as Server-Sent
 Events (`/listen`) or a raw byte stream (`/audio`); JWT access tokens (15
 min) pair with single-use opaque refresh tokens (168 h, bcrypt/SHA-256

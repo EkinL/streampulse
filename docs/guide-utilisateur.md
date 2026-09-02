@@ -15,12 +15,16 @@ Le compte est le meme sur les deux. La console web n'accepte que les roles
 `broadcaster` et `admin` : un compte `user` qui s'y connecte arrive sur une page
 expliquant qu'il n'y a pas acces, et non sur une erreur.
 
-## Les quatre roles
+## Les trois roles
+
+Il n'existe pas de mode visiteur : l'application redirige toute personne non
+connectee vers l'ecran de connexion, sans aucun ecran accessible avant
+d'avoir un compte (`mobile/lib/app/router.dart`). Parcourir les flux ou le
+catalogue necessite donc, au minimum, un compte `user`.
 
 | Role | Ce qu'il peut faire |
 |------|---------------------|
-| **Visiteur** (non connecte) | Parcourir les flux et le catalogue musical, rechercher |
-| **Auditeur** (`user`) | + ecouter le direct, gerer playlists et favoris |
+| **Auditeur** (`user`) | Parcourir les flux et le catalogue, rechercher, ecouter le direct, gerer playlists et favoris |
 | **Diffuseur** (`broadcaster`) | + creer et animer des flux, deposer des musiques |
 | **Administrateur** (`admin`) | + gerer les comptes et consulter les metriques |
 
@@ -226,8 +230,11 @@ pour le detail et la maniere de les regenerer.
 
 StreamPulse is used through two clients sharing one account: a mobile app
 (listeners and broadcasters on the move) and a web console (broadcasters
-and admins at a desk). Four cumulative roles — visitor, listener (`user`),
-broadcaster, admin — gate what's available; only an admin can promote an
+and admins at a desk). There is no visitor mode — the app redirects any
+unauthenticated request to the login screen, so browsing streams or the
+catalogue already requires a `user` account. Three cumulative roles —
+listener (`user`), broadcaster, admin — gate what's available beyond that;
+only an admin can promote an
 account, and a brand-new deployment needs its first admin created directly
 in the database (see [cahier-de-recette.md](cahier-de-recette.md)). Three
 guided onboarding paths cover listening and playlists (~10 min), going live

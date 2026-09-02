@@ -132,7 +132,9 @@ Ce qu'il faut retenir au niveau securite :
 
 | Action | anonymous | user | broadcaster | admin |
 |--------|:---:|:---:|:---:|:---:|
-| Consulter flux / playlists publiques | ✅ | ✅ | ✅ | ✅ |
+| Consulter la liste des flux (`GET /streams`, `GET /streams/{id}`) | ✅ | ✅ | ✅ | ✅ |
+| Consulter le catalogue musical, rechercher (`GET /music`, `GET /search`) | ✅ | ✅ | ✅ | ✅ |
+| Consulter une playlist publique (`GET /playlists/public`) | ❌ | ✅ | ✅ | ✅ |
 | Ecouter un flux live | ❌ | ✅ | ✅ | ✅ |
 | Favoris, playlists privees | ❌ | ✅ | ✅ | ✅ |
 | Creer / demarrer / arreter un flux | ❌ | ❌ | ✅ (le sien) | ✅ (le sien) |
@@ -144,6 +146,20 @@ Ce qu'il faut retenir au niveau securite :
 
 Verifie exhaustivement par `TestRBAC_EndpointMatrix` (chaque route x
 chaque role) et `TestRequireRoleMatrix`.
+
+**Ce que "anonymous" recouvre reellement.** Le role `anonymous` n'est jamais
+assigne a un compte : c'est l'absence de jeton. Trois routes repondent
+effectivement sans authentification (`GET /streams`, `GET /streams/{id}`,
+`GET /music*`, `GET /search`), mais **aucun ecran de l'application livree
+n'y accede sans compte** — `mobile/lib/app/router.dart` redirige toute
+route non authentifiee vers la connexion, sans exception. Ces routes
+restent donc atteignables uniquement par un client tiers integre
+directement a l'API. `GET /playlists/public` est le cas inverse et source
+de confusion frequente : malgre son nom, elle exige un jeton, car elle est
+declaree a l'interieur du groupe authentifie du routeur
+(`transport/http/router.go`) plutot qu'a cote des trois routes ci-dessus —
+"publique" y qualifie la visibilite de la playlist entre utilisateurs
+connectes, pas l'acces anonyme.
 
 ## 5. Correspondance OWASP Top 10 (2021)
 
