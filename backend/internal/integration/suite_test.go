@@ -119,6 +119,7 @@ func buildSuite(t *testing.T) *suite {
 	favoriteRepo := postgres.NewFavoriteRepo(pool)
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
+	feedbackRepo := postgres.NewFeedbackRepo(pool)
 
 	jwtManager := auth.NewJWTManager(jwtSecret, 15*time.Minute, time.Hour)
 	hub := streaming.NewHub(logger)
@@ -131,6 +132,7 @@ func buildSuite(t *testing.T) *suite {
 		PlaylistService:   application.NewPlaylistService(playlistRepo),
 		UserService:       application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore),
 		MusicService:      application.NewMusicService(musicRepo, fileStore),
+		FeedbackService:   application.NewFeedbackService(feedbackRepo),
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,

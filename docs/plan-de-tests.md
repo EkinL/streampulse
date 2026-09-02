@@ -102,6 +102,7 @@ ne s'applique pas.
 | UC-20 | Droits RGPD : acces et effacement de son compte (Ce3.1.4) | `TestUserService_DeleteUser`, `TestPurgeExpiredRefreshTokens` | `TestUsers_AccessAndErasure` (profil sans hash, cascade sur 6 tables, refresh et login refuses, email libere), `TestCascadeOnUserDelete` | `TestRBAC_EndpointMatrix` (`/users/me` authentifie) ; jeton encore valide → 404 | R-80 a R-85 |
 | UC-21 | Admin : effacement sur demande (Ce3.1.4) | `TestUserService_DeleteUser` | `TestAdmin_DeleteUser` (id invalide, inconnu, disparition de la liste) | `TestRBAC_EndpointMatrix` (`adminOnly`), user → 403 | R-86, R-87 |
 | UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul, joker CORS refuse en production) | — | TLS 1.2 minimum ; API non publiee derriere Caddy (`docker-compose.prod.yml`) | R-88 a R-90 |
+| UC-23 | Canal de retour utilisateur : signalement et traitement (Ce3.4.3) | `TestFeedbackService_*` (backend), `feedback_repository_test.dart`, `feedback_screen_test.dart` (mobile) | `TestFeedback_SubmitAndAdminWorkflow`, `TestFeedback_Validation`, `TestFeedbackRepo` | `TestRBAC_EndpointMatrix` (`/feedback` authentifie, `/admin/feedback*` adminOnly) ; type ou statut invalide → 400 | R-91 a R-97 |
 
 ## 4. Campagne de securite
 

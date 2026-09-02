@@ -35,7 +35,10 @@ Future<void> _pump(WidgetTester tester, {required _MockDio dio}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [adminProvider.overrideWith((ref) => AdminNotifier(dio))],
-      child: MaterialApp(theme: AppTheme.darkTheme, home: const AdminUsersScreen()),
+      child: MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: const Scaffold(body: AdminUsersScreen()),
+      ),
     ),
   );
   await tester.pump();

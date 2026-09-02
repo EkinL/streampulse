@@ -88,6 +88,10 @@ tags:
     description: The calling user's own account — data access and erasure.
   - name: admin
     description: User administration, admin only.
+  - name: feedback
+    description: |
+      User feedback channel: any authenticated account can report a bug or
+      a suggestion; an admin lists and processes what comes in.
 
 security: []
 
@@ -1496,6 +1500,110 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /feedback:
+    post:
+      tags: [feedback]
+      operationId: submitFeedback
+      summary: Report a bug or a suggestion
+      description: |
+        The user feedback channel: any authenticated account, whatever its
+        role, can send a message describing a problem or an idea. It always
+        starts in the `new` status; only an admin can move it forward.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitFeedbackRequest'
+      responses:
+        '201':
+          description: Feedback recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/feedback:
+    get:
+      tags: [admin, feedback]
+      operationId: listFeedback
+      summary: List reported feedback
+      description: |
+        Most recent first, optionally filtered by status. This is how the
+        team processes what comes in through `POST /feedback`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/FeedbackStatus' }
+          description: Restrict the list to this status.
+      responses:
+        '200':
+          description: Page of feedback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackListEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/feedback/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin, feedback]
+      operationId: updateFeedbackStatus
+      summary: Move feedback through its processing status
+      description: Typically `new` → `in_progress` → `resolved`, admin only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/FeedbackStatus' }
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: updated }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400':
+          description: Invalid feedback id, malformed body, or unknown status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: BAD_REQUEST, message: invalid status }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
 components:
 
   securitySchemes:
@@ -2073,3 +2181,57 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/User' }
+
+    FeedbackType:
+      type: string
+      enum: [bug, suggestion, other]
+
+    FeedbackStatus:
+      type: string
+      description: Processing lifecycle, moved forward by an admin.
+      enum: [new, in_progress, resolved]
+
+    SubmitFeedbackRequest:
+      type: object
+      required: [type, message]
+      properties:
+        type: { $ref: '#/components/schemas/FeedbackType' }
+        message:
+          type: string
+          maxLength: 4000
+        app_version:
+          type: string
+          description: e.g. `pubspec.yaml` version, so a report can be tied to a build.
+        platform:
+          type: string
+          description: e.g. `android`, `ios`, `web`.
+
+    Feedback:
+      type: object
+      required: [id, user_id, type, message, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/FeedbackType' }
+        message: { type: string }
+        app_version: { type: string }
+        platform: { type: string }
+        status: { $ref: '#/components/schemas/FeedbackStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FeedbackEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Feedback' }
+
+    FeedbackListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Feedback' }
