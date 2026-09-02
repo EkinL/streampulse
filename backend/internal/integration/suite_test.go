@@ -33,6 +33,7 @@ import (
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/filestore"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/postgres"
@@ -121,6 +122,7 @@ func buildSuite(t *testing.T) *suite {
 
 	jwtManager := auth.NewJWTManager(jwtSecret, 15*time.Minute, time.Hour)
 	hub := streaming.NewHub(logger)
+	chatHub := chat.NewHub(logger)
 	fileStore := filestore.NewFileStore(uploadDir, uploadsBaseURL)
 
 	router := transport.NewRouter(transport.RouterConfig{
@@ -135,6 +137,7 @@ func buildSuite(t *testing.T) *suite {
 		MusicRepo:         musicRepo,
 		JWTManager:        jwtManager,
 		Hub:               hub,
+		ChatHub:           chatHub,
 		Logger:            logger,
 		Metrics:           observability.NewMetrics(),
 		CORSOrigins:       "*",

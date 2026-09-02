@@ -18,6 +18,7 @@ import (
 	"github.com/streampulse/backend/api"
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/streaming"
 	"github.com/streampulse/backend/testutil"
@@ -31,6 +32,7 @@ var (
 	testRouterMux     *chi.Mux
 	testRouterJWT     *auth.JWTManager
 	testRouterHub     *streaming.Hub
+	testRouterChatHub *chat.Hub
 	testRouterStreams *testutil.MockStreamRepo
 	testRouterMetrics *observability.Metrics
 )
@@ -40,12 +42,14 @@ func testRouter(t *testing.T) (*chi.Mux, *auth.JWTManager) {
 	testRouterOnce.Do(func() {
 		testRouterJWT = auth.NewJWTManager("test-secret", time.Minute, time.Hour)
 		testRouterHub = streaming.NewHub(zerolog.Nop())
+		testRouterChatHub = chat.NewHub(zerolog.Nop())
 		testRouterStreams = testutil.NewMockStreamRepo()
 		testRouterMetrics = observability.NewMetrics()
 		testRouterMux = NewRouter(RouterConfig{
 			StreamService:  application.NewStreamService(testRouterStreams, testRouterHub),
 			StreamRepo:     testRouterStreams,
 			Hub:            testRouterHub,
+			ChatHub:        testRouterChatHub,
 			JWTManager:     testRouterJWT,
 			Logger:         zerolog.Nop(),
 			Metrics:        testRouterMetrics,

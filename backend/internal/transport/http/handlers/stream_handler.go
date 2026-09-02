@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/streaming"
 	"github.com/streampulse/backend/internal/transport/http/dto"
@@ -22,14 +23,16 @@ import (
 type StreamHandler struct {
 	streamService *application.StreamService
 	hub           *streaming.Hub
+	chatHub       *chat.Hub
 	logger        zerolog.Logger
 	metrics       *observability.Metrics
 }
 
-func NewStreamHandler(streamService *application.StreamService, hub *streaming.Hub, logger zerolog.Logger, metrics *observability.Metrics) *StreamHandler {
+func NewStreamHandler(streamService *application.StreamService, hub *streaming.Hub, chatHub *chat.Hub, logger zerolog.Logger, metrics *observability.Metrics) *StreamHandler {
 	return &StreamHandler{
 		streamService: streamService,
 		hub:           hub,
+		chatHub:       chatHub,
 		logger:        logger,
 		metrics:       metrics,
 	}
@@ -457,6 +460,10 @@ func (h *StreamHandler) StopStream(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to stop stream")
 		return
 	}
+
+	// Le live est fini : le salon de chat associe l'est aussi, ses
+	// participants sont deconnectes (voir infrastructure/chat).
+	h.chatHub.CloseStream(streamID)
 
 	h.metrics.ActiveStreams.Dec()
 	respondJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
