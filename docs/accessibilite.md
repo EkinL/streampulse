@@ -30,7 +30,11 @@ d'ecran :
 
 Sur la console web, la navigation laterale, l'avatar du compte et la
 deconnexion portent des infobulles, annoncees comme libelles par les lecteurs
-d'ecran de bureau.
+d'ecran de bureau. Le rendu web de Flutter (CanvasKit) ne construit pas
+l'arbre semantique par defaut : l'application l'active explicitement au
+demarrage (`SemanticsBinding.instance.ensureSemantics()` dans `main.dart`),
+sans quoi un lecteur d'ecran ne verrait qu'un canevas vide malgre les
+annotations.
 
 Au-dela du lecteur et de la console, chacun des 33 boutons icone de
 l'application (retour, favoris, recherche, afficher/masquer le mot de passe,
@@ -201,6 +205,7 @@ sur son propre appareil, avec sa propre configuration.
 | Taille de texte systeme respectee | Fait | Verifier les grandes tailles sur les ecrans denses |
 | Tooltips sur les boutons icone (33/33) | Fait | — |
 | Pochettes/vignettes marquees decoratives (`ExcludeSemantics`) | Fait | — |
+| Arbre semantique active au demarrage sur la console web (CanvasKit) | Fait | Rejouer un parcours au lecteur d'ecran de bureau sur la console deployee |
 | Mesure des contrastes WCAG AA (texte/fond) | Fait | Revalider `text3` sur `surfaceVariant` (marge la plus faible, 4,55) si la palette change |
 | Zone tactile du bouton sourdine compact (48 px) | Fait | — |
 | Focus clavier visible sur boutons/icones (console web) | Fait | — |
@@ -227,6 +232,9 @@ sur son propre appareil, avec sa propre configuration.
 The mobile app works with VoiceOver and TalkBack out of the box: player
 controls, all 33 icon-only buttons, and web console tooltips are announced,
 and purely decorative thumbnails are marked so screen readers skip them.
+On the web console, the semantics tree is enabled explicitly at startup
+(CanvasKit does not build it by default), so desktop screen readers see
+the annotated controls instead of an empty canvas.
 Text size follows the system setting. Contrast has been measured against
 WCAG AA (4.5:1) for every text/background pair in the dark theme, the light
 theme (which now follows the system setting), and a manually-selectable
