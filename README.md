@@ -6,6 +6,8 @@
 
 Plateforme de streaming audio en temps reel avec backend Go et application mobile Flutter.
 
+*(English readers: a summary is provided at the [end of this document](#summary-english).)*
+
 ## Architecture
 
 ```
@@ -283,3 +285,36 @@ de ne mettre a jour que ce qui a change.
 ## Licence
 
 MIT
+
+---
+
+## Summary (English)
+
+StreamPulse is a real-time audio streaming platform: a Go API (chi router,
+Clean Architecture — domain/application/infrastructure/transport layers)
+paired with a Flutter mobile app and web console, sharing one account
+across three hierarchical roles (`user < broadcaster < admin`) — the app
+requires an account for everything, though the API itself still answers a
+handful of read routes without a token. Audio fans out from a broadcaster
+to any number of listeners through an
+in-memory Hub over goroutines and channels, served either as Server-Sent
+Events (`/listen`) or a raw byte stream (`/audio`); JWT access tokens (15
+min) pair with single-use opaque refresh tokens (168 h, bcrypt/SHA-256
+hashed). PostgreSQL 16 via `pgx` (no ORM) persists users, streams,
+playlists and favorites; OpenTelemetry, Prometheus and Grafana provide
+tracing, metrics and dashboards, alerted to Discord. The REST contract is
+normatively described in OpenAPI 3.1 (`backend/api/openapi.yaml`), checked
+against the live router in CI.
+
+`make up` starts the full stack; `docs/` holds the complete technical
+documentation — user stories, UML/BPMN diagrams, the conceptual and
+physical data model, a security overview mapped to OWASP Top 10, the test
+plan and executed acceptance cahier, SLOs, and an accessible EPUB/audio
+edition of it all (`docs/accessible/`, `make docs-accessible`). Nine
+Architecture Decision Records justify the major technical choices (Clean
+Architecture, Riverpod, SSE over WebSocket, PostgreSQL, JWT strategy, GDPR
+erasure, Grafana alerting). Scalability measurements
+([docs/scalability.md](docs/scalability.md)) show the outbound network
+saturates well before CPU at realistic load (856 Mbit/s of a 1 Gbit/s link
+at 100 concurrent streams x 50 listeners, against 20% server capacity
+used) — the platform's real ceiling is bandwidth, not code.

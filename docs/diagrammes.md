@@ -32,15 +32,25 @@ sequence et etats utilisent en revanche la syntaxe UML native de Mermaid.
 
 ## 1. Cas d'usage
 
-Vue synthetique des interactions entre les quatre roles et le systeme.
-Chaque role herite des cas d'usage du role precedent (`anonymous` <
-`user` < `broadcaster` < `admin`, [ADR 006](ADR/006-strategie-auth-jwt.md)) ;
-seuls les cas propres a chaque role sont rattaches a lui pour la
-lisibilite.
+Vue synthetique des interactions entre les trois roles et le systeme, plus
+le visiteur qui n'a pas encore de compte. **L'application n'offre aucune
+consultation sans compte** : `mobile/lib/app/router.dart` redirige toute
+route non authentifiee vers l'ecran de connexion, seuls l'inscription et la
+connexion sont atteignables avant d'avoir un compte. Chaque role herite
+ensuite des cas d'usage du role precedent (`user` < `broadcaster` <
+`admin`, [ADR 006](ADR/006-strategie-auth-jwt.md)) ; seuls les cas propres
+a chaque role sont rattaches a lui pour la lisibilite.
+
+> **Nuance API.** Le contrat REST expose reellement `GET /streams`,
+> `GET /music` et `GET /search` sans jeton ([securite.md](securite.md#4-authentification-et-autorisation)) :
+> un client tiers integre directement a l'API pourrait donc parcourir ces
+> listes sans compte. Aucun ecran de l'application livree n'emprunte ce
+> chemin — ce diagramme decrit le produit tel qu'on l'utilise, pas les
+> capacites brutes de l'API.
 
 ```mermaid
 flowchart LR
-    Anon(("Anonyme"))
+    Visitor(("Visiteur\n(sans compte)"))
     User(("Utilisateur"))
     Bcast(("Diffuseur"))
     Admin(("Administrateur"))
@@ -48,7 +58,7 @@ flowchart LR
     subgraph SYS["StreamPulse"]
         UC1["S'inscrire"]
         UC2["Se connecter"]
-        UC3["Consulter flux et playlists publiques"]
+        UC3["Parcourir flux et playlists publiques"]
         UC4["Ecouter un flux en direct"]
         UC5["Rechercher"]
         UC6["Gerer ses favoris"]
@@ -62,10 +72,10 @@ flowchart LR
         UC14["Supprimer un compte sur demande"]
     end
 
-    Anon --> UC1
-    Anon --> UC2
-    Anon --> UC3
+    Visitor --> UC1
+    Visitor --> UC2
 
+    User --> UC3
     User --> UC4
     User --> UC5
     User --> UC6
@@ -84,9 +94,9 @@ flowchart LR
     UC4 -. "cible" .-> UC9
 ```
 
-Traçabilite vers les [user stories](user-stories.md) : `UC1-UC2` → US-01 a
-US-03 ; `UC3` → US-06 ; `UC4-UC8` → US-07 a US-10, US-04, US-05 ; `UC9-UC11`
-→ US-11, US-12 ; `UC12-UC14` → US-13 a US-15.
+Traçabilite vers les [user stories](user-stories.md) : `UC1-UC2` → US-01,
+US-02 ; `UC3-UC4` → US-06, US-07 ; `UC5-UC8` → US-07 a US-09, US-04, US-05 ;
+`UC9-UC11` → US-10, US-11 ; `UC12-UC14` → US-12 a US-14.
 
 ---
 
