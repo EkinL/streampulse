@@ -70,7 +70,7 @@ groups:
               from: 300
               to: 0
             model:
-              expr: increase(stream_disconnections_total[5m])
+              expr: increase(stream_disconnections_total{reason="abrupt"}[5m])
               instant: true
               refId: A
           - refId: B

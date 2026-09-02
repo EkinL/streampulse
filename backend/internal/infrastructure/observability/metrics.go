@@ -6,14 +6,16 @@ import (
 )
 
 type Metrics struct {
-	HTTPRequestsTotal    *prometheus.CounterVec
-	HTTPRequestDuration  *prometheus.HistogramVec
-	ActiveStreams        prometheus.Gauge
-	ActiveListeners      prometheus.Gauge
-	StreamDisconnections prometheus.Counter
-	StreamBytesSentTotal prometheus.Counter
-	ChatConnections      prometheus.Gauge
-	ChatMessagesTotal    prometheus.Counter
+	HTTPRequestsTotal     *prometheus.CounterVec
+	HTTPRequestDuration   *prometheus.HistogramVec
+	ActiveStreams         prometheus.Gauge
+	ActiveListeners       prometheus.Gauge
+	StreamDisconnections  *prometheus.CounterVec
+	StreamBytesSentTotal  prometheus.Counter
+	ListenerSessions      prometheus.Counter
+	SessionsWithChunkLoss prometheus.Counter
+	ChatConnections       prometheus.Gauge
+	ChatMessagesTotal     prometheus.Counter
 }
 
 func NewMetrics() *Metrics {
@@ -45,16 +47,29 @@ func NewMetrics() *Metrics {
 				Help: "Number of currently connected listeners",
 			},
 		),
-		StreamDisconnections: promauto.NewCounter(
+		StreamDisconnections: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "stream_disconnections_total",
-				Help: "Total number of stream disconnections",
+				Help: "Total number of stream disconnections, labeled by reason",
 			},
+			[]string{"reason"},
 		),
 		StreamBytesSentTotal: promauto.NewCounter(
 			prometheus.CounterOpts{
 				Name: "stream_bytes_sent_total",
 				Help: "Total bytes sent to stream listeners",
+			},
+		),
+		ListenerSessions: promauto.NewCounter(
+			prometheus.CounterOpts{
+				Name: "listener_sessions_total",
+				Help: "Total number of listening sessions",
+			},
+		),
+		SessionsWithChunkLoss: promauto.NewCounter(
+			prometheus.CounterOpts{
+				Name: "sessions_with_chunk_loss_total",
+				Help: "Total number of listening sessions that dropped at least one audio chunk",
 			},
 		),
 		ChatConnections: promauto.NewGauge(

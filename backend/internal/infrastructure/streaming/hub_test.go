@@ -191,6 +191,16 @@ func TestHubSlowListenerDoesNotBlockOthers(t *testing.T) {
 	if got := hub.ListenerCount(streamID); got != len(fast)+1 {
 		t.Fatalf("ListenerCount = %d, want %d", got, len(fast)+1)
 	}
+	// Chaque chunk au-dela du tampon plein est jete et compte, cf. SLO 4
+	// (docs/slo.md) : le lent en a rate chunks-clientBufferSize au minimum.
+	if got, want := slow.Dropped(), int64(chunks-clientBufferSize); got < want {
+		t.Fatalf("slow.Dropped() = %d, want at least %d", got, want)
+	}
+	for _, c := range fast {
+		if got := c.Dropped(); got != 0 {
+			t.Fatalf("fast listener dropped %d chunks, want 0", got)
+		}
+	}
 
 	for _, d := range drains {
 		close(d.done)
