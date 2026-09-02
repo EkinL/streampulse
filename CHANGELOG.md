@@ -30,7 +30,9 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   authentifie de signaler un bug ou une suggestion ; `GET /admin/feedback`
   (filtrable par statut) et `PUT /admin/feedback/{id}/status` permettent a
   l'equipe de le consulter et de le faire avancer (`new` → `in_progress` →
-  `resolved`), reserve au role `admin`
+  `resolved`), reserve au role `admin`. Cote mobile : ecran **Signaler un
+  probleme**, accessible depuis Mon compte, qui joint la version de l'app
+  (`package_info_plus`) et la plateforme au signalement
 - Reverse proxy de production dans la stack : `docker-compose.prod.yml` +
   `caddy/Caddyfile` (`make up-prod`). Caddy termine TLS (Let's Encrypt),
   l'API n'est plus publiee, PostgreSQL et le collecteur OTEL non plus,

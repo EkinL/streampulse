@@ -18,6 +18,7 @@ import '../features/music/presentation/screens/search_screen.dart';
 import '../features/music/presentation/screens/music_player_screen.dart';
 import '../features/auth/presentation/screens/privacy_policy_screen.dart';
 import '../features/auth/presentation/screens/account_screen.dart';
+import '../features/feedback/presentation/screens/feedback_screen.dart';
 
 class _AuthRouterNotifier extends ChangeNotifier {
   _AuthRouterNotifier(AuthState initial) : _authState = initial;
@@ -158,6 +159,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/account',
         builder: (context, state) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: '/feedback',
+        builder: (context, state) => const FeedbackScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
