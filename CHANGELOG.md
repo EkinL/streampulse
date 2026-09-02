@@ -209,3 +209,32 @@ git push origin v1.1.0
 actuel de `develop` et doit etre pose pour que le job `docker` de
 `.github/workflows/backend.yml`, declenche par `startsWith(github.ref, 'refs/tags/')`,
 s'execute pour la premiere fois.
+
+---
+
+## Summary (English)
+
+Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
+[SemVer](https://semver.org/). One version number covers all three
+deliverables together — the Go API, the Flutter mobile app, and the web
+console — since they ship from a single repository and share one REST
+contract; a breaking change to that contract forces a major version bump,
+because an already-installed mobile client cannot be force-updated.
+
+Highlights across versions: **0.1.0** laid down the Clean Architecture
+skeleton, auth, admin, and the mobile music/playlist/player scaffolding;
+**0.2.0** upgraded to Go 1.26 and fixed live-playback audio session
+interleaving on iOS; **0.3.0** added the web console and server-side
+playlist queueing; **1.0.0** is the first end-to-end-complete release —
+authentication, role hierarchy, real-time broadcasting via the fan-out
+Hub, music catalogue, playlists, favorites, admin, and full observability.
+The unreleased changes on top of it add a production reverse-proxy
+(Caddy, automatic TLS), hardened production config (no wildcard CORS),
+GDPR account rights (access, self-erasure, admin-erasure, automatic
+refresh-token purge), native optional HTTPS, the full documentation set
+referenced from this repository, and a security pass that patched 29
+HIGH/CRITICAL dependency vulnerabilities, moved the container off root,
+and fixed the rate-limiter key bug recorded as finding A-01 in the
+[acceptance cahier](docs/cahier-de-recette.md). **No git tag exists yet**
+in this repository; publishing `v1.0.0` is the pending step described
+above.

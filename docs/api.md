@@ -97,10 +97,18 @@ reachable by an `admin`.
 
 | Role | Level | Permissions |
 |------|-------|-------------|
-| anonymous | 0 | Public endpoints only: browse streams and music, search |
-| user | 1 | + listen, favorites, playlists, own account (`/users/me`) |
+| anonymous | 0 | No token: `GET /streams`, `GET /streams/{id}`, `GET /music*`, `GET /search` only |
+| user | 1 | + listen, favorites, playlists, `GET /playlists/public`, own account (`/users/me`) |
 | broadcaster | 2 | + create and run streams, upload music |
 | admin | 3 | + user management (roles, deletion), `/metrics` |
+
+> **This is the API contract, not the shipped clients.** Neither the
+> mobile app nor the web console exposes a no-account mode: their router
+> sends any unauthenticated screen straight to login. The four
+> `anonymous`-level routes above only matter to a third party integrating
+> the REST API directly. Note that despite its name, `GET /playlists/public`
+> is **not** one of them — it requires a token; "public" there means
+> visible to other logged-in users, not reachable without an account.
 
 ## Account and personal data
 
@@ -208,9 +216,12 @@ leves par les middlewares (auth, RBAC, rate limiting), qui repondent en
 texte brut sans enveloppe `meta`, une incoherence connue et documentee sur
 chaque operation concernee. L'authentification suit
 [ADR 006](ADR/006-strategie-auth-jwt.md) : jeton d'acces JWT de 15 minutes,
-refresh token opaque a usage unique de 168 h. Les quatre roles sont
-hierarchises (`anonymous < user < broadcaster < admin`), chacun heritant
-des droits du precedent. `GET /users/me` et `DELETE /users/me` exposent
+refresh token opaque a usage unique de 168 h. Les roles sont hierarchises
+(`user < broadcaster < admin`), chacun heritant des droits du precedent ;
+`anonymous` designe simplement l'absence de jeton et ne couvre, cote API,
+que `GET /streams`, `GET /music*` et `GET /search` — une capacite de
+l'API, pas de l'application livree, qui exige un compte pour tout.
+`GET /users/me` et `DELETE /users/me` exposent
 directement les droits RGPD d'acces et d'effacement (detail dans
 [rgpd.md](rgpd.md)). Le streaming se consomme par SSE (`/listen`, chunks
 encodes en base64) ou par flux audio brut (`/audio`, ce que consomme

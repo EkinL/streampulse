@@ -353,11 +353,16 @@ fan-out Hub, Flutter widget tests, and the manual acceptance cahier.
 
 All 19 subject use cases are covered by at least one automated test at
 each applicable level. Backend coverage reached 91.1% (94.1% excluding the
-non-unit-testable `cmd/server`), with `COVERAGE_MIN` locked at 80% in CI;
-mobile line coverage is 19.7% across 54 tests. Four defects were found —
-each starting as a red test — and fixed: broken rate limiting
-(`IP:port` used as the counter key instead of the host), and three 500s
-that should have been 404s on unknown stream/playlist/user ids. A handful
-of open observations (unincremented HTTP metrics, unbounded JSON body
-size, `HEAD /health` returning 405) are tracked with a proposed fix rather
-than silently left out.
+non-unit-testable `cmd/server`); mobile line coverage reached 80.4% across
+455 tests after three iterations that added repository/provider/interceptor
+tests, then widget and screen tests, then a round of reconciliation after a
+UI redesign temporarily dropped coverage to 71.7%. `COVERAGE_MIN` is locked
+at 80% in CI for both. Four backend defects were found — each starting as
+a red test — and fixed: broken rate limiting (`IP:port` used as the
+counter key instead of the host), and three 500s that should have been
+404s on unknown stream/playlist/user ids. A handful of open observations
+(unincremented HTTP metrics, unbounded JSON body size, `HEAD /health`
+returning 405) are tracked with a proposed fix rather than silently left
+out, and two mobile files stay deliberately out of unit-test scope
+(microphone recording, hard-wired `HttpClient`/`AudioSession`) until their
+logic is extracted behind an injectable interface.

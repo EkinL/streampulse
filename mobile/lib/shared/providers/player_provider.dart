@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart' show ProcessingState;
 import '../../app/constants.dart';
 import '../../core/audio/audio_handler.dart';
 import '../../features/music/domain/music_model.dart';
+import 'offline_provider.dart';
 import 'volume_provider.dart';
 
 class PlayerState {
@@ -58,8 +59,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   final StreamPulseAudioHandler _handler;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
-  PlayerNotifier(this._handler, {double initialVolume = AppConstants.defaultVolume})
-      : super(PlayerState(volume: initialVolume)) {
+  /// Mode offline : renvoie le chemin local d'une piste telechargee, ou null.
+  final Future<String?> Function(String trackId)? localPathResolver;
+
+  PlayerNotifier(
+    this._handler, {
+    double initialVolume = AppConstants.defaultVolume,
+    this.localPathResolver,
+  }) : super(PlayerState(volume: initialVolume)) {
     _handler
       ..onSkipToNext = next
       ..onSkipToPrevious = previous;
@@ -118,7 +125,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> _load(List<MusicModel> queue, int index) async {
     final track = queue[index];
-    await _handler.loadTrack(_toMediaItem(track), _resolveUrl(track.url));
+    // Piste telechargee ? On joue le fichier local (ecoute hors ligne).
+    final localPath = await localPathResolver?.call(track.id);
+    final source = localPath != null
+        ? Uri.file(localPath).toString()
+        : _resolveUrl(track.url);
+    await _handler.loadTrack(_toMediaItem(track), source);
     state = state.copyWith(
       currentTrack: track,
       queue: queue,
@@ -179,6 +191,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     // fin de file : retour au debut, pret a rejouer
     await _handler.pause();
     await _handler.seek(Duration.zero);
+    // le notifier a pu etre dispose pendant les await ci-dessus
+    if (!mounted) return;
     state = state.copyWith(isPlaying: false, position: Duration.zero);
   }
 
@@ -199,6 +213,8 @@ final playerProvider =
   final notifier = PlayerNotifier(
     handler,
     initialVolume: ref.read(volumeProvider),
+    localPathResolver: (trackId) =>
+        ref.read(offlineProvider.notifier).localPathFor(trackId),
   );
   ref.listen<double>(volumeProvider, (_, v) => notifier.setVolume(v));
   return notifier;

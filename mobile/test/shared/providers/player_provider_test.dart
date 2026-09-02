@@ -249,4 +249,36 @@ void main() {
     expect(handler.onSkipToPrevious, isNull);
     notifier = PlayerNotifier(handler, initialVolume: 0.5);
   });
+
+  group('mode offline', () {
+    test('joue le fichier local quand la piste est telechargee', () async {
+      notifier.dispose();
+      notifier = PlayerNotifier(
+        handler,
+        initialVolume: 0.5,
+        localPathResolver: (trackId) async =>
+            trackId == 'a' ? '/data/offline_audio/a.mp3' : null,
+      );
+
+      await notifier.play(_track('a'));
+
+      final (_, url) = handler.loaded.single;
+      expect(url, Uri.file('/data/offline_audio/a.mp3').toString());
+    });
+
+    test('retombe sur l\'URL reseau quand la piste n\'est pas en cache',
+        () async {
+      notifier.dispose();
+      notifier = PlayerNotifier(
+        handler,
+        initialVolume: 0.5,
+        localPathResolver: (_) async => null,
+      );
+
+      await notifier.play(_track('a'));
+
+      final (_, url) = handler.loaded.single;
+      expect(url, '${AppConstants.apiBaseUrl}/music/a/file');
+    });
+  });
 }

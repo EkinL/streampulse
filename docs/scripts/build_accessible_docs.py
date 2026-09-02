@@ -54,6 +54,7 @@ DOC_LIST: list[tuple[Path, str]] = [
     (DOCS_DIR / "deployment.md", "Deploiement"),
     (DOCS_DIR / "operations.md", "Operations"),
     (DOCS_DIR / "scalability.md", "Scalabilite"),
+    (REPO_ROOT / "CHANGELOG.md", "Changelog"),
     (DOCS_DIR / "ADR" / "001-clean-architecture.md", "ADR 001 - Clean Architecture"),
     (DOCS_DIR / "ADR" / "002-state-management-riverpod.md", "ADR 002 - Riverpod"),
     (DOCS_DIR / "ADR" / "003-streaming-sse.md", "ADR 003 - Streaming SSE"),
@@ -221,7 +222,15 @@ def inline_to_html(text: str, basename_map: dict[str, str]) -> str:
 
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link_sub, text)
     text = html.escape(text)
-    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+
+    def code_sub(m: re.Match) -> str:
+        placeholders.append(f"<code>{m.group(1)}</code>")
+        return f"\x00{len(placeholders) - 1}\x00"
+
+    # Code spans are protected before bold/italic: a literal "*" inside a
+    # code span (e.g. a glob like `test/features/*/data`) must never be
+    # read as emphasis syntax reaching across into the next code span.
+    text = re.sub(r"`([^`]+)`", code_sub, text)
     text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<em>\1</em>", text)
     for idx, rendered in enumerate(placeholders):

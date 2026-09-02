@@ -19,8 +19,20 @@ la ou le plan de tests donne la lecture "verification".
 >
 > Criteres d'acceptation (Given/When/Then) — Traçabilite
 
-Quatre roles hierarchises : `anonymous` < `user` < `broadcaster` < `admin`
-(chacun herite des droits du precedent, voir [ADR 006](ADR/006-strategie-auth-jwt.md)).
+Un visiteur sans compte ne peut atteindre que l'inscription ou la connexion
+(US-01, US-02) : l'application mobile et la console web redirigent tout le
+reste vers l'ecran de connexion, il n'existe aucune consultation sans compte
+dans l'application (`mobile/lib/app/router.dart`). Une fois connecte, trois
+roles hierarchises : `user` < `broadcaster` < `admin`, chacun heritant des
+droits du precedent (voir [ADR 006](ADR/006-strategie-auth-jwt.md)).
+
+> **Nuance API.** Le contrat REST, lui, expose reellement `GET /streams`,
+> `GET /music` et `GET /search` sans jeton (role `anonymous` du RBAC,
+> [securite.md](securite.md#4-authentification-et-autorisation)) : un
+> outil tiers integre a l'API peut donc consulter ces trois listes sans
+> compte. Ce n'est pas une experience produit — aucun ecran de l'application
+> livree ne l'expose — c'est une capacite de l'API que ces user stories, qui
+> decrivent le produit tel qu'on l'utilise, ne couvrent pas.
 
 ---
 
@@ -99,25 +111,9 @@ l'effacement (art. 17 RGPD).
 
 ---
 
-## Epic B — Consultation anonyme
+## Epic B — Ecoute et bibliotheque personnelle (role `user`)
 
-### US-06 — Decouvrir la plateforme sans compte
-**En tant que** visiteur anonyme, **je veux** consulter la liste des flux
-en direct et les playlists publiques, **afin de** decider si je veux
-m'inscrire.
-
-- **Given** aucun jeton, **when** j'appelle `GET /streams` ou
-  `GET /playlists/public`, **then** je recois la liste, paginee.
-- **Given** aucun jeton, **when** j'appelle une route necessitant un
-  compte (favoris, creation de flux, `/users/me`), **then** je recois
-  `401`.
-- Traçabilite : `UC-04`, `TestRBAC_EndpointMatrix`.
-
----
-
-## Epic C — Ecoute et bibliotheque personnelle (role `user`)
-
-### US-07 — Ecouter un flux en direct
+### US-06 — Ecouter un flux en direct
 **En tant qu'**auditeur, **je veux** ecouter un flux en cours de
 diffusion, **afin de** profiter du contenu en temps reel.
 
@@ -133,7 +129,7 @@ diffusion, **afin de** profiter du contenu en temps reel.
 - Traçabilite : `UC-05`, `TestStreams_LifecycleWithLiveListener`,
   [ADR 003](ADR/003-streaming-sse.md).
 
-### US-08 — Rechercher un flux ou un morceau
+### US-07 — Rechercher un flux ou un morceau
 **En tant qu'**utilisateur, **je veux** rechercher par mot-cle dans les
 flux et la bibliotheque musicale, **afin de** trouver rapidement un
 contenu.
@@ -144,7 +140,7 @@ contenu.
 - Traçabilite : `GET /search`, `GET /music/search`, index `gin` sur
   `music.title` et `music.artist` (migration 004).
 
-### US-09 — Mettre un flux ou un morceau en favori
+### US-08 — Mettre un flux ou un morceau en favori
 **En tant qu'**utilisateur, **je veux** marquer des flux et des morceaux
 comme favoris, **afin de** les retrouver facilement.
 
@@ -157,7 +153,7 @@ comme favoris, **afin de** les retrouver facilement.
 - Traçabilite : `UC-06`, `UC-07`, `TestFavorites_Streams`,
   `TestFavorites_Music`.
 
-### US-10 — Creer et organiser mes playlists
+### US-09 — Creer et organiser mes playlists
 **En tant qu'**utilisateur, **je veux** creer des playlists et en gerer
 l'ordre des pistes, **afin de** composer mes propres sequences d'ecoute.
 
@@ -176,9 +172,9 @@ l'ordre des pistes, **afin de** composer mes propres sequences d'ecoute.
 
 ---
 
-## Epic D — Diffusion (role `broadcaster`)
+## Epic C — Diffusion (role `broadcaster`)
 
-### US-11 — Creer et piloter un flux
+### US-10 — Creer et piloter un flux
 **En tant que** diffuseur, **je veux** creer un flux, le demarrer, y
 diffuser de l'audio puis l'arreter, **afin de** faire une emission en
 direct.
@@ -198,7 +194,7 @@ direct.
 - Traçabilite : `UC-10`, `TestStreams_LifecycleWithLiveListener`,
   `TestStreams_OwnershipAndErrors`.
 
-### US-12 — Alimenter la bibliotheque musicale
+### US-11 — Alimenter la bibliotheque musicale
 **En tant que** diffuseur, **je veux** deposer un fichier audio ou
 enregistrer l'URL d'une source, **afin de** constituer un catalogue
 reutilisable dans mes playlists.
@@ -213,9 +209,9 @@ reutilisable dans mes playlists.
 
 ---
 
-## Epic E — Administration (role `admin`)
+## Epic D — Administration (role `admin`)
 
-### US-13 — Gerer les comptes utilisateurs
+### US-12 — Gerer les comptes utilisateurs
 **En tant qu'**administrateur, **je veux** lister les comptes et changer
 le role d'un utilisateur, **afin de** promouvoir un diffuseur ou
 suspendre un abus.
@@ -231,7 +227,7 @@ suspendre un abus.
 - Traçabilite : `UC-12`, `TestAdmin_UsersAndRoles`,
   `TestRBAC_EndpointMatrix`.
 
-### US-14 — Supprimer un compte sur demande
+### US-13 — Supprimer un compte sur demande
 **En tant qu'**administrateur, **je veux** supprimer le compte d'un
 utilisateur qui en fait la demande hors application, **afin de**
 respecter son droit a l'effacement.
@@ -241,7 +237,7 @@ respecter son droit a l'effacement.
   disparaissent en cascade, comme une auto-suppression.
 - Traçabilite : `UC-21`, `TestAdmin_DeleteUser`.
 
-### US-15 — Superviser la plateforme
+### US-14 — Superviser la plateforme
 **En tant qu'**administrateur, **je veux** consulter les metriques
 globales (flux actifs, auditeurs, latences, erreurs), **afin de**
 detecter une anomalie de production avant qu'elle n'affecte les
@@ -258,9 +254,9 @@ utilisateurs.
 
 ---
 
-## Epic F — Confiance et securite (transverses)
+## Epic E — Confiance et securite (transverses)
 
-### US-16 — Etre protege contre les abus
+### US-15 — Etre protege contre les abus
 **En tant qu'**utilisateur de l'API (legitime), **je veux** que la
 plateforme reste disponible malgre des clients abusifs, **afin de**
 continuer a l'utiliser normalement.
@@ -270,7 +266,7 @@ continuer a l'utiliser normalement.
   `429`, sans affecter les autres hotes.
 - Traçabilite : `middleware/ratelimit.go`, [securite.md](securite.md#3-defense-en-profondeur).
 
-### US-17 — Savoir ce que la plateforme sait de moi
+### US-16 — Savoir ce que la plateforme sait de moi
 **En tant qu'**utilisateur, **je veux** une documentation claire de mes
 droits et des donnees conservees, **afin de** faire un choix eclaire.
 
@@ -280,14 +276,13 @@ droits et des donnees conservees, **afin de** faire un choix eclaire.
 
 ## Matrice role x epic
 
-| Epic | anonymous | user | broadcaster | admin |
+| Epic | avant compte | user | broadcaster | admin |
 |------|:---:|:---:|:---:|:---:|
 | A — Comptes | US-01, US-02 | US-03, US-04, US-05 | herite de `user` | herite de `broadcaster` |
-| B — Consultation | US-06 | herite | herite | herite |
-| C — Ecoute et bibliotheque | — | US-07 a US-10 | herite | herite |
-| D — Diffusion | — | — | US-11, US-12 | herite |
-| E — Administration | — | — | — | US-13 a US-15 |
-| F — Transverses | US-16, US-17 | US-16, US-17 | US-16, US-17 | US-16, US-17 |
+| B — Ecoute et bibliotheque | — | US-06 a US-09 | herite | herite |
+| C — Diffusion | — | — | US-10, US-11 | herite |
+| D — Administration | — | — | — | US-12 a US-14 |
+| E — Transverses | US-15, US-16 | US-15, US-16 | US-15, US-16 | US-15, US-16 |
 
 ---
 
@@ -295,10 +290,15 @@ droits et des donnees conservees, **afin de** faire un choix eclaire.
 
 This document restates StreamPulse's functionality as user stories with
 Given/When/Then acceptance criteria, organised by role
-(`anonymous` < `user` < `broadcaster` < `admin`) and grouped into six epics:
-accounts & authentication, anonymous browsing, listening & personal library,
-broadcasting, administration, and cross-cutting trust/security concerns.
-Each story links to its use case (`UC-xx`) in [plan-de-tests.md](plan-de-tests.md)
+(`user` < `broadcaster` < `admin`) and grouped into five epics: accounts &
+authentication, listening & personal library, broadcasting, administration,
+and cross-cutting trust/security concerns. There is no anonymous-browsing
+epic: the shipped app requires an account for everything except
+registration and login (`mobile/lib/app/router.dart` redirects any
+unauthenticated request elsewhere to `/login`) — a nuance noted right after
+the role list, since the REST API itself still answers `GET /streams`,
+`GET /music` and `GET /search` without a token, a capability no shipped
+client exposes. Each story links to its use case (`UC-xx`) in [plan-de-tests.md](plan-de-tests.md)
 and to the automated tests that verify it, so the story-to-code trace is
 explicit rather than assumed. It answers criterion **Ce3.6.1** of RNCP 38822
 block 3, alongside [base-de-donnees.md](base-de-donnees.md) (data model),
