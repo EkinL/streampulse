@@ -83,6 +83,7 @@ func main() {
 	favoriteRepo := postgres.NewFavoriteRepo(pool)
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
+	feedbackRepo := postgres.NewFeedbackRepo(pool)
 
 	// Initialize file store. L'URL publique suit PUBLIC_BASE_URL, ou a defaut
 	// le port et l'activation de TLS : un fichier uploade doit rester
@@ -124,6 +125,7 @@ func main() {
 	playlistService := application.NewPlaylistService(playlistRepo)
 	userService := application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore)
 	musicService := application.NewMusicService(musicRepo, fileStore)
+	feedbackService := application.NewFeedbackService(feedbackRepo)
 
 	// Initialize router
 	router := transport.NewRouter(transport.RouterConfig{
@@ -132,6 +134,7 @@ func main() {
 		PlaylistService:   playlistService,
 		UserService:       userService,
 		MusicService:      musicService,
+		FeedbackService:   feedbackService,
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,

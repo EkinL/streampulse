@@ -22,6 +22,7 @@ type RouterConfig struct {
 	PlaylistService   *application.PlaylistService
 	UserService       *application.UserService
 	MusicService      *application.MusicService
+	FeedbackService   *application.FeedbackService
 	FavoriteRepo      domain.FavoriteRepository
 	MusicFavoriteRepo domain.MusicFavoriteRepository
 	StreamRepo        domain.StreamRepository
@@ -76,6 +77,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	favoritesHandler := handlers.NewFavoritesHandler(cfg.FavoriteRepo, cfg.StreamRepo)
 	musicHandler := handlers.NewMusicHandler(cfg.MusicService, cfg.StreamRepo)
 	musicFavHandler := handlers.NewMusicFavoritesHandler(cfg.MusicFavoriteRepo, cfg.MusicRepo)
+	feedbackHandler := handlers.NewFeedbackHandler(cfg.FeedbackService)
 
 	// Static file serving
 	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
@@ -122,6 +124,10 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Get("/users/me", userHandler.Me)
 		r.Patch("/users/me", userHandler.UpdateMe)
 		r.Delete("/users/me", userHandler.DeleteMe)
+
+		// Canal de retour utilisateur : tout compte authentifie peut signaler
+		// un bug ou une suggestion, quel que soit son role.
+		r.Post("/feedback", feedbackHandler.Submit)
 
 		// Streams - broadcaster only
 		r.Group(func(r chi.Router) {
@@ -170,6 +176,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Get("/admin/users", adminHandler.ListUsers)
 			r.Put("/admin/users/{id}/role", adminHandler.UpdateUserRole)
 			r.Delete("/admin/users/{id}", adminHandler.DeleteUser)
+
+			// Traitement des signalements par l'equipe : liste filtrable par
+			// statut, puis avancement dans le cycle new -> in_progress -> resolved.
+			r.Get("/admin/feedback", feedbackHandler.ListFeedback)
+			r.Put("/admin/feedback/{id}/status", feedbackHandler.UpdateFeedbackStatus)
 
 			// Prometheus metrics: admin only, as required by docs/api.md.
 			// Prometheus itself scrapes the internal listener started in

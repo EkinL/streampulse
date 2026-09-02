@@ -69,6 +69,16 @@ type MusicFavoriteRepository interface {
 	ListIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 }
 
+type FeedbackRepository interface {
+	Create(ctx context.Context, feedback *Feedback) error
+	FindByID(ctx context.Context, id uuid.UUID) (*Feedback, error)
+	// List rend tous les signalements, plus recents d'abord, filtres par statut
+	// quand status n'est pas vide. Reserve a l'administration : un utilisateur
+	// ne consulte pas les signalements des autres.
+	List(ctx context.Context, status FeedbackStatus, page, perPage int) ([]Feedback, int, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status FeedbackStatus) error
+}
+
 type MusicRepository interface {
 	Create(ctx context.Context, music *Music) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Music, error)

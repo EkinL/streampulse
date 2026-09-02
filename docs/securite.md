@@ -143,6 +143,8 @@ Ce qu'il faut retenir au niveau securite :
 | Lister / modifier le role des comptes | ❌ | ❌ | ❌ | ✅ |
 | Supprimer un compte tiers | ❌ | ❌ | ❌ | ✅ |
 | `GET /metrics` | ❌ | ❌ | ❌ | ✅ |
+| Signaler un bug ou une suggestion (`POST /feedback`) | ❌ | ✅ | ✅ | ✅ |
+| Consulter / traiter les signalements (`GET`, `PUT /admin/feedback*`) | ❌ | ❌ | ❌ | ✅ |
 
 Verifie exhaustivement par `TestRBAC_EndpointMatrix` (chaque route x
 chaque role) et `TestRequireRoleMatrix`.

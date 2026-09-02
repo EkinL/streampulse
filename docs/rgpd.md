@@ -23,6 +23,7 @@ transmises a un tiers.
 | Horodatage de l'acceptation des conditions d'utilisation (`terms_accepted_at`) | table `users` | Preuve du consentement recueilli a l'inscription | Obligation legale (obligation de rendre compte, art. 5.2) | Duree de vie du compte |
 | Refresh tokens | table `refresh_tokens`, **hash SHA-256** uniquement | Prolonger une session sans ressaisir le mot de passe | Execution du contrat | 168 h maximum (`JWT_REFRESH_EXPIRY`), revoques a chaque connexion, **purges automatiquement une fois expires** (`REFRESH_TOKEN_PURGE_INTERVAL`, 1 h) |
 | Flux, playlists, favoris, morceaux deposes | tables `streams`, `playlists`, `tracks`, `favorites`, `music`, `music_favorites` | Le service lui-meme | Execution du contrat | Duree de vie du compte, **supprimes en cascade avec lui** |
+| Signalements (bug ou suggestion) : type, message, version d'application, plateforme | table `feedback` | Canal de retour utilisateur (`POST /feedback`) ; traitement par l'equipe (`GET`/`PUT /admin/feedback*`) | Interet legitime (amelioration du service) | Duree de vie du compte, **supprimes en cascade avec lui** |
 | Adresse IP, user-agent, chemin, statut, `request_id`, `trace_id` | logs JSON sur la sortie standard du conteneur `api` | Securite (rate limiting par hote), diagnostic | Interet legitime | Pilote `local` de Docker, rotation par taille : ~30 jours a volume normal en production (`docker-compose.prod.yml`) |
 | Traces OpenTelemetry | collecteur OTEL | Diagnostic de performance | Interet legitime | Fixee par le backend de traces ; les spans ne portent ni email ni identifiant de compte |
 | Metriques Prometheus | `/metrics` (admin) et listener interne | Supervision | Interet legitime | Agregees, aucune donnee individuelle |
@@ -128,6 +129,12 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
    resserre en production par `docker-compose.prod.yml` vers ~30 jours a
    volume normal). Limite residuelle : rotation par taille, pas par date
    exacte (section 4).
+5. **Signalements et droit d'acces** : `GET /users/me` ne liste pas encore
+   les signalements envoyes par la personne (`POST /feedback`). Le droit a
+   l'effacement reste couvert (suppression en cascade, `ON DELETE CASCADE`
+   sur `feedback.user_id`) ; seule la portabilite de ce sous-ensemble de
+   donnees est incomplete. A ajouter a `ProfileDTO` si l'usage du canal de
+   retour se confirme.
 
 ---
 
@@ -136,7 +143,8 @@ dans l'[ADR 007](ADR/007-effacement-compte-rgpd.md).
 StreamPulse stores, per account: email, username, a bcrypt password hash, a
 role, a timestamp of terms-of-use acceptance, and timestamps; SHA-256 hashes
 of refresh tokens (max 168 h, revoked on login, purged automatically once
-expired); and the user's streams, playlists, favorites and uploaded tracks.
+expired); and the user's streams, playlists, favorites, uploaded tracks
+and feedback reports (`POST /feedback`, the user feedback channel).
 HTTP logs carry the client IP and user agent for security and diagnostics;
 they rotate via Docker's `local` logging driver, capped to roughly 30 days
 of normal volume in production. No listening history, location, advertising
