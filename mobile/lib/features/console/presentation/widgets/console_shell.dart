@@ -36,7 +36,7 @@ const ConsoleDestination _users = ConsoleDestination(
   icon: Icons.admin_panel_settings_outlined,
   activeIcon: Icons.admin_panel_settings,
   label: 'Users',
-  description: 'Manage accounts and roles',
+  description: 'Accounts, roles & feedback reports',
 );
 
 /// The console sections [user] is allowed to open.

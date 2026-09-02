@@ -272,6 +272,28 @@ droits et des donnees conservees, **afin de** faire un choix eclaire.
 
 - Traçabilite : `UC-22`, [rgpd.md](rgpd.md), [securite.md](securite.md).
 
+### US-17 — Signaler un probleme ou une suggestion
+**En tant qu'**utilisateur (quel que soit son role), **je veux** signaler un
+bug ou une suggestion depuis l'application, **afin de** faire remonter un
+probleme a l'equipe sans passer par un canal externe.
+
+- **Given** un compte authentifie, quel que soit son role, **when** j'envoie
+  `POST /feedback` avec un type (`bug`, `suggestion` ou `other`) et un
+  message, **then** mon signalement est enregistre avec le statut `new`.
+- **Given** un message vide ou un type inconnu, **when** j'envoie la
+  requete, **then** elle est refusee (`400`).
+- **Given** un signalement enregistre, **when** un administrateur le
+  consulte via `GET /admin/feedback` puis fait avancer son statut via
+  `PUT /admin/feedback/{id}/status`, **then** il passe de `new` a
+  `in_progress` puis `resolved`.
+- **Given** un compte non administrateur, **when** il tente de consulter ou
+  de traiter les signalements, **then** la requete est refusee (`403`) : je
+  ne vois pas les signalements des autres, seule l'equipe les traite.
+- Traçabilite : `UC-23`, `POST /feedback`, `GET /admin/feedback`,
+  `PUT /admin/feedback/{id}/status`, `TestFeedbackService_*`,
+  `TestFeedback_SubmitAndAdminWorkflow`, `TestFeedback_Validation`,
+  `TestFeedbackRepo`.
+
 ---
 
 ## Matrice role x epic
@@ -282,7 +304,7 @@ droits et des donnees conservees, **afin de** faire un choix eclaire.
 | B — Ecoute et bibliotheque | — | US-06 a US-09 | herite | herite |
 | C — Diffusion | — | — | US-10, US-11 | herite |
 | D — Administration | — | — | — | US-12 a US-14 |
-| E — Transverses | US-15, US-16 | US-15, US-16 | US-15, US-16 | US-15, US-16 |
+| E — Transverses | US-15, US-16 | US-15 a US-17 | US-15 a US-17 | US-15 a US-17 |
 
 ---
 

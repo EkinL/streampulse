@@ -14,6 +14,10 @@ class ApiEndpoints {
   static const String music = '/music';
   static const String musicSearch = '/music/search';
   static const String globalSearch = '/search';
+  static const String feedback = '/feedback';
+  static const String adminFeedback = '/admin/feedback';
+
+  static String adminFeedbackStatus(String id) => '/admin/feedback/$id/status';
 
   static String stream(String id) => '/streams/$id';
   static String streamStart(String id) => '/streams/$id/start';

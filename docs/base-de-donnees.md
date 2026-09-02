@@ -11,7 +11,7 @@ les [diagrammes UML/BPMN](diagrammes.md). Une synthese en anglais figure
 en fin de document.
 
 La source de verite executable reste les migrations
-(`backend/internal/infrastructure/postgres/migrations/001` a `006`,
+(`backend/internal/infrastructure/postgres/migrations/001` a `007`,
 outil `golang-migrate`) : ce document en est la lecture entites-associations
 et le dictionnaire, il ne s'y substitue pas.
 
@@ -30,6 +30,7 @@ Methode Merise : entites, identifiants, associations et cardinalites
 | `PISTE` | `id` | titre, url, duree, position |
 | `MORCEAU` | `id` | titre, artiste, album, duree, url, url_pochette, date_creation |
 | `JETON_RAFRAICHISSEMENT` | `id` | hash_jeton, date_expiration, date_creation |
+| `SIGNALEMENT` | `id` | type, message, version_app, plateforme, statut, date_creation, date_maj |
 
 ### Associations et cardinalites
 
@@ -43,6 +44,7 @@ Methode Merise : entites, identifiants, associations et cardinalites
 | FAVORI_FLUX | UTILISATEUR — FLUX | `0,n` — `0,n` | Association porteuse d'une date (`date_ajout`) : un utilisateur met en favori plusieurs flux, un flux est mis en favori par plusieurs utilisateurs. |
 | FAVORI_MORCEAU | UTILISATEUR — MORCEAU | `0,n` — `0,n` | Meme lecture pour les morceaux. |
 | DETIENT_JETON | UTILISATEUR — JETON_RAFRAICHISSEMENT | `1,1` — `0,n` | Un jeton appartient a exactement un utilisateur ; un utilisateur peut detenir plusieurs jetons (multi-appareil), tous revoques a chaque connexion ([ADR 006](ADR/006-strategie-auth-jwt.md)). |
+| SIGNALE | UTILISATEUR — SIGNALEMENT | `1,1` — `0,n` | Un signalement (bug ou suggestion) est envoye par exactement un utilisateur ; un utilisateur peut envoyer plusieurs signalements. C'est le canal de retour utilisateur (`POST /feedback`, `GET`/`PUT /admin/feedback*`). |
 
 ### Regles de gestion
 
@@ -56,12 +58,15 @@ Methode Merise : entites, identifiants, associations et cardinalites
   playlist (recalculee atomiquement a chaque reordonnancement,
   `TestPlaylistRepo_ReorderIsAtomic`).
 - RG-04 : l'effacement d'un utilisateur entraine l'effacement de tout ce
-  qu'il possede (flux, playlists, pistes, morceaux, favoris, jetons) —
-  effacement physique en cascade, jamais logique
+  qu'il possede (flux, playlists, pistes, morceaux, favoris, jetons,
+  signalements) — effacement physique en cascade, jamais logique
   ([ADR 007](ADR/007-effacement-compte-rgpd.md)).
 - RG-05 : la suppression d'un morceau reference par des pistes ne supprime
   pas ces pistes ; elles perdent seulement la reference (`music_id`
   devient `NULL`), la piste conserve son titre et son URL propres.
+- RG-06 : le statut d'un signalement est l'une des trois valeurs `new`,
+  `in_progress`, `resolved`, fixe a `new` a la creation et fait avancer
+  uniquement par un administrateur (`PUT /admin/feedback/{id}/status`).
 
 ---
 
@@ -80,6 +85,7 @@ erDiagram
     USERS ||--o{ REFRESH_TOKENS : "user_id"
     USERS ||--o{ FAVORITES : "user_id"
     USERS ||--o{ MUSIC_FAVORITES : "user_id"
+    USERS ||--o{ FEEDBACK : "user_id"
     STREAMS ||--o{ FAVORITES : "stream_id"
     PLAYLISTS ||--o{ TRACKS : "playlist_id"
     MUSIC ||--o{ TRACKS : "music_id (nullable)"
@@ -158,6 +164,18 @@ erDiagram
         uuid user_id PK,FK
         uuid music_id PK,FK
         timestamptz created_at
+    }
+
+    FEEDBACK {
+        uuid id PK
+        uuid user_id FK
+        varchar20 type
+        text message
+        varchar20 app_version
+        varchar20 platform
+        varchar20 status
+        timestamptz created_at
+        timestamptz updated_at
     }
 ```
 
@@ -241,6 +259,19 @@ technique.
 Les deux tables portent en plus `created_at` pour trier les favoris par
 date d'ajout.
 
+### `feedback` (migration 007)
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|--------------|
+| `id` | `UUID` | PK | Identifiant du signalement |
+| `user_id` | `UUID` | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Auteur du signalement |
+| `type` | `VARCHAR(20)` | `NOT NULL` | `bug`, `suggestion` ou `other` |
+| `message` | `TEXT` | `NOT NULL` | Description libre, 4000 caracteres au plus (`FeedbackService.Submit`) |
+| `app_version` | `VARCHAR(20)` | nullable | Version de l'application au moment du signalement |
+| `platform` | `VARCHAR(20)` | nullable | `android`, `ios`, `web`, ... |
+| `status` | `VARCHAR(20)` | `NOT NULL DEFAULT 'new'`, indexe avec `created_at` | `new`, `in_progress` ou `resolved` (RG-06) |
+| `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT NOW()` | Horodatage |
+
 ---
 
 ## 4. Index et performance
@@ -258,6 +289,7 @@ date d'ajout.
 | `idx_music_uploaded` | `music(uploaded_by)` | Catalogue d'un diffuseur |
 | `idx_music_created` | `music(created_at DESC)` | Liste triee par recence |
 | `idx_music_search_title`, `idx_music_search_artist` | `music` | Recherche plein texte (`gin`) |
+| `idx_feedback_status_created_at` | `feedback(status, created_at DESC)` | Liste admin filtree par statut, plus recents d'abord |
 
 Aucun index n'est pose sur `favorites` / `music_favorites` au-dela de leur
 cle primaire composite : les deux colonnes qui la composent couvrent deja
@@ -271,12 +303,12 @@ mis un element en favori).
 This document specifies StreamPulse's data structure at two levels: a
 Merise-style conceptual model (entities, identifiers, associations with
 cardinalities, independent of any SQL table) and its physical translation
-into the six PostgreSQL migrations that actually run, rendered as a
+into the seven PostgreSQL migrations that actually run, rendered as a
 Mermaid ER diagram. A full data dictionary follows, table by table, with
-every column, constraint, foreign key and index, plus the five governing
+every column, constraint, foreign key and index, plus the six governing
 business rules (role/status enums, unique track position per playlist,
-cascading physical erasure on account deletion, and the non-cascading
-`music_id` reference from tracks). It answers criterion **Ce3.6.1** of
-RNCP 38822 block 3 — the SQL migrations alone were not a documented
+cascading physical erasure on account deletion, the non-cascading
+`music_id` reference from tracks, and the feedback processing lifecycle).
+It answers criterion **Ce3.6.1** of RNCP 38822 block 3 — the SQL migrations alone were not a documented
 conceptual model — alongside [user-stories.md](user-stories.md),
 [securite.md](securite.md) and [diagrammes.md](diagrammes.md).

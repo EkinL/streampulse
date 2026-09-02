@@ -157,6 +157,25 @@ class AccountScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           Text(
+            'Aide',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Un bug, une idée d\'amélioration ? Faites-le nous savoir directement depuis l\'application.',
+            style: TextStyle(fontSize: 13, color: context.colors.text3, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.feedback_outlined, color: context.colors.text2),
+            title: Text('Signaler un problème ou une suggestion',
+                style: TextStyle(color: context.colors.text1, fontWeight: FontWeight.w600)),
+            trailing: Icon(Icons.chevron_right, color: context.colors.text3),
+            onTap: () => context.push('/feedback'),
+          ),
+          const SizedBox(height: 24),
+          Text(
             'Zone dangereuse',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
           ),

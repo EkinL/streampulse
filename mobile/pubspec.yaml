@@ -33,6 +33,7 @@ dependencies:
   url_launcher: ^6.3.0
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
+  package_info_plus: ^9.0.1
 
 dependency_overrides:
   record_linux: ^1.0.0

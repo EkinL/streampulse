@@ -577,3 +577,68 @@ func (m *MockMusicRepo) filter(keep func(*domain.Music) bool, page, perPage int)
 	}
 	return all[start:end], total, nil
 }
+
+// MockFeedbackRepo is a mock implementation of domain.FeedbackRepository
+type MockFeedbackRepo struct {
+	mu    sync.RWMutex
+	items map[uuid.UUID]*domain.Feedback
+}
+
+var _ domain.FeedbackRepository = (*MockFeedbackRepo)(nil)
+
+func NewMockFeedbackRepo() *MockFeedbackRepo {
+	return &MockFeedbackRepo{items: make(map[uuid.UUID]*domain.Feedback)}
+}
+
+func (m *MockFeedbackRepo) Create(_ context.Context, feedback *domain.Feedback) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if feedback.ID == uuid.Nil {
+		feedback.ID = uuid.New()
+	}
+	feedback.Status = domain.FeedbackStatusNew
+	m.items[feedback.ID] = feedback
+	return nil
+}
+
+func (m *MockFeedbackRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Feedback, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	f, ok := m.items[id]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	return f, nil
+}
+
+func (m *MockFeedbackRepo) List(_ context.Context, status domain.FeedbackStatus, page, perPage int) ([]domain.Feedback, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var matched []domain.Feedback
+	for _, f := range m.items {
+		if status == "" || f.Status == status {
+			matched = append(matched, *f)
+		}
+	}
+	total := len(matched)
+	start := (page - 1) * perPage
+	if start >= total {
+		return nil, total, nil
+	}
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+	return matched[start:end], total, nil
+}
+
+func (m *MockFeedbackRepo) UpdateStatus(_ context.Context, id uuid.UUID, status domain.FeedbackStatus) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	f, ok := m.items[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	f.Status = status
+	return nil
+}

@@ -639,6 +639,52 @@ func TestMusicFavoriteRepo(t *testing.T) {
 	}
 }
 
+// --- retour utilisateur -------------------------------------------------------
+
+func TestFeedbackRepo(t *testing.T) {
+	pool := db(t)
+	repo := postgres.NewFeedbackRepo(pool)
+	ctx := context.Background()
+	u := newUser(t, pool, domain.RoleUser)
+
+	f := &domain.Feedback{UserID: u.ID, Type: domain.FeedbackTypeBug, Message: "Le lecteur plante."}
+	if err := repo.Create(ctx, f); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if f.Status != domain.FeedbackStatusNew {
+		t.Fatalf("statut initial = %q, attendu %q", f.Status, domain.FeedbackStatusNew)
+	}
+
+	found, err := repo.FindByID(ctx, f.ID)
+	if err != nil || found.Message != f.Message {
+		t.Fatalf("FindByID = %+v, %v", found, err)
+	}
+
+	list, total, err := repo.List(ctx, domain.FeedbackStatusNew, 1, 10)
+	if err != nil || total != 1 || len(list) != 1 || list[0].ID != f.ID {
+		t.Fatalf("List(new) total=%d list=%+v err=%v", total, list, err)
+	}
+	_, total, err = repo.List(ctx, domain.FeedbackStatusResolved, 1, 10)
+	if err != nil || total != 0 {
+		t.Fatalf("List(resolved) avant traitement: total=%d err=%v", total, err)
+	}
+
+	if err := repo.UpdateStatus(ctx, f.ID, domain.FeedbackStatusResolved); err != nil {
+		t.Fatalf("UpdateStatus: %v", err)
+	}
+	updated, err := repo.FindByID(ctx, f.ID)
+	if err != nil || updated.Status != domain.FeedbackStatusResolved {
+		t.Fatalf("apres UpdateStatus: %+v, %v", updated, err)
+	}
+
+	if err := repo.UpdateStatus(ctx, uuid.New(), domain.FeedbackStatusResolved); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("UpdateStatus sur id inconnu: attendu ErrNotFound, obtenu %v", err)
+	}
+	if _, err := repo.FindByID(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("FindByID sur id inconnu: attendu ErrNotFound, obtenu %v", err)
+	}
+}
+
 // --- migrations --------------------------------------------------------------
 
 // Rejouer les migrations sur une base a jour ne doit rien faire : c'est ce
