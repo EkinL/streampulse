@@ -21,6 +21,7 @@ import '../../../music/data/music_repository.dart';
 import '../../../music/domain/music_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/domain/auth_state.dart';
+import '../../../chat/presentation/widgets/stream_chat_panel.dart';
 
 class BroadcasterScreen extends ConsumerStatefulWidget {
   const BroadcasterScreen({super.key});
@@ -657,6 +658,15 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Le diffuseur voit et participe au même salon de
+                      // chat que ses auditeurs (un salon par live). La
+                      // console ne s'affiche que pour un flux démarré,
+                      // donc le salon est toujours joignable ici.
+                      SizedBox(
+                        height: 320,
+                        child: StreamChatPanel(streamId: stream.id),
                       ),
                       const SizedBox(height: 40),
                       _HoldToStopButton(
