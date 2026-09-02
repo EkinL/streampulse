@@ -4,6 +4,7 @@ class ApiEndpoints {
   static const String authRegister = '/auth/register';
   static const String authLogin = '/auth/login';
   static const String authRefresh = '/auth/refresh';
+  static const String authOAuth = '/auth/oauth';
   static const String streams = '/streams';
   static const String playlists = '/playlists';
   static const String publicPlaylists = '/playlists/public';

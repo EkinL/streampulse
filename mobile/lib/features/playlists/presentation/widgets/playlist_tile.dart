@@ -5,12 +5,14 @@ import '../../domain/playlist_model.dart';
 class PlaylistTile extends StatelessWidget {
   final PlaylistModel playlist;
   final VoidCallback? onTap;
+  final VoidCallback? onRename;
   final VoidCallback? onDelete;
 
   const PlaylistTile({
     super.key,
     required this.playlist,
     this.onTap,
+    this.onRename,
     this.onDelete,
   });
 
@@ -50,11 +52,45 @@ class PlaylistTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: onDelete != null
-            ? IconButton(
-                icon: Icon(Icons.delete_outline, color: context.colors.error),
-                tooltip: 'Supprimer',
-                onPressed: onDelete,
+        // Menu proprietaire (renommer/supprimer) quand au moins une action est
+        // fournie ; sinon simple chevron pour les playlists des autres.
+        trailing: (onRename != null || onDelete != null)
+            ? PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: context.colors.text3),
+                tooltip: 'Options',
+                color: context.colors.surface,
+                onSelected: (value) {
+                  if (value == 'rename') onRename?.call();
+                  if (value == 'delete') onDelete?.call();
+                },
+                itemBuilder: (context) => [
+                  if (onRename != null)
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined,
+                              size: 20, color: context.colors.text2),
+                          const SizedBox(width: 12),
+                          Text('Renommer',
+                              style: TextStyle(color: context.colors.text1)),
+                        ],
+                      ),
+                    ),
+                  if (onDelete != null)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline,
+                              size: 20, color: context.colors.error),
+                          const SizedBox(width: 12),
+                          Text('Supprimer',
+                              style: TextStyle(color: context.colors.error)),
+                        ],
+                      ),
+                    ),
+                ],
               )
             : Icon(Icons.chevron_right, color: context.colors.text3),
         onTap: onTap,

@@ -11,7 +11,11 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrTokenExpired       = errors.New("token expired")
 	ErrTokenInvalid       = errors.New("token invalid")
-	ErrStreamNotLive      = errors.New("stream is not live")
-	ErrStreamAlreadyLive  = errors.New("stream is already live")
-	ErrNotOwner           = errors.New("not the owner of this resource")
+	// ErrProviderNotConfigured : connexion sociale demandee alors que le
+	// fournisseur (Google ou Apple) n'a pas d'audience configuree via les
+	// variables d'env GOOGLE_OAUTH_CLIENT_IDS / APPLE_OAUTH_CLIENT_IDS.
+	ErrProviderNotConfigured = errors.New("oauth provider not configured")
+	ErrStreamNotLive         = errors.New("stream is not live")
+	ErrStreamAlreadyLive     = errors.New("stream is already live")
+	ErrNotOwner              = errors.New("not the owner of this resource")
 )

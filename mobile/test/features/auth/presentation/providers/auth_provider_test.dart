@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/network/api_exceptions.dart';
 import 'package:streampulse/features/auth/data/auth_local_source.dart';
 import 'package:streampulse/features/auth/data/auth_repository.dart';
+import 'package:streampulse/features/auth/data/social_auth_service.dart';
 import 'package:streampulse/features/auth/domain/auth_state.dart';
 import 'package:streampulse/features/auth/presentation/providers/auth_provider.dart';
 
@@ -10,9 +11,12 @@ class _MockAuthRepository extends Mock implements AuthRepository {}
 
 class _MockAuthLocalSource extends Mock implements AuthLocalSource {}
 
+class _MockSocialAuthService extends Mock implements SocialAuthService {}
+
 void main() {
   late _MockAuthRepository repository;
   late _MockAuthLocalSource localSource;
+  late _MockSocialAuthService socialAuth;
   late AuthNotifier notifier;
 
   Map<String, dynamic> tokenResponse({String access = 'access-1', String refresh = 'refresh-1'}) => {
@@ -29,12 +33,13 @@ void main() {
   setUp(() {
     repository = _MockAuthRepository();
     localSource = _MockAuthLocalSource();
+    socialAuth = _MockSocialAuthService();
     when(() => localSource.saveTokens(
           accessToken: any(named: 'accessToken'),
           refreshToken: any(named: 'refreshToken'),
         )).thenAnswer((_) async {});
     when(() => localSource.clearTokens()).thenAnswer((_) async {});
-    notifier = AuthNotifier(repository, localSource);
+    notifier = AuthNotifier(repository, localSource, socialAuth);
   });
 
   tearDown(() => notifier.dispose());
@@ -178,6 +183,78 @@ void main() {
       final state = notifier.state;
       expect(state, isA<AuthError>());
       expect((state as AuthError).message, 'Email already used');
+    });
+  });
+
+  group('connexion sociale', () {
+    test('Google, succes : Authenticated et jetons sauvegardes', () async {
+      when(() => socialAuth.getGoogleIdToken())
+          .thenAnswer((_) async => 'google-id-token');
+      when(() => repository.oauthLogin(
+            provider: 'google',
+            idToken: 'google-id-token',
+          )).thenAnswer((_) async => tokenResponse());
+
+      await notifier.loginWithGoogle();
+
+      final state = notifier.state;
+      expect(state, isA<AuthAuthenticated>());
+      expect((state as AuthAuthenticated).user.email, 'a@example.com');
+      verify(() => localSource.saveTokens(
+          accessToken: 'access-1', refreshToken: 'refresh-1')).called(1);
+    });
+
+    test('Apple, succes : Authenticated', () async {
+      when(() => socialAuth.getAppleIdToken())
+          .thenAnswer((_) async => 'apple-id-token');
+      when(() => repository.oauthLogin(
+            provider: 'apple',
+            idToken: 'apple-id-token',
+          )).thenAnswer((_) async => tokenResponse());
+
+      await notifier.loginWithApple();
+
+      expect(notifier.state, isA<AuthAuthenticated>());
+    });
+
+    test('fenetre fermee par la personne : retour a Unauthenticated, sans erreur',
+        () async {
+      when(() => socialAuth.getGoogleIdToken())
+          .thenThrow(const SocialAuthCancelledException());
+
+      await notifier.loginWithGoogle();
+
+      expect(notifier.state, isA<AuthUnauthenticated>());
+      verifyNever(() => repository.oauthLogin(
+          provider: any(named: 'provider'), idToken: any(named: 'idToken')));
+    });
+
+    test('SDK non configure : AuthError avec le message du service', () async {
+      when(() => socialAuth.getGoogleIdToken())
+          .thenThrow(const SocialAuthException('Connexion Google non configuree'));
+
+      await notifier.loginWithGoogle();
+
+      final state = notifier.state;
+      expect(state, isA<AuthError>());
+      expect((state as AuthError).message, 'Connexion Google non configuree');
+    });
+
+    test('token rejete par le serveur : AuthError avec le message du serveur',
+        () async {
+      when(() => socialAuth.getAppleIdToken())
+          .thenAnswer((_) async => 'apple-id-token');
+      when(() => repository.oauthLogin(
+            provider: 'apple',
+            idToken: 'apple-id-token',
+          )).thenThrow(
+          const ApiException(message: 'invalid identity token', statusCode: 401));
+
+      await notifier.loginWithApple();
+
+      final state = notifier.state;
+      expect(state, isA<AuthError>());
+      expect((state as AuthError).message, 'invalid identity token');
     });
   });
 

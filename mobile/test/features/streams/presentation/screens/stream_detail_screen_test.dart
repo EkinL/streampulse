@@ -7,6 +7,11 @@ import 'package:just_audio/just_audio.dart' show ProcessingState;
 import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/audio/audio_handler.dart';
 import 'package:streampulse/core/network/api_exceptions.dart';
+import 'package:streampulse/features/auth/data/auth_local_source.dart';
+import 'package:streampulse/features/auth/data/auth_repository.dart';
+import 'package:streampulse/features/auth/domain/auth_state.dart';
+import 'package:streampulse/features/auth/domain/user_model.dart';
+import 'package:streampulse/features/auth/presentation/providers/auth_provider.dart';
 import 'package:streampulse/features/favorites/data/favorites_repository.dart';
 import 'package:streampulse/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:streampulse/features/streams/data/stream_repository.dart';
@@ -18,6 +23,21 @@ import 'package:streampulse/app/theme.dart';
 class _MockStreamRepository extends Mock implements StreamRepository {}
 
 class _MockFavoritesRepository extends Mock implements FavoritesRepository {}
+
+class _MockAuthRepository extends Mock implements AuthRepository {}
+
+class _MockAuthLocalSource extends Mock implements AuthLocalSource {}
+
+/// Session connectée : l'écran garde les actions (favoris, chat) pour les
+/// visiteurs sans compte, ces tests couvrent le parcours connecté.
+class _FakeAuthNotifier extends AuthNotifier {
+  _FakeAuthNotifier() : super(_MockAuthRepository(), _MockAuthLocalSource()) {
+    state = const AuthAuthenticated(
+      user: UserModel(id: 'u1', email: 'a@a.fr', username: 'alice', role: 'user'),
+      token: 't',
+    );
+  }
+}
 
 class _FakeHandler extends Fake implements StreamPulseAudioHandler {
   @override
@@ -78,9 +98,10 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         audioHandlerProvider.overrideWithValue(_FakeHandler()),
+        authProvider.overrideWith((ref) => _FakeAuthNotifier()),
         streamRepositoryProvider.overrideWithValue(streamRepository),
         streamListProvider.overrideWith((ref) => StreamNotifier(streamRepository)),
-        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository)),
+        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository, enabled: true)),
       ],
       child: MaterialApp(theme: AppTheme.darkTheme, home: const StreamDetailScreen(streamId: 's1')),
     ),

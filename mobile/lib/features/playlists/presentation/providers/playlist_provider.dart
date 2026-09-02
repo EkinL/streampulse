@@ -9,8 +9,10 @@ final playlistListProvider =
   return PlaylistNotifier(ref.read(playlistRepositoryProvider));
 });
 
+/// autoDispose : sans lui la reponse restait en cache pour toute la session,
+/// et un ajout fait depuis un autre ecran (lecteur) n'apparaissait jamais ici.
 final playlistDetailProvider =
-    FutureProvider.family<PlaylistModel, String>((ref, id) async {
+    FutureProvider.autoDispose.family<PlaylistModel, String>((ref, id) async {
   final repo = ref.read(playlistRepositoryProvider);
   return repo.getPlaylist(id);
 });

@@ -137,7 +137,7 @@ Future<void> _pump(
         audioHandlerProvider.overrideWithValue(_FakeHandler()),
         authProvider.overrideWith((ref) => _FakeAuthNotifier(role)),
         streamListProvider.overrideWith((ref) => StreamNotifier(streamRepository)),
-        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository)),
+        favoritesProvider.overrideWith((ref) => FavoritesNotifier(favoritesRepository, enabled: true)),
         musicListProvider.overrideWith((ref) => MusicNotifier(musicRepository)),
         musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
       ],

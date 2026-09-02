@@ -123,8 +123,15 @@ func main() {
 	// sont purges a intervalle regulier au lieu de s'accumuler en base.
 	go application.PurgeExpiredRefreshTokens(requestsCtx, refreshTokenRepo, cfg.RefreshTokenPurgeInterval, logger)
 
+	// Verificateur des ID tokens Google / Apple (connexion sociale). Les
+	// fournisseurs sans client ID configure repondent 503 sur /auth/oauth.
+	oauthVerifier := auth.NewOIDCVerifier(
+		auth.GoogleProvider(cfg.GoogleOAuthClientIDs),
+		auth.AppleProvider(cfg.AppleOAuthClientIDs),
+	)
+
 	// Initialize services
-	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
+	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager, oauthVerifier)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
 	userService := application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore)

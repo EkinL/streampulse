@@ -394,6 +394,9 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: c.surface,
         contentTextStyle: GoogleFonts.inter(color: c.text1),
+        // Sans cette couleur, le label d'un SnackBarAction prend une teinte
+        // par defaut illisible sur le fond surface.
+        actionTextColor: c.accent,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

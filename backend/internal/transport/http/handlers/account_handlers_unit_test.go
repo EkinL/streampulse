@@ -337,7 +337,7 @@ func TestAdminHandlerRepoFailures(t *testing.T) {
 
 func newAuthHandlerHarness(userRepo domain.UserRepository, refreshRepo domain.RefreshTokenRepository) *AuthHandler {
 	jwt := auth.NewJWTManager("unit-test-secret", 15*time.Minute, 24*time.Hour)
-	return NewAuthHandler(application.NewAuthService(userRepo, refreshRepo, jwt))
+	return NewAuthHandler(application.NewAuthService(userRepo, refreshRepo, jwt, nil))
 }
 
 func TestAuthHandlerRejectsInvalidBody(t *testing.T) {

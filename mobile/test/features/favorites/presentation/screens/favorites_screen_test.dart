@@ -43,7 +43,7 @@ Future<void> _pump(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [favoritesProvider.overrideWith((ref) => FavoritesNotifier(repository))],
+      overrides: [favoritesProvider.overrideWith((ref) => FavoritesNotifier(repository, enabled: true))],
       child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ),
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 extension StringExtensions on String {
   String get capitalize {
@@ -38,6 +39,28 @@ extension BuildContextExtensions on BuildContext {
           borderRadius: BorderRadius.circular(8),
         ),
         margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  /// Invite un visiteur non connecté à créer une session avant une action
+  /// réservée aux comptes (écoute, favoris, playlists, chat…).
+  void promptLogin(String message) {
+    final router = GoRouter.of(this);
+    ScaffoldMessenger.of(this).hideCurrentSnackBar();
+    ScaffoldMessenger.of(this).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.all(16),
+        action: SnackBarAction(
+          label: 'Se connecter',
+          onPressed: () => router.go('/login'),
+        ),
       ),
     );
   }

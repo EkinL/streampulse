@@ -1,5 +1,7 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
@@ -8,6 +10,12 @@ import 'shared/providers/theme_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    // Le rendu CanvasKit ne construit pas l'arbre semantique par defaut :
+    // sans cet appel, les lecteurs d'ecran ne voient qu'un canevas vide.
+    // Sur mobile, VoiceOver/TalkBack l'activent eux-memes a la demande.
+    SemanticsBinding.instance.ensureSemantics();
+  }
   final audioHandler = await _initAudio();
   runApp(
     ProviderScope(
