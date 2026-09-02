@@ -78,3 +78,47 @@ affiche une erreur claire.
   le compte StreamPulse correspondant (`409` dans ce cas).
 - L'identite est ancree sur la claim `sub` (stable), pas sur l'email : les
   relais prives Apple ou un changement d'adresse ne cassent pas le compte.
+
+---
+
+## Summary (English)
+
+The mobile login screen offers "Sign in with Google" and "Sign in with
+Apple". The app obtains an **ID token** from the provider's SDK on the
+device (`mobile/lib/features/auth/data/social_auth_service.dart`) and posts
+it to **`POST /auth/oauth`** as `{"provider": "google"|"apple",
+"id_token": "..."}`. The backend verifies that token itself —
+RS256 signature against the provider's public **JWKS** (cached one hour),
+plus issuer, audience and expiry
+(`backend/internal/infrastructure/auth/oidc_verifier.go`) — and then opens
+a session with the same access/refresh pair as a password login. A forged,
+expired, or another-app token gets `401`.
+
+On first sign-in the account is created with the `user` role. When an
+existing account carries the same email **and the provider marked it
+verified**, the social identity is linked to it (`auth_provider` /
+`provider_subject` columns, migration 007); an unverified email yields
+`409` instead, because otherwise anyone could create a Google account with
+someone else's address and take over the matching StreamPulse account.
+Identity is anchored on the stable `sub` claim rather than the email, so
+Apple's private relay addresses or an address change never break an
+account. A social account has no password, so email-and-password login
+stays closed for it.
+
+**No server-side secret is involved**: verification only needs the
+providers' public keys, so the configuration is limited to (non-secret)
+client IDs — `GOOGLE_OAUTH_CLIENT_IDS` must list the **web** client (which
+Android goes through) *and* the **iOS** client, while
+`APPLE_OAUTH_CLIENT_IDS` holds the `dev.streampulse.app` bundle id, plus a
+Service ID if the web console ever offers Apple. An empty variable disables
+that provider and `POST /auth/oauth` answers `503` for it, which is the
+default state of the development stack. On the Google side the setup means
+three OAuth client IDs in Google Cloud (Web, iOS, and Android with the
+signing SHA-1), the `GOOGLE_CLIENT_ID` / `GOOGLE_SERVER_CLIENT_ID`
+dart-defines at build time, and the reversed iOS client ID as a URL scheme
+in `Info.plist`; without those defines the button simply reports that
+Google sign-in is not configured and nothing else breaks. On the Apple side
+it means enabling the Sign in with Apple capability on the App ID (a paid
+developer account is required) — the entitlement file is already committed
+and wired through `CODE_SIGN_ENTITLEMENTS`. Sign in with Apple only works
+on iOS and macOS; on Android the button shows an explicit error.
