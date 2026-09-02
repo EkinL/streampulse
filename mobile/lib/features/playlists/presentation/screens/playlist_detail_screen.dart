@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/error_widget.dart' as app_error;
 import '../../../../core/utils/extensions.dart';
 import '../../../music/data/music_repository.dart';
 import '../../../music/domain/music_model.dart';
+import '../../../../shared/providers/offline_provider.dart';
 import '../../../../shared/providers/player_provider.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
@@ -35,6 +37,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
         ),
         title: const Text('Playlist'),
         actions: [
+          if (!kIsWeb)
+            _DownloadPlaylistButton(
+              tracks: playlistAsync.valueOrNull?.tracks ?? const [],
+            ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Ajouter un morceau',
@@ -254,6 +260,69 @@ class PlaylistDetailScreen extends ConsumerWidget {
   }
 }
 
+/// Bouton "telecharger la playlist" (mode offline). Trois etats :
+/// tout est en cache -> icone pleine, tap pour supprimer les telechargements ;
+/// telechargement en cours -> spinner ; sinon -> tap pour tout telecharger.
+class _DownloadPlaylistButton extends ConsumerWidget {
+  final List<TrackModel> tracks;
+
+  const _DownloadPlaylistButton({required this.tracks});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offline = ref.watch(offlineProvider);
+    if (tracks.isEmpty) return const SizedBox.shrink();
+
+    final downloading = tracks.any((t) => offline.isDownloading(t.id));
+    final allCached = tracks.every((t) => offline.isCached(t.id));
+
+    if (downloading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (allCached) {
+      return IconButton(
+        icon: Icon(Icons.download_done, color: context.colors.accent),
+        tooltip: 'Supprimer les téléchargements',
+        onPressed: () async {
+          await ref
+              .read(offlineProvider.notifier)
+              .removeTracks(tracks.map((t) => t.id));
+          if (context.mounted) {
+            context.showSnackBar('Téléchargements supprimés');
+          }
+        },
+      );
+    }
+
+    return IconButton(
+      icon: const Icon(Icons.download_for_offline_outlined),
+      tooltip: 'Télécharger pour écoute hors ligne',
+      onPressed: () async {
+        final failures = await ref.read(offlineProvider.notifier).downloadTracks(
+              tracks.map((t) => (id: t.id, url: t.url)).toList(),
+            );
+        if (context.mounted) {
+          context.showSnackBar(
+            failures == 0
+                ? 'Playlist disponible hors ligne'
+                : '$failures titre${failures > 1 ? 's' : ''} n\'ont pas pu être téléchargés',
+          );
+        }
+      },
+    );
+  }
+}
+
 /// The track list keeps its own copy of the tracks so a drag & drop feels
 /// instant: we reorder locally first, then persist through the API, and only
 /// roll back if the server refuses. The provider refetch (add/remove/pull to
@@ -334,6 +403,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
 
   @override
   Widget build(BuildContext context) {
+    final offline = ref.watch(offlineProvider);
     return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       itemCount: _tracks.length,
@@ -344,6 +414,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
           key: ValueKey(track.id),
           track: track,
           index: index,
+          isCached: offline.isCached(track.id),
           onTap: () => _playFrom(index),
           onRemove: () {
             ref
@@ -367,6 +438,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
 class _TrackListItem extends StatelessWidget {
   final TrackModel track;
   final int index;
+  final bool isCached;
   final VoidCallback onRemove;
   final VoidCallback? onTap;
 
@@ -374,6 +446,7 @@ class _TrackListItem extends StatelessWidget {
     super.key,
     required this.track,
     required this.index,
+    this.isCached = false,
     required this.onRemove,
     this.onTap,
   });
@@ -416,6 +489,15 @@ class _TrackListItem extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isCached)
+              Tooltip(
+                message: 'Disponible hors ligne',
+                child: Icon(
+                  Icons.download_done,
+                  size: 18,
+                  color: context.colors.accent,
+                ),
+              ),
             IconButton(
               tooltip: 'Retirer',
               icon: Icon(Icons.remove_circle_outline, color: context.colors.error),
