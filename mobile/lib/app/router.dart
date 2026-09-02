@@ -12,7 +12,7 @@ import '../features/streams/presentation/screens/broadcaster_screen.dart';
 import '../features/playlists/presentation/screens/playlists_screen.dart';
 import '../features/playlists/presentation/screens/playlist_detail_screen.dart';
 import '../features/favorites/presentation/screens/favorites_screen.dart';
-import '../features/admin/presentation/screens/admin_users_screen.dart';
+import '../features/admin/presentation/screens/admin_screen.dart';
 import '../shared/widgets/app_scaffold.dart';
 import '../features/music/presentation/screens/search_screen.dart';
 import '../features/music/presentation/screens/music_player_screen.dart';
@@ -122,7 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin',
-            pageBuilder: (context, state) => const NoTransitionPage(child: AdminUsersScreen()),
+            pageBuilder: (context, state) => const NoTransitionPage(child: AdminScreen()),
           ),
         ],
       ),
