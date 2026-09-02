@@ -67,7 +67,7 @@ func TestAdmin_MetricsExposePlatformGauges(t *testing.T) {
 		t.Fatalf("status %d", r.Status)
 	}
 	body := string(r.Raw)
-	for _, metric := range []string{"active_streams", "active_listeners", "stream_disconnections_total", "stream_bytes_sent_total"} {
+	for _, metric := range []string{"active_streams", "active_listeners", "stream_disconnections_total", "stream_bytes_sent_total", "listener_sessions_total", "sessions_with_chunk_loss_total"} {
 		if !strings.Contains(body, metric) {
 			t.Errorf("metrique %s absente de /metrics", metric)
 		}
