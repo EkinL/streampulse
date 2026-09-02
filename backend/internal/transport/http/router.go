@@ -10,6 +10,7 @@ import (
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/streaming"
 	"github.com/streampulse/backend/internal/transport/http/handlers"
@@ -22,12 +23,14 @@ type RouterConfig struct {
 	PlaylistService   *application.PlaylistService
 	UserService       *application.UserService
 	MusicService      *application.MusicService
+	FeedbackService   *application.FeedbackService
 	FavoriteRepo      domain.FavoriteRepository
 	MusicFavoriteRepo domain.MusicFavoriteRepository
 	StreamRepo        domain.StreamRepository
 	MusicRepo         domain.MusicRepository
 	JWTManager        *auth.JWTManager
 	Hub               *streaming.Hub
+	ChatHub           *chat.Hub
 	Logger            zerolog.Logger
 	Metrics           *observability.Metrics
 	CORSOrigins       string
@@ -57,6 +60,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	// verrait pas ce span (un contexte ne remonte pas la chaine), donc Logging
 	// doit venir apres pour pouvoir loguer le trace_id.
 	r.Use(middleware.OTELTracing(cfg.ServiceName))
+	r.Use(middleware.Metrics(cfg.Metrics))
 	r.Use(middleware.Logging(cfg.Logger))
 	r.Use(middleware.CORSHandler(cfg.CORSOrigins).Handler)
 
@@ -68,13 +72,15 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	healthHandler := handlers.NewHealthHandler()
 	docsHandler := handlers.NewDocsHandler()
 	authHandler := handlers.NewAuthHandler(cfg.AuthService)
-	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.Logger, cfg.Metrics)
+	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.ChatHub, cfg.Logger, cfg.Metrics)
+	chatHandler := handlers.NewChatHandler(cfg.StreamService, cfg.ChatHub, cfg.Logger, cfg.Metrics)
 	playlistHandler := handlers.NewPlaylistHandler(cfg.PlaylistService)
 	adminHandler := handlers.NewAdminHandler(cfg.UserService)
 	userHandler := handlers.NewUserHandler(cfg.UserService)
 	favoritesHandler := handlers.NewFavoritesHandler(cfg.FavoriteRepo, cfg.StreamRepo)
 	musicHandler := handlers.NewMusicHandler(cfg.MusicService, cfg.StreamRepo)
 	musicFavHandler := handlers.NewMusicFavoritesHandler(cfg.MusicFavoriteRepo, cfg.MusicRepo)
+	feedbackHandler := handlers.NewFeedbackHandler(cfg.FeedbackService)
 
 	// Static file serving
 	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
@@ -106,6 +112,14 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	// Global search
 	r.Get("/search", musicHandler.GlobalSearch)
 
+	// Chat en direct d'un flux, en WebSocket. Groupe a part : la poignee de
+	// main WebSocket d'un navigateur ne peut pas porter de header
+	// Authorization, le middleware accepte donc aussi `?token=`.
+	r.Group(func(r chi.Router) {
+		r.Use(authMw.AuthenticateWebSocket)
+		r.Get("/streams/{id}/chat/ws", chatHandler.ServeWS)
+	})
+
 	// Authenticated routes
 	r.Group(func(r chi.Router) {
 		r.Use(authMw.Authenticate)
@@ -115,11 +129,16 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		r.Get("/streams/{id}/audio", streamHandler.AudioStream)
 		r.Get("/streams/{id}/listeners", streamHandler.GetListeners)
 
-		// Compte de la personne connectee : droit d'acces et droit a
-		// l'effacement (RGPD, docs/rgpd.md). Ouvert a tout compte
-		// authentifie, quel que soit son role.
+		// Compte de la personne connectee : droit d'acces, droit de
+		// rectification et droit a l'effacement (RGPD, docs/rgpd.md). Ouvert
+		// a tout compte authentifie, quel que soit son role.
 		r.Get("/users/me", userHandler.Me)
+		r.Patch("/users/me", userHandler.UpdateMe)
 		r.Delete("/users/me", userHandler.DeleteMe)
+
+		// Canal de retour utilisateur : tout compte authentifie peut signaler
+		// un bug ou une suggestion, quel que soit son role.
+		r.Post("/feedback", feedbackHandler.Submit)
 
 		// Streams - broadcaster only
 		r.Group(func(r chi.Router) {
@@ -152,6 +171,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 		// Playlists
 		r.Route("/playlists", func(r chi.Router) {
 			r.Get("/", playlistHandler.ListPlaylists)
+			r.Get("/public", playlistHandler.ListPublicPlaylists)
 			r.Post("/", playlistHandler.CreatePlaylist)
 			r.Get("/{id}", playlistHandler.GetPlaylist)
 			r.Put("/{id}", playlistHandler.UpdatePlaylist)
@@ -167,6 +187,11 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 			r.Get("/admin/users", adminHandler.ListUsers)
 			r.Put("/admin/users/{id}/role", adminHandler.UpdateUserRole)
 			r.Delete("/admin/users/{id}", adminHandler.DeleteUser)
+
+			// Traitement des signalements par l'equipe : liste filtrable par
+			// statut, puis avancement dans le cycle new -> in_progress -> resolved.
+			r.Get("/admin/feedback", feedbackHandler.ListFeedback)
+			r.Put("/admin/feedback/{id}/status", feedbackHandler.UpdateFeedbackStatus)
 
 			// Prometheus metrics: admin only, as required by docs/api.md.
 			// Prometheus itself scrapes the internal listener started in

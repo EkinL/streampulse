@@ -1,4 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:streampulse/app/constants.dart';
 import 'package:streampulse/shared/providers/volume_provider.dart';
@@ -74,5 +76,23 @@ void main() {
 
     await notifier.set(0.2);
     expect(notifier.state, 0.2);
+  });
+
+  test('SharedPrefsVolumeStore persiste et relit le volume', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SharedPrefsVolumeStore();
+    expect(await store.load(), isNull);
+
+    await store.save(0.42);
+    expect(await store.load(), 0.42);
+  });
+
+  test('volumeProvider construit un VolumeNotifier branche sur le store reel', () async {
+    SharedPreferences.setMockInitialValues({});
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(container.read(volumeProvider.notifier), isA<VolumeNotifier>());
+    expect(container.read(volumeProvider), AppConstants.defaultVolume);
   });
 }

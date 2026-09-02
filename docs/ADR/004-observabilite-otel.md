@@ -121,3 +121,27 @@ verifie les deux ordres.
 ## Voir aussi
 - [ADR 003 - Streaming SSE](003-streaming-sse.md) pour la mesure du fan-out
 - [Scalabilite et couts](../scalability.md) pour ce que les metriques revelent
+
+---
+
+## Summary (English)
+
+Because a dropped audio stream produces no error — the client simply
+stops receiving bytes — the platform needs three correlated signals:
+OpenTelemetry traces (what happened to this request), Prometheus metrics
+(is the system healthy right now), and structured JSON logs (why did this
+specific request fail), all tied together by one request id. Metrics are
+exposed on two separate listeners — a public, `admin`-only `/metrics`
+route for humans, and an internal, never-published port that Prometheus
+scrapes directly — resolving a tension between not leaking the service's
+internal topology and still letting Prometheus scrape it (which can't
+carry a JWT). `chi/middleware.RequestID` is surfaced in the `X-Request-Id`
+response header, in `meta.requestId`, and in every log line alongside
+`trace_id`/`span_id`, replacing three previously unrelated identifiers
+that made a user-reported id untraceable. The log format is controlled by
+its own `LOG_FORMAT` variable rather than inferred from `APP_ENV`, after
+the project's own dev stack silently produced unindexable text logs while
+believing it was emitting JSON. Known limitations: the OTEL Collector is a
+single point of failure for traces (not for metrics or logs), sampling is
+fixed at "always" rather than rate-based, and no log aggregator (Loki,
+Elasticsearch) is deployed yet despite the logs being structured for one.

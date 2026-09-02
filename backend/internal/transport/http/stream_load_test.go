@@ -153,7 +153,9 @@ func TestStreamFanOutOverSSE(t *testing.T) {
 	broadcastURL := fmt.Sprintf("%s/streams/%s/broadcast", server.URL, stream.ID)
 
 	activeBefore := promtestutil.ToFloat64(testRouterMetrics.ActiveListeners)
-	disconnectsBefore := promtestutil.ToFloat64(testRouterMetrics.StreamDisconnections)
+	// Les auditeurs de ce test se deconnectent via cancel() (voir listenSSE),
+	// donc reason="client".
+	disconnectsBefore := promtestutil.ToFloat64(testRouterMetrics.StreamDisconnections.WithLabelValues("client"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -245,7 +247,7 @@ func TestStreamFanOutOverSSE(t *testing.T) {
 	}, fmt.Sprintf("hub still has %d listeners, active_listeners gauge = %v (want %v)",
 		testRouterHub.ListenerCount(stream.ID), promtestutil.ToFloat64(testRouterMetrics.ActiveListeners), activeBefore))
 
-	if got := promtestutil.ToFloat64(testRouterMetrics.StreamDisconnections) - disconnectsBefore; got != float64(listeners) {
+	if got := promtestutil.ToFloat64(testRouterMetrics.StreamDisconnections.WithLabelValues("client")) - disconnectsBefore; got != float64(listeners) {
 		t.Fatalf("stream_disconnections_total delta = %v, want %d", got, listeners)
 	}
 }

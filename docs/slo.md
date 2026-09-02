@@ -85,9 +85,14 @@ mesure ce que vit l'auditeur. Un flux qui se coupe ne produit aucune erreur HTTP
 — la connexion se ferme, c'est tout. Sans cet indicateur, une degradation de
 l'experience d'ecoute serait totalement invisible sur les deux premiers SLO.
 
-> **Cet indicateur n'est pas encore exploitable.** `stream_disconnections_total`
-> existe mais n'a pas de label `reason` : les deconnexions propres et brutales
-> sont comptees ensemble. Ajouter ce label est le prerequis de ce SLO.
+`stream_disconnections_total` porte desormais un label `reason`, pose dans le
+`defer` des handlers `Listen` et `AudioStream`
+(`internal/transport/http/handlers/stream_handler.go`) : `"client"` quand le
+contexte de la requete s'annule (deconnexion normale de l'auditeur, ou arret
+du serveur), `"stream_closed"` quand le flux est ferme cote diffuseur, et
+`"abrupt"` quand l'ecriture vers le client echoue. Le SLI et l'alerte
+`streampulse-disconnections-spike` filtrent tous les deux sur
+`reason="abrupt"`.
 
 ---
 
@@ -97,7 +102,7 @@ l'experience d'ecoute serait totalement invisible sur les deux premiers SLO.
 
 | | |
 |---|---|
-| SLI | a instrumenter : compteur incremente quand `Client.Send` tombe dans son `default` |
+| SLI | `1 - sessions_with_chunk_loss_total / listener_sessions_total` |
 | Cible | **< 1 %** des sessions |
 
 Quand le tampon d'un auditeur est plein (256 chunks, soit **64 secondes**
@@ -109,9 +114,14 @@ Ce comportement est donc **correct**, mais il doit rester rare. S'il devient
 frequent, c'est le signe d'un probleme reseau cote clients ou d'un debit trop
 eleve pour la population reelle.
 
-> **Non instrumente a ce jour.** La branche `default` de `Client.Send` ne
-> comptabilise rien. C'est le seul SLO dont l'indicateur reste entierement a
-> construire.
+La branche `default` de `Client.Send` incremente desormais un compteur
+atomique sur le `Client` (`internal/infrastructure/streaming/client.go`),
+lu par le `defer` des handlers `Listen` et `AudioStream` a la fin de chaque
+session : `listener_sessions_total` est incremente a chaque session,
+`sessions_with_chunk_loss_total` seulement si `client.Dropped() > 0`. Le SLO
+est formule *par session* ("moins de 1 % des auditeurs"), pas par chunk :
+compter les sessions plutot que les chunks perdus colle a l'enonce et evite
+qu'une seule session tres degradee ecrase l'indicateur.
 
 ---
 
@@ -129,18 +139,32 @@ budget d'erreur decide de ce qui est livre, pas une impression.
 
 ## Alertes
 
-| Alerte | Condition | Gravite |
-|--------|-----------|---------|
-| `APIHighErrorRate` | taux de 5xx > 1 % pendant 5 min | critique |
-| `APIHighLatency` | p95 > 500 ms pendant 10 min | avertissement |
-| `NoListenersOnLiveStream` | `active_streams > 0` et `active_listeners == 0` pendant 15 min | avertissement |
-| `AbruptDisconnectSpike` | taux de deconnexions brutales > 5 % pendant 10 min | critique |
+Provisionnees par fichier dans `grafana/provisioning/alerting/` (alerting
+unifie de Grafana, pas un Alertmanager Prometheus separe — voir
+[ADR 008](ADR/008-dashboard-alertes-grafana.md) pour ce choix). Deux
+regles existent reellement aujourd'hui, l'une technique, l'une metier,
+toutes deux routees vers le canal Discord de l'equipe
+(`contact-points.yaml`, `notification-policies.yaml`) :
 
-Les seuils d'alerte sont **plus severes que les SLO** : une alerte doit se
-declencher pendant qu'il reste du budget, pas une fois qu'il est epuise.
+| Alerte (uid) | Condition reelle | Categorie | Gravite |
+|--------------|-------------------|-----------|---------|
+| `streampulse-api-down` | `up{job="streampulse-api"} == 0` pendant 1 min | technique | critique |
+| `streampulse-disconnections-spike` | `increase(stream_disconnections_total[5m]) > 3` | metier | avertissement |
 
-> Ces regles ne sont pas encore ecrites. `prometheus/` ne contient que
-> `prometheus.yml`, il n'y a ni `rules/` ni Alertmanager dans la stack.
+Le seuil de la seconde regle (3 deconnexions brutales sur 5 minutes) est
+un choix assume pour l'echelle actuelle du projet — une poignee
+d'auditeurs en demonstration — et non une valeur deduite d'un historique
+de production, qui n'existe pas encore.
+
+> **Ce qui manque encore.** Ces deux regles ne couvrent ni le taux
+> d'erreur (SLO 1) ni la latence (SLO 2), alors que leurs metriques sont
+> deja disponibles (`http_requests_total`, `http_request_duration_seconds`
+> — voir l'etat de l'instrumentation ci-dessous). Il n'existe donc
+> aujourd'hui aucune alerte qui se declenche **avant** l'epuisement du
+> budget d'erreur de ces deux SLO ; seule une panne franche (API injoignable)
+> ou un pic brutal de deconnexions le sont. Ajouter une regle de taux
+> d'erreur et une regle de latence, toutes deux a un seuil plus severe que
+> le SLO correspondant, est la prochaine etape.
 
 ## Etat de l'instrumentation
 
@@ -148,14 +172,10 @@ declencher pendant qu'il reste du budget, pas une fois qu'il est epuise.
 |-----|----------|------|
 | 1 — Disponibilite | `http_requests_total{status}` | **Disponible** |
 | 2 — Latence | `http_request_duration_seconds` | **Disponible** |
-| 3 — Continuite | `stream_disconnections_total` | Present, **label `reason` manquant** |
-| 4 — Perte de chunks | — | **A instrumenter** |
+| 3 — Continuite | `stream_disconnections_total` | **Disponible** |
+| 4 — Perte de chunks | `listener_sessions_total`, `sessions_with_chunk_loss_total` | **Disponible** |
 
-Les deux premiers SLO sont mesurables des aujourd'hui. Les deux suivants — ceux
-qui decrivent l'experience reelle de l'auditeur — demandent chacun une
-modification de quelques lignes dans
-`internal/infrastructure/observability/metrics.go` et
-`internal/infrastructure/streaming/client.go`.
+Les quatre SLO sont mesurables des aujourd'hui.
 
 ## Voir aussi
 
@@ -163,3 +183,36 @@ modification de quelques lignes dans
 - [ADR 004 — Observabilite](ADR/004-observabilite-otel.md) — comment les
   metriques sont collectees
 - [Cahier de recette](cahier-de-recette.md) — la verification fonctionnelle
+
+---
+
+## Summary (English)
+
+Four SLOs, measured over a rolling 28-day window, define what StreamPulse
+commits to: **99.5%** of HTTP requests complete without a server error
+(4xx excluded — a wrong password isn't an outage); **95%** of non-streaming
+requests answer under 200ms (streaming, broadcast, and the deliberately
+slow bcrypt-cost-12 auth endpoints are excluded, since including them would
+make the indicator meaningless); **99%** of listening sessions end at the
+listener's own initiative rather than dropping abruptly; and **under 1%**
+of listeners lose an audio chunk per session. 99.5% rather than 99.9% is a
+deliberate ceiling: the fan-out Hub lives in a single process's memory, so
+two instances don't share listeners, and promising 99.9% on a
+single-instance architecture would be a commitment the system can't keep.
+
+An error-budget policy ties monitoring to the release calendar: under 50%
+consumed, ship normally; 50-75%, review recent alerts; 75-100%, freeze new
+features and fix reliability only; over 100%, a written post-mortem is
+required before shipping again. All four SLOs are now measurable: SLO 3's
+`stream_disconnections_total` carries a `reason` label (`client`,
+`stream_closed`, `abrupt`) set in the `Listen` and `AudioStream` handlers'
+`defer`, and SLO 4 gets two new counters, `listener_sessions_total` and
+`sessions_with_chunk_loss_total`, fed by a per-client atomic counter that
+`Client.Send` increments whenever it drops a chunk because a listener's
+buffer is full. Two Grafana unified-alerting rules are provisioned by file
+and route to the team's Discord channel — an API-down check
+(`up{job="streampulse-api"} == 0`) and an abrupt-disconnect-spike check
+(`increase(stream_disconnections_total{reason="abrupt"}[5m]) > 3`, its
+threshold sized for demo-scale traffic, not production history) — but
+neither SLO 1 (error rate) nor SLO 2 (latency) has a matching alert yet,
+despite both metrics already being available.

@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/config"
 	"github.com/streampulse/backend/internal/infrastructure/filestore"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
@@ -83,6 +84,7 @@ func main() {
 	favoriteRepo := postgres.NewFavoriteRepo(pool)
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
+	feedbackRepo := postgres.NewFeedbackRepo(pool)
 
 	// Initialize file store. L'URL publique suit PUBLIC_BASE_URL, ou a defaut
 	// le port et l'activation de TLS : un fichier uploade doit rester
@@ -107,6 +109,9 @@ func main() {
 		}()
 	}
 
+	// Salon de chat par flux en direct (bonus WebSocket, docs/ADR/009).
+	chatHub := chat.NewHub(logger)
+
 	// Contexte de base des requetes HTTP et des taches de fond qui touchent
 	// la base : annule explicitement a l'arret, AVANT pool.Close (differe),
 	// pour liberer les connexions longues (SSE, audio, broadcast) et arreter
@@ -122,8 +127,9 @@ func main() {
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 	streamService := application.NewStreamService(streamRepo, hub)
 	playlistService := application.NewPlaylistService(playlistRepo)
-	userService := application.NewUserService(userRepo, streamRepo, hub)
+	userService := application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore)
 	musicService := application.NewMusicService(musicRepo, fileStore)
+	feedbackService := application.NewFeedbackService(feedbackRepo)
 
 	// Initialize router
 	router := transport.NewRouter(transport.RouterConfig{
@@ -132,12 +138,14 @@ func main() {
 		PlaylistService:   playlistService,
 		UserService:       userService,
 		MusicService:      musicService,
+		FeedbackService:   feedbackService,
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,
 		MusicRepo:         musicRepo,
 		JWTManager:        jwtManager,
 		Hub:               hub,
+		ChatHub:           chatHub,
 		Logger:            logger,
 		Metrics:           metrics,
 		CORSOrigins:       cfg.CORSAllowedOrigins,

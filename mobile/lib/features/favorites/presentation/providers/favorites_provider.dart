@@ -9,6 +9,16 @@ final favoritesProvider =
   return FavoritesNotifier(ref.read(favoritesRepositoryProvider));
 });
 
+/// IDs des flux favoris de l'utilisateur, dérivés de [favoritesProvider].
+/// Permet à n'importe quel écran (Direct, Détail…) de savoir si un flux est
+/// déjà suivi sans dupliquer sa propre requête réseau.
+final favoriteIdsProvider = Provider<Set<String>>((ref) {
+  return ref.watch(favoritesProvider).maybeWhen(
+        data: (streams) => streams.map((s) => s.id).toSet(),
+        orElse: () => const {},
+      );
+});
+
 class FavoritesNotifier
     extends StateNotifier<AsyncValue<List<StreamModel>>> {
   final FavoritesRepository _repository;

@@ -97,10 +97,18 @@ reachable by an `admin`.
 
 | Role | Level | Permissions |
 |------|-------|-------------|
-| anonymous | 0 | Public endpoints only: browse streams and music, search |
-| user | 1 | + listen, favorites, playlists, own account (`/users/me`) |
+| anonymous | 0 | No token: `GET /streams`, `GET /streams/{id}`, `GET /music*`, `GET /search` only |
+| user | 1 | + listen, favorites, playlists, `GET /playlists/public`, own account (`/users/me`) |
 | broadcaster | 2 | + create and run streams, upload music |
 | admin | 3 | + user management (roles, deletion), `/metrics` |
+
+> **This is the API contract, not the shipped clients.** Neither the
+> mobile app nor the web console exposes a no-account mode: their router
+> sends any unauthenticated screen straight to login. The four
+> `anonymous`-level routes above only matter to a third party integrating
+> the REST API directly. Note that despite its name, `GET /playlists/public`
+> is **not** one of them — it requires a token; "public" there means
+> visible to other logged-in users, not reachable without an account.
 
 ## Account and personal data
 
@@ -156,14 +164,72 @@ A broadcaster pushes audio with a single long-lived
 is fanned out to every connected listener. The stream must have been started
 with `POST /streams/{id}/start` first.
 
-Because these connections are long-lived, `ReadTimeout` and `WriteTimeout` are
-set to `0` on the HTTP server — see `cmd/server/main.go`. Note that this is the
-*main* server, so the timeouts are disabled for every route, not just the
-streaming ones. The rationale for SSE over WebSocket is in
+`ReadTimeout` and `WriteTimeout` are enabled by default (30s) on every route
+to bound slow or malicious clients. These three streaming handlers are the
+only exception: each lifts the deadline **for its own connection only**, via
+`http.NewResponseController` (see [ADR 005 - HTTP timeouts](ADR/005-http-timeouts.md)),
+so a long broadcast never times out without disabling protection everywhere
+else. The rationale for SSE over WebSocket is in
 [ADR 003](ADR/003-streaming-sse.md).
+
+## Live chat
+
+Every live stream has one ephemeral chat room, open to the people in the
+live. `GET /streams/{id}/chat/ws` upgrades the connection to a **WebSocket**
+(this is the one bidirectional endpoint of the API — rationale in
+[ADR 009](ADR/009-chat-websocket.md)):
+
+- authentication: standard `Bearer` header, or `?token=` as a fallback for
+  browsers (their WebSocket handshake cannot carry headers);
+- the stream must be `live`; when the broadcaster stops it, the room closes
+  and every participant receives a close frame (`1001`, "stream ended");
+- the client only ever sends `{"text": "..."}` (≤ 500 characters); author and
+  timestamp are set server-side from the token, so nobody can speak in
+  someone else's name;
+- every server frame is one JSON `ChatMessage` (`type` = `message`,
+  `user_joined` or `user_left`); on join, the last 50 messages are replayed.
+
+Nothing is persisted: the room and its history live in memory and die with
+the live.
 
 ## Metrics
 
 `GET /metrics` is restricted to `admin`. Prometheus does not use it: it scrapes
 an internal listener on `METRICS_PORT` (default `9091`), reachable only from
 inside the Docker network and never published on the host.
+
+---
+
+## Resume (francais)
+
+Cette page reste volontairement en anglais, comme le veut l'usage du metier
+pour une reference d'API — c'est cette page-la, pas le reste de la
+documentation, qui a le plus de chances d'etre lue par un developpeur non
+francophone. Elle ne repete pas la reference des routes, deja normative
+dans [`backend/api/openapi.yaml`](../backend/api/openapi.yaml) (servie sur
+`GET /openapi.yaml`, visualisee sur `GET /docs`).
+
+**Ce qu'il faut retenir** : chaque reponse est enveloppee dans `{data,
+meta}` (succes), `{data: [], meta: {page, perPage, total, ...}}` (listes
+paginees) ou `{error: {code, message}, meta}` (erreurs) — sauf les 401/403/429
+leves par les middlewares (auth, RBAC, rate limiting), qui repondent en
+texte brut sans enveloppe `meta`, une incoherence connue et documentee sur
+chaque operation concernee. L'authentification suit
+[ADR 006](ADR/006-strategie-auth-jwt.md) : jeton d'acces JWT de 15 minutes,
+refresh token opaque a usage unique de 168 h. Les roles sont hierarchises
+(`user < broadcaster < admin`), chacun heritant des droits du precedent ;
+`anonymous` designe simplement l'absence de jeton et ne couvre, cote API,
+que `GET /streams`, `GET /music*` et `GET /search` — une capacite de
+l'API, pas de l'application livree, qui exige un compte pour tout.
+`GET /users/me` et `DELETE /users/me` exposent
+directement les droits RGPD d'acces et d'effacement (detail dans
+[rgpd.md](rgpd.md)). Le streaming se consomme par SSE (`/listen`, chunks
+encodes en base64) ou par flux audio brut (`/audio`, ce que consomme
+l'application mobile) ; les deux exigent un flux `live` et une
+authentification. Chaque live a son salon de chat ephemere en WebSocket
+(`/streams/{id}/chat/ws`, [ADR 009](ADR/009-chat-websocket.md)) : messages
+limites a 500 caracteres, identite posee cote serveur depuis le jeton,
+historique des 50 derniers messages rejoue a l'arrivee, salon ferme avec le
+live, rien n'est persiste. `/metrics` est reserve au role `admin` et
+Prometheus ne l'utilise pas — il scrute un listener interne separe, jamais
+publie.

@@ -19,6 +19,8 @@ services:
       OTEL_ENDPOINT: otel-collector:4317
       OTEL_SERVICE_NAME: streampulse-api
       LOG_LEVEL: debug
+      # Joker : stack de dev uniquement. La surcouche docker-compose.prod.yml
+      # passe APP_ENV en production et exige une liste d'origines.
       CORS_ALLOWED_ORIGINS: "*"
       RATE_LIMIT_RPS: "10"
       RATE_LIMIT_BURST: "20"
@@ -35,6 +37,17 @@ services:
     restart: unless-stopped
     networks:
       - streampulse
+    # Seul conteneur dont les logs portent des donnees personnelles (IP,
+    # user-agent : middleware/logging.go, docs/rgpd.md). Sans limite, le
+    # pilote json-file par defaut de Docker les conserve indefiniment ; le
+    # pilote local les fait tourner et les compresse. Plafond genereux pour
+    # le dev, la surcouche de production (docker-compose.prod.yml) le resserre
+    # vers la recommandation de 30 jours.
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   postgres:
     image: postgres:16-alpine
@@ -69,7 +82,9 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
     volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafana-data:/var/lib/grafana
     networks:
@@ -83,12 +98,60 @@ services:
       - "4317:4317"
       - "4318:4318"
       - "8888:8888"
+    depends_on:
+      - tempo
+    networks:
+      - streampulse
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    networks:
+      - streampulse
+
+  # Indexation des logs (le sujet demande des logs JSON indexables). Les
+  # conteneurs ecrivent deja du JSON sur stdout (LOG_FORMAT=json), Loki ne
+  # fait que les stocker et les indexer pour Grafana.
+  loki:
+    image: grafana/loki:3.0.0
+    command: ["-config.file=/etc/loki.yaml"]
+    volumes:
+      - ./loki/loki.yaml:/etc/loki.yaml
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - streampulse
+
+  # Collecte des logs par Promtail plutot que par le driver Docker Loki : le
+  # driver exige d'installer un plugin sur le demon Docker de chaque machine
+  # (dependance hors compose), alors que Promtail est un simple conteneur de
+  # plus, comme Prometheus ou Tempo — la stack reste autoportante pour la demo.
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: ["-config.file=/etc/promtail.yaml"]
+    volumes:
+      - ./loki/promtail.yaml:/etc/promtail.yaml
+      # Socket Docker en lecture seule : Promtail decouvre les conteneurs et
+      # lit leurs logs via l'API, sans monter /var/lib/docker/containers.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-data:/positions
+    depends_on:
+      - loki
     networks:
       - streampulse
 
 volumes:
   pgdata:
   grafana-data:
+  tempo-data:
+  loki-data:
+  promtail-data:
 
 networks:
   streampulse:

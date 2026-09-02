@@ -32,3 +32,21 @@ L'injection de dependances est faite manuellement dans `main.go`.
 ## Alternatives considerees
 - **Architecture en couches simple** : Plus rapide a demarrer mais couplage fort
 - **Hexagonal Architecture** : Tres similaire, Clean Architecture est plus repandue dans l'ecosysteme Go
+
+---
+
+## Summary (English)
+
+The backend adopts Clean Architecture with Domain-Driven Design elements,
+in four layers: **domain** (pure entities, repository interfaces, business
+errors — zero external dependencies), **application** (use cases,
+depending only on domain), **infrastructure** (PostgreSQL, JWT, OTEL
+implementations, depending on domain), and **transport** (HTTP handlers,
+DTOs, middlewares, depending on application). Dependency injection is
+wired by hand in `main.go`. This buys high testability (each layer mocked
+independently), a clear separation of concerns, and the ability to swap
+the database or HTTP framework without touching business logic — at the
+cost of more files and boilerplate, a learning curve for new contributors,
+and extra DTO-to-entity conversion code. A simple layered architecture was
+rejected for its tight coupling; Hexagonal Architecture was considered
+near-equivalent but less established in the Go ecosystem.

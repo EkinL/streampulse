@@ -84,3 +84,25 @@ loopback et non le Hub).
 - Limite a 6 connexions SSE par domaine en HTTP/1.1 (resolu avec HTTP/2)
 - Les chunks audio sont encodes en base64 dans les events SSE (+33% overhead)
 - Pas de communication bidirectionnelle native (si chat necessaire, ajouter WebSocket separement)
+
+---
+
+## Summary (English)
+
+Server-Sent Events, not WebSocket, carries the broadcaster-to-listener
+audio fan-out: the stream is inherently one-directional, SSE runs over
+plain HTTP/1.1 (traversing proxies and load balancers without a special
+protocol), and the server-side implementation is a simple HTTP flush,
+against WebSocket's added handshake, ping/pong and framing complexity.
+The in-memory Hub fans chunks out to listeners via goroutines and
+channels, non-blockingly. Benchmarks and two load tests (run under `-race`
+on every `go test ./...`) back the design: cost per listener stays flat
+from 10 to 10,000 (1.3-1.9us on an M1 Pro reference machine), a slow
+listener never blocks the broadcaster or other listeners
+(`TestHubSlowListenerDoesNotBlockOthers`), and 500 real HTTP/SSE clients
+receive every byte in order end-to-end
+(`TestStreamFanOutOverSSE`). The accepted trade-off is a 33% bandwidth
+overhead from SSE's base64 event framing — addressed later by adding a
+raw-audio endpoint (`/audio`) alongside `/listen` — and no native
+bidirectional channel, which a future chat feature would need to add
+separately via WebSocket.

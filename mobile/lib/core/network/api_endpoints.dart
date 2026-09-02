@@ -6,12 +6,17 @@ class ApiEndpoints {
   static const String authRefresh = '/auth/refresh';
   static const String streams = '/streams';
   static const String playlists = '/playlists';
+  static const String publicPlaylists = '/playlists/public';
   static const String adminUsers = '/admin/users';
   static const String usersMe = '/users/me';
   static const String favorites = '/favorites';
   static const String music = '/music';
   static const String musicSearch = '/music/search';
   static const String globalSearch = '/search';
+  static const String feedback = '/feedback';
+  static const String adminFeedback = '/admin/feedback';
+
+  static String adminFeedbackStatus(String id) => '/admin/feedback/$id/status';
 
   static String stream(String id) => '/streams/$id';
   static String streamStart(String id) => '/streams/$id/start';

@@ -6,6 +6,8 @@
 
 Plateforme de streaming audio en temps reel avec backend Go et application mobile Flutter.
 
+*(English readers: a summary is provided at the [end of this document](#summary-english).)*
+
 ## Architecture
 
 ```
@@ -71,6 +73,10 @@ app/             Router, Theme, Constants
 ## Demarrage rapide
 
 ```bash
+# Secrets locaux (webhook Discord des alertes Grafana) - voir .env.example
+cp .env.example .env
+# puis remplir DISCORD_WEBHOOK_URL
+
 # Lancer toute la stack
 make up
 
@@ -79,11 +85,14 @@ curl http://localhost:8080/health
 # {"data":{"status":"ok"},"meta":{...}}
 ```
 
+Sans ce `.env`, la stack demarre quand meme mais les alertes Grafana n'ont nulle part ou notifier (webhook vide, echec silencieux).
+
 | Service | URL |
 |---------|-----|
 | API | http://localhost:8080 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Prometheus | http://localhost:9090 |
+| Tempo (traces) | http://localhost:3200 |
 
 ## Developpement
 
@@ -129,6 +138,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_ENV` | development | `production` durcit la configuration : le joker CORS est refuse au demarrage |
 | `PORT` | 8080 | Port du serveur |
 | `DATABASE_URL` | - | URL PostgreSQL |
 | `JWT_SECRET` | - | Secret JWT (changer en prod) |
@@ -137,7 +147,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `OTEL_ENDPOINT` | localhost:4317 | Endpoint OTEL Collector |
 | `LOG_LEVEL` | info | Niveau de log |
 | `LOG_FORMAT` | json | Format de log : `json` (indexable) ou `console` (lisible en dev). Une valeur inconnue fait echouer le demarrage |
-| `CORS_ALLOWED_ORIGINS` | * | Origines CORS |
+| `CORS_ALLOWED_ORIGINS` | * | Origines CORS, separees par des virgules. `*` n'est accepte qu'en dehors de `APP_ENV=production` ; avec le joker, `Allow-Credentials` n'est pas annonce |
 | `RATE_LIMIT_RPS` | 10 | Requetes/seconde par IP |
 | `TRUSTED_PROXIES` | (vide) | Reverse-proxies dont `X-Forwarded-For` est accepte, en CIDR ou adresse. Vide = aucun en-tete de transmission n'est cru |
 | `HTTP_READ_TIMEOUT` | 30s | Lecture d'une requete (headers + corps) |
@@ -216,7 +226,14 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 | Document | Pour quoi |
 |----------|-----------|
 | [docs/api.md](docs/api.md) + `/docs` | Le contrat REST, decrit en OpenAPI 3.1 |
+| [docs/user-stories.md](docs/user-stories.md) | Fonctionnalites sous forme de user stories, tracees vers les cas d'usage et les tests |
+| [docs/diagrammes.md](docs/diagrammes.md) | Diagrammes UML et BPMN (cas d'usage, classes, sequences, etats, processus, composants) |
+| [docs/base-de-donnees.md](docs/base-de-donnees.md) | Modele conceptuel (MCD), modele physique et dictionnaire de donnees |
+| [docs/securite.md](docs/securite.md) | Schema general de securite : zones de confiance, defense en profondeur, RBAC, OWASP Top 10 |
 | [docs/guide-utilisateur.md](docs/guide-utilisateur.md) | Prise en main par role et plan de formation |
+| [docs/accessibilite.md](docs/accessibilite.md) | Utilisation en situation de handicap : lecteur d'ecran, taille du texte, contraste, limites connues |
+| [docs/accessible/](docs/accessible/streampulse-documentation.epub) | La documentation technique complete en EPUB, plus le guide utilisateur et l'accessibilite en audio (`make docs-accessible`) |
+| [docs/performance.md](docs/performance.md) | Fluidite de l'interface mesuree au profileur Flutter (DevTools / VM timeline), pas a l'oeil |
 | [docs/plan-de-tests.md](docs/plan-de-tests.md) | Plan de tests iteratifs : unitaires, integration, securite, cartographie des cas d'usage |
 | [docs/cahier-de-recette.md](docs/cahier-de-recette.md) | 58 cas de recette executes |
 | [docs/slo.md](docs/slo.md) | Objectifs de niveau de service et politique de budget d'erreur |
@@ -235,6 +252,7 @@ Ce qui est teste, a quel niveau et dans quel ordre : [docs/plan-de-tests.md](doc
 - [ADR 005 - PostgreSQL et pgx sans ORM](docs/ADR/005-choix-postgresql.md)
 - [ADR 006 - JWT court et refresh token opaque](docs/ADR/006-strategie-auth-jwt.md)
 - [ADR 007 - Effacement physique en cascade (RGPD)](docs/ADR/007-effacement-compte-rgpd.md)
+- [ADR 008 - Dashboard Grafana, traces distribuees et alertes](docs/ADR/008-dashboard-alertes-grafana.md)
 
 ## Scalabilite
 
@@ -247,6 +265,16 @@ en premier** (856 Mbit/s en SSE, soit 86 % d'une carte 1 Gbit/s) alors que le
 serveur tourne a 20 % de sa capacite. Le facteur limitant est la bande
 passante sortante, pas le code.
 
+## Fluidite de l'interface
+
+[docs/performance.md](docs/performance.md) mesure la fluidite de l'app mobile
+avec le profileur Flutter (timeline du VM Service, la meme source que
+Flutter DevTools), pas a l'oeil. En resume : le scroll d'une liste de 66
+elements tient le budget de 16,67 ms (60 Hz) sur 99,3 % des images en mode
+debug (0 image en jank severe) ; le point chaud identifie n'est pas le scroll
+mais le rafraichissement periodique de la liste, qui reconstruit tout au lieu
+de ne mettre a jour que ce qui a change.
+
 ## Contribution
 
 1. Creer une branche depuis `develop`
@@ -257,3 +285,36 @@ passante sortante, pas le code.
 ## Licence
 
 MIT
+
+---
+
+## Summary (English)
+
+StreamPulse is a real-time audio streaming platform: a Go API (chi router,
+Clean Architecture — domain/application/infrastructure/transport layers)
+paired with a Flutter mobile app and web console, sharing one account
+across three hierarchical roles (`user < broadcaster < admin`) — the app
+requires an account for everything, though the API itself still answers a
+handful of read routes without a token. Audio fans out from a broadcaster
+to any number of listeners through an
+in-memory Hub over goroutines and channels, served either as Server-Sent
+Events (`/listen`) or a raw byte stream (`/audio`); JWT access tokens (15
+min) pair with single-use opaque refresh tokens (168 h, bcrypt/SHA-256
+hashed). PostgreSQL 16 via `pgx` (no ORM) persists users, streams,
+playlists and favorites; OpenTelemetry, Prometheus and Grafana provide
+tracing, metrics and dashboards, alerted to Discord. The REST contract is
+normatively described in OpenAPI 3.1 (`backend/api/openapi.yaml`), checked
+against the live router in CI.
+
+`make up` starts the full stack; `docs/` holds the complete technical
+documentation — user stories, UML/BPMN diagrams, the conceptual and
+physical data model, a security overview mapped to OWASP Top 10, the test
+plan and executed acceptance cahier, SLOs, and an accessible EPUB/audio
+edition of it all (`docs/accessible/`, `make docs-accessible`). Nine
+Architecture Decision Records justify the major technical choices (Clean
+Architecture, Riverpod, SSE over WebSocket, PostgreSQL, JWT strategy, GDPR
+erasure, Grafana alerting). Scalability measurements
+([docs/scalability.md](docs/scalability.md)) show the outbound network
+saturates well before CPU at realistic load (856 Mbit/s of a 1 Gbit/s link
+at 100 concurrent streams x 50 listeners, against 20% server capacity
+used) — the platform's real ceiling is bandwidth, not code.

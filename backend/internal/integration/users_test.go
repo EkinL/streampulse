@@ -3,6 +3,8 @@ package integration_test
 import (
 	"context"
 	"net/http"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -22,6 +24,16 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 	musicID := s.addMusicByURL(t, bc, "Morceau a effacer", "Artiste")
 	s.do(t, http.MethodPost, "/playlists", bc.Access, map[string]any{"name": "Playlist a effacer", "is_public": false}).expect(t, http.StatusCreated, "")
 	s.do(t, http.MethodPost, "/favorites/"+streamID, bc.Access, nil).expect(t, http.StatusCreated, "")
+
+	// Un morceau verse (pas seulement ajoute par URL) : la suppression du
+	// compte doit aussi retirer le fichier de uploads/, sans quoi il reste
+	// servi par son URL pour qui la connait (limite connue, docs/rgpd.md).
+	uploaded := s.upload(t, bc.Access, map[string]string{"title": "Repetition a effacer", "artist": "Test"}, "repetition.mp3", []byte("audio-a-effacer")).
+		expect(t, http.StatusCreated, "").data(t)
+	uploadedPath := path.Join(uploadDir, path.Base(str(uploaded, "url")))
+	if _, err := os.Stat(uploadedPath); err != nil {
+		t.Fatalf("le fichier uploade doit exister sur disque avant la suppression du compte: %v", err)
+	}
 
 	// Le flux est en direct avec un auditeur connecte : la suppression du
 	// compte doit le couper, pas seulement effacer la ligne en base.
@@ -105,12 +117,55 @@ func TestUsers_AccessAndErasure(t *testing.T) {
 		// Ses ressources publiques ont disparu du catalogue.
 		s.do(t, http.MethodGet, "/streams/"+streamID, "", nil).expect(t, http.StatusNotFound, "NOT_FOUND")
 		s.do(t, http.MethodGet, "/music/"+musicID, "", nil).expect(t, http.StatusNotFound, "NOT_FOUND")
+
+		// Le fichier verse a disparu du disque, pas seulement sa ligne en
+		// base (limite connue, docs/rgpd.md).
+		if _, err := os.Stat(uploadedPath); !os.IsNotExist(err) {
+			t.Fatalf("le fichier uploade doit avoir disparu du disque, err=%v", err)
+		}
 	})
 
 	t.Run("l'email est libere", func(t *testing.T) {
 		s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-			"email": bc.Email, "username": "renaissance", "password": password,
+			"email": bc.Email, "username": "renaissance", "password": password, "accepted_terms": true,
 		}).expect(t, http.StatusCreated, "")
+	})
+}
+
+// UC-22 : droit de rectification (RGPD, docs/rgpd.md). La personne change
+// son email et son nom d'utilisateur elle-meme, sans intervention d'un
+// administrateur.
+func TestUsers_Rectification(t *testing.T) {
+	s := newSuite(t)
+	u := s.newAccount(t, domain.RoleUser)
+	other := s.newAccount(t, domain.RoleUser)
+
+	t.Run("sans jeton : 401", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", "", map[string]any{"email": "x@y.io", "username": "xyz"}).expect(t, http.StatusUnauthorized, "UNAUTHORIZED")
+	})
+
+	t.Run("email invalide : 400", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{"email": "pas-un-email", "username": "valide"}).expect(t, http.StatusBadRequest, "BAD_REQUEST")
+	})
+
+	t.Run("email deja pris par un autre compte : 409", func(t *testing.T) {
+		s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{"email": other.Email, "username": "nouveau"}).expect(t, http.StatusConflict, "CONFLICT")
+	})
+
+	t.Run("rectification : PATCH /users/me", func(t *testing.T) {
+		d := s.do(t, http.MethodPatch, "/users/me", u.Access, map[string]any{
+			"email": "rectifie@streampulse.local", "username": "rectifie",
+		}).expect(t, http.StatusOK, "").data(t)
+		if str(d, "email") != "rectifie@streampulse.local" || str(d, "username") != "rectifie" {
+			t.Fatalf("profil non rectifie: %v", d)
+		}
+
+		// La rectification est bien lue en base, pas seulement renvoyee dans
+		// la reponse.
+		got := s.do(t, http.MethodGet, "/users/me", u.Access, nil).expect(t, http.StatusOK, "").data(t)
+		if str(got, "email") != "rectifie@streampulse.local" || str(got, "username") != "rectifie" {
+			t.Fatalf("rectification non persistee: %v", got)
+		}
 	})
 }
 

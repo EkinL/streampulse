@@ -36,3 +36,26 @@ Volume : un `volumeProvider` unique (borne [0, 1], persiste en `shared_preferenc
 - `AudioPlayer` est injectable dans le handler, donc testable sans plateforme.
 - Un live interrompu par un appel n'est pas reconnecte automatiquement, l'utilisateur relance.
 - Sans session media (desktop, tests), `main()` retombe sur un handler local : l'app lit, sans notification.
+
+---
+
+## Summary (English)
+
+Playback must survive backgrounding and handle interruptions (calls,
+other audio apps, headphone unplug), across two different audio sources —
+tracks played by `just_audio` from a URL, and the live stream, raw PCM
+pushed into `flutter_sound`. **audio_service** provides a single handler
+(`StreamPulseAudioHandler`, injected via Riverpod) that translates
+whichever source is active into a `PlaybackState` for the lock screen and
+notification controls; starting one source stops the other. Android runs
+a `mediaPlayback`-type foreground service; iOS declares the `audio`
+background mode. Volume is a single provider persisted to
+`shared_preferences` and applied to both audio engines; interruptions duck
+volume to 30%, pause on incoming calls (resuming after), and pause on
+`becomingNoisy` (headphones unplugged). Rejected alternatives:
+`just_audio_background` (too narrow — no background support for the live
+flutter_sound path), a hand-rolled native foreground service (would
+reinvent audio_service's lock-screen and Bluetooth/CarPlay integration),
+and migrating the live stream onto just_audio (which can't consume a
+pushed PCM stream). Known limitation: a live stream interrupted by a call
+isn't automatically reconnected — the user must resume manually.

@@ -13,11 +13,11 @@ automatise et rejouable par `make`.
 
 ## 1. Objectifs et regles
 
-| Objectif | Mesure | Etat au 2026-08-27 |
+| Objectif | Mesure | Etat au 2026-09-01 |
 |----------|--------|--------------------|
 | Chaque cas d'usage du sujet a au moins un test automatise a chaque niveau applicable | cartographie de la section 3 | 19/19 cas couverts |
-| Couverture de code du module Go | `make cover-check` | **75,6 %** (77,8 % hors `cmd/server`) — cible 80 % |
-| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **19,7 %** (54 tests) — seuil 15 %, releve avec l'iteration 2 |
+| Couverture de code du module Go | `make cover-check` | **91,1 %** (94,1 % hors `cmd/server`) — cible 80 % atteinte, seuil CI releve a 80 % |
+| Couverture de lignes de l'app Flutter | `make test-mobile-cover` | **80,4 %** (455 tests) — cible 80 % atteinte, seuil CI releve a 80 % (iteration 3) |
 | Aucun test rouge sur `develop` | CI `backend.yml` / `mobile.yml` | vert |
 | Tout defaut trouve donne d'abord un test rouge, puis un correctif | section 6 | 4 defauts, 4 corriges |
 
@@ -25,10 +25,10 @@ Regles appliquees a chaque PR :
 
 - **Le test est ecrit avec le code, pas apres.** Une PR qui ajoute un
   comportement ajoute le test qui le decrit ; la CI echoue sous le seuil de
-  couverture (`COVERAGE_MIN` : 70 % backend, 15 % mobile aujourd'hui, releve
-  a chaque iteration). Le chiffre de chaque run est ecrit dans le resume du
-  job GitHub Actions et le rapport (`coverage.out`, `lcov.info`) est publie
-  en artefact de PR : la trajectoire se lit d'une PR a l'autre.
+  couverture (`COVERAGE_MIN` : 80 % backend et mobile). Le chiffre de chaque
+  run est ecrit dans le resume du job GitHub Actions et le rapport
+  (`coverage.out`, `lcov.info`) est publie en artefact de PR : la trajectoire
+  se lit d'une PR a l'autre.
 - **Un defaut commence par un test rouge.** Les quatre anomalies de la
   section 6 ont chacune un test qui echouait avant le correctif.
 - **Les cas de refus comptent autant que les cas nominaux.** Chaque endpoint
@@ -50,7 +50,7 @@ Regles appliquees a chaque PR :
 | **Integration API** | Le serveur complet — request id, tracing, CORS, rate-limit, JWT, RBAC, services, repositories, Hub — vu par un client HTTP, scenario par scenario et role par role | Tout est reel sauf l'exporteur OTEL (muet) et le dossier d'upload (temporaire) ; schema dedie `it_api` | `internal/integration/` | `make test-integration` |
 | **Securite** | Jetons forges (payload modifie, autre secret, `alg=none`, expire), rejeu de refresh token, injection SQL, mass assignment, matrice role x endpoint, propriete distincte du role, rate limiting, secrets haches, correlation des erreurs | Unitaire et integration | `auth/jwt_test.go`, `middleware/*_test.go`, `integration/security_test.go`, `integration/rbac_test.go` | les deux commandes |
 | **Charge** | Le Hub encaisse N auditeurs sans bloquer ni fuir | Hub reel, 1000 clients | branche `test/hub-load-proof` (PR ouverte) | `make bench`, `make load-test` a la fusion |
-| **Mobile** | Demarrage et redirection vers la connexion sans session, routes API attendues par le client, stockage securise des jetons, console web (roles admin, destinations, ecran de connexion) | `flutter_test`, sources natives remplacees par des faux | `mobile/test/` | `make test-mobile-cover` |
+| **Mobile** | Modeles et repositories (parsing, branches d'erreur HTTP), providers Riverpod (etats, appels reseau simules), intercepteur d'authentification (refresh de jeton, retry, echec), widgets partages et de features, ecrans (listes, details, formulaires, dialogues, navigation), console web (roles admin, destinations, ecran de connexion) | `flutter_test`, `mocktail` pour les repositories/`Dio`, sources natives (stockage, lecteur audio) remplacees par des faux, `HttpOverrides` pour l'intercepteur HTTP | `mobile/test/` | `make test-mobile-cover` |
 | **Recette manuelle** | L'API telle qu'un client la consomme, avec les codes et corps reellement observes | Stack `docker compose` | [cahier-de-recette.md](cahier-de-recette.md) | `curl` |
 
 ### Isolation des tests d'integration
@@ -96,12 +96,13 @@ ne s'applique pas.
 | UC-14 | Configuration 12-Factor (2.3) | `config_test.go` (defauts, `.env`, format de logs invalide refuse) | — | secret JWT requis au demarrage | — |
 | UC-15 | Observabilite : logs JSON, correlation, traces (4.1, 4.2) | `logger_test.go`, `requestid_test.go`, `logging_test.go` | `TestRequestIDIsCorrelatedEndToEnd`, `TestSecurity_EveryResponseIsCorrelated` | les 401/403 portent aussi `X-Request-ID` | R-01 |
 | UC-16 | Contrat OpenAPI servi et exact | `docs_handler_test.go` | `TestOpenAPICoversEveryRoute`, `TestOpenAPIOperationIDsAreUnique`, `TestDescriptionRoutesArePublic` | — | R-02, R-03 |
-| UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart` | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) | guide utilisateur |
+| UC-17 | Mobile : demarrage, session, routes | `widget_test.dart`, `api_endpoints_test.dart`, `secure_storage_test.dart`, `auth_provider_test.dart`, `api_client_interceptors_test.dart` (refresh de jeton, retry, echec) | — | jetons en keychain / `localStorage` (`secure_storage_test.dart`) ; retry unique et purge des jetons sur refresh rejete (`api_client_interceptors_test.dart`) | guide utilisateur |
 | UC-18 | Console web diffuseur / admin | `console_*_test.dart` (roles admin, destinations par role, ecran de connexion, shell) | — | destinations filtrees par role | guide utilisateur |
-| UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | — (iteration 2) | — | — | guide utilisateur, recette manuelle sur simulateur |
+| UC-19 | Lecteur audio mobile (3.1) et interface diffuseur (3.2) | Lecteur : `player_provider_test.dart`, `mini_player_test.dart`, `music_player_screen_test.dart` (file d'attente, volume, ajout a une playlist). Diffuseur : ecran hors perimetre (iteration 4), voir section 5 | — | — | guide utilisateur, recette manuelle sur simulateur |
 | UC-20 | Droits RGPD : acces et effacement de son compte (Ce3.1.4) | `TestUserService_DeleteUser`, `TestPurgeExpiredRefreshTokens` | `TestUsers_AccessAndErasure` (profil sans hash, cascade sur 6 tables, refresh et login refuses, email libere), `TestCascadeOnUserDelete` | `TestRBAC_EndpointMatrix` (`/users/me` authentifie) ; jeton encore valide → 404 | R-80 a R-85 |
 | UC-21 | Admin : effacement sur demande (Ce3.1.4) | `TestUserService_DeleteUser` | `TestAdmin_DeleteUser` (id invalide, inconnu, disparition de la liste) | `TestRBAC_EndpointMatrix` (`adminOnly`), user → 403 | R-86, R-87 |
-| UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul) | — | TLS 1.2 minimum | R-88 |
+| UC-22 | Flux chiffres : HTTPS natif ou reverse proxy (Ce3.1.4) | `config_test.go` (TLS desactive par defaut, actif avec les deux fichiers, refus d'un seul, joker CORS refuse en production) | — | TLS 1.2 minimum ; API non publiee derriere Caddy (`docker-compose.prod.yml`) | R-88 a R-90 |
+| UC-23 | Canal de retour utilisateur : signalement et traitement (Ce3.4.3) | `TestFeedbackService_*` (backend), `feedback_repository_test.dart`, `feedback_screen_test.dart` (mobile) | `TestFeedback_SubmitAndAdminWorkflow`, `TestFeedback_Validation`, `TestFeedbackRepo` | `TestRBAC_EndpointMatrix` (`/feedback` authentifie, `/admin/feedback*` adminOnly) ; type ou statut invalide → 400 | R-91 a R-97 |
 
 ## 4. Campagne de securite
 
@@ -115,7 +116,7 @@ est un test automatise qui s'execute a chaque PR.
 | API3 — autorisation au niveau propriete (mass assignment) | Tout champ hors contrat est refuse : `role` a l'inscription, `owner_id`, `status`, `position`, `id`, `uploaded_by` | `TestSecurity_UnknownFieldsRejected`, `TestAuth_RegisterValidation` | OK |
 | API4 — consommation de ressources | Rate limiting par hote, burst puis 429, recharge, `X-Forwarded-For` derriere un proxy | `middleware/ratelimit_test.go` | OK apres correctif A-01 ; taille des corps non bornee → O-2 |
 | API5 — autorisation au niveau fonction | Matrice 4 roles x 16 routes ; hierarchie `anonymous < user < broadcaster < admin` ; role inconnu jamais accepte | `TestRBAC_EndpointMatrix`, `TestRequireRoleMatrix`, `TestRequireRoleRejectsUnknownRole`, `TestMetricsAccess` | OK |
-| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; `X-Request-ID` expose au navigateur ; TLS natif refuse une configuration a moitie renseignee | `middleware/cors_test.go`, `config_test.go` (`TestLoadRejectsHalfTLSConfig`) | OK ; `*` en dev → O-3 ; terminaison TLS documentee dans [deployment.md](deployment.md#https) |
+| API8 — mauvaise configuration | Seules les origines configurees passent le preflight CORS ; le joker n'annonce pas `Allow-Credentials` ; `APP_ENV=production` refuse `CORS_ALLOWED_ORIGINS=*` ou vide ; `X-Request-ID` expose au navigateur ; TLS natif refuse une configuration a moitie renseignee | `middleware/cors_test.go` (`TestCORSCredentialsOnlyWithNamedOrigins`), `config_test.go` (`TestLoadRejectsWildcardCORSInProduction`, `TestLoadRejectsHalfTLSConfig`) | OK ; O-3 corrigee ; terminaison TLS fournie par `docker-compose.prod.yml` + `caddy/Caddyfile`, voir [deployment.md](deployment.md#https) |
 | Donnees personnelles (RGPD) | Une personne lit tout ce qui la concerne et efface son compte ; rien ne subsiste dans les six tables liees ; ses anciens jetons ne donnent plus acces a rien ; les refresh tokens expires sont purges | `TestUsers_AccessAndErasure`, `TestAdmin_DeleteUser`, `TestCascadeOnUserDelete`, `TestPurgeExpiredRefreshTokens` | OK ; registre et retention dans [rgpd.md](rgpd.md) |
 | Injection | Charges SQL a l'inscription, a la connexion, dans la recherche, dans un identifiant de chemin : stockees telles quelles ou rejetees, tables intactes | `TestSecurity_SQLInjectionIsNeutralised` | OK (requetes parametrees pgx, ADR 005) |
 | Fuite d'information | Mot de passe et hash jamais renvoyes ; playlist privee d'autrui → 404 et non 403 ; erreurs correlables sans detail interne | `TestAuth_RegisterLoginRefresh`, `TestAdmin_UsersAndRoles`, `TestPlaylists_VisibilityAndOwnership`, `TestSecurity_EveryResponseIsCorrelated` | OK ; ecritures sur playlist privee → O-4 |
@@ -158,38 +159,118 @@ Couverture par paquet apres l'iteration :
 | `transport/http/handlers` | 72,2 % | `infrastructure/streaming` | 68,2 % |
 | `infrastructure/observability` | 56,5 % | `cmd/server` | 0 % |
 
-### Iteration 2 — planifiee
+### Iteration 2 — seuil a 80 % atteint (2026-08-30)
 
-Branches ouvertes a fusionner, chacune avec ses tests :
+L'exigence du sujet « code testable unitairement a 80 % minimum » est
+couverte et verrouillee : `COVERAGE_MIN` passe de 70 a 80 dans le `Makefile`
+et dans `backend.yml`, la CI echoue desormais sous ce seuil.
 
-- `test/hub-load-proof` : preuve de charge du Hub (1000 auditeurs, 500 clients
-  SSE reels, benchmarks) → `streaming` au-dessus de 80 %.
-- `fix/http-timeouts` : timeouts HTTP actifs, upload borne, tests des
-  deadlines de handlers.
-- `feat/audio-3.1` : lecture en arriere-plan et volume sur mobile.
+| Ajout | Ou |
+|-------|----|
+| Branches d'erreur des handlers : requete sans claims (le middleware les pose toujours, seul l'appel direct les atteint), identifiant invalide, corps illisible, panne du depot simulee → `INTERNAL_ERROR` distinct des 404 | `handlers/*_unit_test.go` |
+| Flux audio brut de bout en bout (`AudioStream`) : enregistrement au Hub, reception des octets par un vrai client HTTP, desenregistrement a la coupure ; diffuseur dont la connexion casse en plein direct | `handlers/stream_handler_unit_test.go` |
+| Branches d'erreur des services (panne du depot sur chaque ecriture, relecture apres reordonnancement, refresh token orphelin, mot de passe > 72 octets refuse par bcrypt) et chemins restants (`ValidateToken`, `ListPublicPlaylists`, `UpdateStream`, `StopStream`, normalisation de pagination) | `application/service_errors_test.go` |
+| Deadlines de connexion : erreurs reelles de `SetReadDeadline`/`SetWriteDeadline` propagees, upload refuse si la connexion ne les supporte pas | `handlers/handlers_unit_test.go`, `music_handler_unit_test.go` |
+| Contrats des mocks aux bords (pagination au-dela du total, identifiants inconnus), regles du domaine (`StreamStatus`/`Role.IsValid`, hierarchie `AtLeast`), `MetricsAddr` | `testutil/mocks_pagination_test.go`, `domain/rules_test.go`, `config/addr_test.go` |
 
-Travaux de l'iteration :
+Resultat : couverture **91,1 %** (94,1 % hors `cmd/server`, qui n'est pas
+testable unitairement). Couverture par paquet :
 
-1. Relever `COVERAGE_MIN` a 80 une fois les branches fusionnees ; completer
-   `handlers` (chemins `INTERNAL_ERROR` via un repository en panne simule) et
-   `observability` (exporteur OTEL avec collecteur factice).
+| Paquet | Couverture | Paquet | Couverture |
+|--------|-----------:|--------|-----------:|
+| `transport/http` | 100 % | `infrastructure/auth` | 91,3 % |
+| `domain` | 100 % | `infrastructure/postgres` | 81,3 % |
+| `transport/http/handlers` | 98,8 % | `infrastructure/filestore` | 76,5 % |
+| `application` | 98,6 % | `infrastructure/observability` | 56,5 % |
+| `infrastructure/streaming` | 97,7 % | `cmd/server` | 0 % |
+| `infrastructure/config` | 96,2 % | `transport/http/middleware` | 93,5 % |
+
+### Iteration 3 — couverture mobile a 80 % (2026-09-01)
+
+L'exigence du sujet « code testable unitairement a 80 % minimum » est
+desormais couverte et verrouillee cote Flutter aussi : `COVERAGE_MIN` passe
+de 15 a 80 dans `mobile/scripts/coverage_check.sh`, la CI echoue desormais
+sous ce seuil (`mobile.yml`).
+
+Point de depart : 54 tests, 19,7 % — uniquement `core/audio`,
+`shared/providers` et l'ecran console. Tout le reste de l'application
+(repositories, providers metier, intercepteur HTTP, widgets, ecrans) tournait
+sans le moindre test.
+
+| Ajout | Ou | Gain |
+|-------|----|-----:|
+| Modeles de domaine et repositories (`music`, `stream`, `playlist`, `favorites`, `auth`) : parsing JSON, branches nominales et branches d'erreur HTTP par methode, via `mocktail` sur `Dio` | `test/features/*/data`, `test/features/*/domain` | 19,7 % → 28,0 % |
+| Providers Riverpod (state notifiers), y compris les factories des providers eux-memes (`overrideWithValue` sur le repository plutot que sur le provider, pour exercer le vrai code de branchement) | `test/features/*/presentation/providers` | 28,0 % → 33,1 % |
+| Intercepteur d'authentification de `api_client.dart` : bearer token, refresh sur 401 (succes, echec, absence de refresh token), rejeu de la requete d'origine ; `token_store_io.dart` (canal `flutter_secure_storage` simule) ; `validators.dart`, `extensions.dart` | `test/core/network/api_client_interceptors_test.dart`, `test/core/storage/`, `test/core/utils/` | 33,1 % → 35,6 % |
+| Widgets partages et de features (`AppScaffold`, `MiniPlayer`, `VolumeControl`, `StreamCard`, `MusicTile`, `EditDialog`, etc.) | `test/shared/widgets`, `test/features/*/presentation/widgets` | 35,6 % → 47,4 % |
+| Ecrans : favoris, playlists, admin, inscription, recherche, details stream/playlist, liste des streams, lecteur musique ; branches d'erreur residuelles des repositories | `test/features/*/presentation/screens` | 47,4 % → **80,1 %** |
+
+Resultat : 394 tests, couverture **80,1 %**, `flutter analyze` sans avertissement.
+
+#### Iteration 3bis — reconciliation avec la refonte UI (2026-09-01)
+
+La branche avait divergé de `develop` juste avant la fusion de la refonte UI
+(nouveau systeme de theme par `ThemeExtension`, consentement RGPD a
+l'inscription, restructuration de `AppScaffold`/compte utilisateur, refactor
+favoris/flux). La CI GitHub teste le merge de la PR avec la pointe de
+`develop`, pas la branche seule : une reproduction locale de la branche seule
+passait donc a chaque fois, masquant le vrai probleme jusqu'a ce que les logs
+CI detailles montrent 17 erreurs de compilation deterministes.
+
+| Etape | Detail |
+|-------|--------|
+| Fusion de `develop` | 96 fichiers, +4580/-1358 lignes, sans conflit (les fichiers de test etaient nouveaux) |
+| Erreurs de compilation (17) | Nouveaux parametres requis (`acceptedTerms`, `trackCount`), signature de `StreamNotifier` (1 argument au lieu de 2, favoris extraits dans `FavoritesNotifier`), methode `toggleFavorite` supprimee |
+| `flutter analyze` (39 problemes) | `theme:` desormais requis sur chaque `MaterialApp`/`MaterialApp.router` de test (sinon `context.colors` plante au premier rendu) → invalide le `const` de 19 fichiers, qui redevient necessaire sur les constructeurs internes (lint `prefer_const_constructors`, bloquant) |
+| Echecs de test restants (23) | Libelles passes en francais (`OFFLINE`→`HORS LIGNE`, `Active Streams`→`Flux actifs`, nav `FAVORITES`→`FAVORIS`/`PROFILE`→`PROFIL`), suppression de compte deplacee vers `/account`, `LiveMiniPlayer` ajoute a `AppScaffold` (necessite `audioHandlerProvider` surcharge), icone favori plein vs contour selon l'ecran, `AudioWaveform` anime en continu sur un stream live et empeche `pumpAndSettle` de se stabiliser une fois une boite de dialogue ouverte par-dessus |
+| Couverture apres fusion | La refonte a ajoute des ecrans et widgets entierement neufs et non testes (`account_screen.dart`, `privacy_policy_screen.dart`, `live_mini_player.dart`, `theme_provider.dart`) : couverture retombee a **71,7 %** malgre 428 tests verts |
+| Tests ajoutes pour revenir a 80 % | `account_screen_test.dart` (13 tests : RGPD acces/effacement, rectification, preferences d'apparence), `privacy_policy_screen_test.dart`, `live_mini_player_test.dart`, `theme_provider_test.dart` (notifiers + stores `SharedPreferences`), `theme_test.dart` (`SPColors.copyWith`/`lerp`, themes contraste eleve), `router_test.dart` (redirections : route publique, session absente, garde admin/diffuseur, page 404), `audio_player_bar_test.dart`, complements a `playlist_provider_test.dart` (`PublicPlaylistNotifier`) et `volume_provider_test.dart` (`SharedPrefsVolumeStore`) |
+
+Resultat : **455 tests**, couverture **80,4 %**, `flutter analyze` sans
+avertissement, CI a nouveau verte.
+
+Reste hors perimetre, a dessein — pas testable sans faire evoluer le code de
+production d'abord :
+
+| Fichier | Couverture | Raison |
+|---------|-----------:|--------|
+| `broadcaster_screen.dart` | 0,3 % | Enregistrement micro (`flutter_sound` recorder + `permission_handler`) |
+| `live_stream_provider.dart`, methode `connect()` | 31,7 % (le reste de la classe est teste) | `HttpClient` et `AudioSession` instancies en dur dans le constructeur, non injectables |
+
+Ces deux points demandent d'extraire la logique derriere une interface
+injectable avant de pouvoir la tester unitairement — meme traitement que
+celui applique a `api_client.dart` dans cette iteration. Reporte en
+iteration 5.
+
+Decouverte en cours de route, a reutiliser : `audioHandlerProvider` leve
+volontairement une `UnimplementedError` si non surcharge (garde-fou deja en
+place dans `lib/core/audio/audio_handler.dart`) — un simple
+`ProviderScope(overrides: [audioHandlerProvider.overrideWithValue(fakeHandler)])`
+suffit a rendre testables tous les widgets qui en dependent, y compris
+`AudioPlayerBar` : `flutter_sound` ne plante pas dans l'environnement de
+test, contrairement a ce qu'on aurait pu croire avant de l'essayer.
+
+### Iteration 4 — planifiee (backend)
+
+1. Completer `observability` (exporteur OTEL avec collecteur factice) et
+   extraire de `cmd/server` un assemblage testable.
 2. Traiter O-1 : alimenter `http_requests_total` et
    `http_request_duration_seconds` dans le middleware de logging, avec un test
    qui lit `/metrics` apres quelques requetes. Sans cela les SLO 1 et 2 de
    [slo.md](slo.md) ne sont pas mesurables.
 3. Traiter O-2 : `http.MaxBytesReader` sur les corps JSON, test a 413.
-4. Mobile : tests widget du lecteur (progression, volume, file d'attente), de
-   l'ecran diffuseur (start/stop) et des gardes de routes par role ; relever
-   le seuil mobile (`COVERAGE_MIN` de `coverage_check.sh`) en consequence.
-5. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
-6. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
+4. `govulncheck` en CI (critere Ce3.3.4) et `flutter analyze` deja en place.
+5. RGPD, suite de [rgpd.md](rgpd.md) section 6 : `PATCH /users/me`
    (rectification) et nettoyage des fichiers audio orphelins, chacun avec
    son test d'integration.
 
-### Iteration 3 — planifiee
+### Iteration 5 — planifiee
 
-- Tests d'integration mobile (`integration_test`) sur simulateur contre la
-  stack `docker compose`, un scenario par role.
+- Mobile : extraire la logique de `live_stream_provider.dart` (`connect()`)
+  et de `broadcaster_screen.dart` derriere des interfaces injectables
+  (`HttpClient`, `AudioSession`, recorder) pour les rendre testables
+  unitairement ; a defaut, tests d'integration mobile (`integration_test`)
+  sur simulateur contre la stack `docker compose`, un scenario par role.
 - Fuzzing (`go test -fuzz`) des decodeurs JSON et de l'analyse des
   identifiants de chemin.
 - Tests des migrations descendantes (`.down.sql`) : appliquer, revenir,
@@ -214,7 +295,7 @@ Observations a arbitrer, non corrigees dans cette iteration :
 |-----|-------------|--------|-------------|
 | O-1 | `http_requests_total` et `http_request_duration_seconds` sont declares dans `observability/metrics.go` mais jamais incrementes | Les SLI des SLO 1 et 2 de [slo.md](slo.md) sont vides ; le dashboard Grafana ne montre ni trafic ni latence | Incrementer dans le middleware de logging (iteration 2) |
 | O-2 | Aucune limite de taille sur les corps JSON ; le multipart n'est borne qu'en memoire (32 Mio) | Un client peut envoyer un corps arbitrairement grand | `http.MaxBytesReader` + variable `MAX_BODY_BYTES` |
-| O-3 | `CORS_ALLOWED_ORIGINS=*` avec `AllowCredentials: true` dans la stack de dev | Acceptable en local, a restreindre en production | Documenter la valeur de prod dans `deployment.md` |
+| O-3 | `CORS_ALLOWED_ORIGINS=*` avec `AllowCredentials: true` dans la stack de dev | Acceptable en local, a restreindre en production | **Corrigee** — le joker n'annonce plus les credentials (`middleware/cors.go`), `APP_ENV=production` refuse le joker au demarrage (`config.go`), et `docker-compose.prod.yml` exige une liste d'origines |
 | O-4 | `PUT`/`DELETE` sur la playlist privee d'un tiers repondent 403, alors que `GET` repond 404 | L'existence d'un identifiant est revelee par les methodes d'ecriture | Aligner sur 404, ou assumer et documenter |
 | A-02 | `HEAD /health` repond 405 (cahier de recette) | Sans effet sur les sondes actuelles (`GET`) | `chi/middleware.GetHead` |
 
@@ -230,10 +311,10 @@ export DATABASE_URL=postgres://localhost:5432/streampulse_test?sslmode=disable
 make test-integration
 
 # Tout, avec le seuil de couverture de la CI
-make cover-check                                # COVERAGE_MIN=80 make cover-check pour viser la cible
+make cover-check                                # echoue sous 80 %, comme la CI
 
 # Mobile, avec le seuil de couverture de la CI
-cd .. && make test-mobile-cover           # COVERAGE_MIN=20 make test-mobile-cover pour viser plus haut
+cd .. && make test-mobile-cover           # echoue sous 80 %, comme la CI
 ```
 
 En CI (`.github/workflows/backend.yml`), le job `test` demarre un service
@@ -252,3 +333,37 @@ en artefact de la PR.
 |---|---------|
 | Entree | Cas d'usage identifies dans la section 3 ; tests ecrits ou modifies dans la PR qui porte le code |
 | Sortie | CI verte (lint, contrat, tests unitaires et d'integration, seuil de couverture) ; aucun test ignore de facon inattendue ; anomalies trouvees consignees dans la section 6 avec leur test ; `CHANGELOG.md` mis a jour |
+
+---
+
+## Summary (English)
+
+This is StreamPulse's iterative test plan: what is tested, at which level,
+with which tools, and how an iteration is declared done. It answers
+criterion Ce3.2.1 of RNCP 38822 block 3 and the subject's 80%-minimum
+unit-testable-code requirement. Tests are written with the code, never
+after — CI fails below the coverage threshold — and failure paths count as
+much as happy paths: every endpoint is tested anonymous, under-privileged,
+non-owner, with an unknown id and an invalid id. Seven test levels run from
+pure unit tests (mocked repositories) through contract tests (router vs.
+OpenAPI description), real-PostgreSQL integration tests (uniqueness,
+cascades, full-text search, transactional reordering — nothing a mock
+could prove), full HTTP integration tests per role, a dedicated security
+suite mapped to OWASP API Security Top 10 (2023), load tests of the
+fan-out Hub, Flutter widget tests, and the manual acceptance cahier.
+
+All 19 subject use cases are covered by at least one automated test at
+each applicable level. Backend coverage reached 91.1% (94.1% excluding the
+non-unit-testable `cmd/server`); mobile line coverage reached 80.4% across
+455 tests after three iterations that added repository/provider/interceptor
+tests, then widget and screen tests, then a round of reconciliation after a
+UI redesign temporarily dropped coverage to 71.7%. `COVERAGE_MIN` is locked
+at 80% in CI for both. Four backend defects were found — each starting as
+a red test — and fixed: broken rate limiting (`IP:port` used as the
+counter key instead of the host), and three 500s that should have been
+404s on unknown stream/playlist/user ids. A handful of open observations
+(unincremented HTTP metrics, unbounded JSON body size, `HEAD /health`
+returning 405) are tracked with a proposed fix rather than silently left
+out, and two mobile files stay deliberately out of unit-test scope
+(microphone recording, hard-wired `HttpClient`/`AudioSession`) until their
+logic is extracted behind an injectable interface.

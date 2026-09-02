@@ -33,6 +33,7 @@ import (
 	"github.com/streampulse/backend/internal/application"
 	"github.com/streampulse/backend/internal/domain"
 	"github.com/streampulse/backend/internal/infrastructure/auth"
+	"github.com/streampulse/backend/internal/infrastructure/chat"
 	"github.com/streampulse/backend/internal/infrastructure/filestore"
 	"github.com/streampulse/backend/internal/infrastructure/observability"
 	"github.com/streampulse/backend/internal/infrastructure/postgres"
@@ -118,22 +119,27 @@ func buildSuite(t *testing.T) *suite {
 	favoriteRepo := postgres.NewFavoriteRepo(pool)
 	musicRepo := postgres.NewMusicRepo(pool)
 	musicFavoriteRepo := postgres.NewMusicFavoriteRepo(pool)
+	feedbackRepo := postgres.NewFeedbackRepo(pool)
 
 	jwtManager := auth.NewJWTManager(jwtSecret, 15*time.Minute, time.Hour)
 	hub := streaming.NewHub(logger)
+	chatHub := chat.NewHub(logger)
+	fileStore := filestore.NewFileStore(uploadDir, uploadsBaseURL)
 
 	router := transport.NewRouter(transport.RouterConfig{
 		AuthService:       application.NewAuthService(userRepo, refreshTokenRepo, jwtManager),
 		StreamService:     application.NewStreamService(streamRepo, hub),
 		PlaylistService:   application.NewPlaylistService(playlistRepo),
-		UserService:       application.NewUserService(userRepo, streamRepo, hub),
-		MusicService:      application.NewMusicService(musicRepo, filestore.NewFileStore(uploadDir, uploadsBaseURL)),
+		UserService:       application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore),
+		MusicService:      application.NewMusicService(musicRepo, fileStore),
+		FeedbackService:   application.NewFeedbackService(feedbackRepo),
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,
 		MusicRepo:         musicRepo,
 		JWTManager:        jwtManager,
 		Hub:               hub,
+		ChatHub:           chatHub,
 		Logger:            logger,
 		Metrics:           observability.NewMetrics(),
 		CORSOrigins:       "*",
@@ -312,7 +318,7 @@ func (s *suite) register(t *testing.T, role domain.Role) account {
 	username := string(role) + "-" + email[:8]
 
 	r := s.do(t, http.MethodPost, "/auth/register", "", map[string]any{
-		"email": email, "username": username, "password": password,
+		"email": email, "username": username, "password": password, "accepted_terms": true,
 	}).expect(t, http.StatusCreated, "")
 	d := r.data(t)
 	user, _ := d["user"].(map[string]any)

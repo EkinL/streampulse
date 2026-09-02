@@ -12,10 +12,13 @@ import '../features/streams/presentation/screens/broadcaster_screen.dart';
 import '../features/playlists/presentation/screens/playlists_screen.dart';
 import '../features/playlists/presentation/screens/playlist_detail_screen.dart';
 import '../features/favorites/presentation/screens/favorites_screen.dart';
-import '../features/admin/presentation/screens/admin_users_screen.dart';
+import '../features/admin/presentation/screens/admin_screen.dart';
 import '../shared/widgets/app_scaffold.dart';
 import '../features/music/presentation/screens/search_screen.dart';
 import '../features/music/presentation/screens/music_player_screen.dart';
+import '../features/auth/presentation/screens/privacy_policy_screen.dart';
+import '../features/auth/presentation/screens/account_screen.dart';
+import '../features/feedback/presentation/screens/feedback_screen.dart';
 
 class _AuthRouterNotifier extends ChangeNotifier {
   _AuthRouterNotifier(AuthState initial) : _authState = initial;
@@ -47,6 +50,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authPaths = ['/login', '/register'];
       final isOnAuthPath = authPaths.contains(currentPath);
       final isOnSplash = currentPath == '/splash';
+      // Accessible avant comme apres connexion : la politique de
+      // confidentialite est liee depuis l'inscription (pas encore de
+      // session) et depuis "Mon compte" (deja connecte).
+      const publicPaths = ['/privacy'];
+      if (publicPaths.contains(currentPath)) return null;
 
       // Stay on splash only while loading
       if (isLoading) {
@@ -114,7 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin',
-            pageBuilder: (context, state) => const NoTransitionPage(child: AdminUsersScreen()),
+            pageBuilder: (context, state) => const NoTransitionPage(child: AdminScreen()),
           ),
         ],
       ),
@@ -143,6 +151,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/player',
         builder: (context, state) => const MusicPlayerScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/account',
+        builder: (context, state) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: '/feedback',
+        builder: (context, state) => const FeedbackScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

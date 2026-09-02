@@ -108,3 +108,29 @@ evolution de schema explicite, revisable dans une PR, et reversible.
   de repository
 - [ADR 003 - Streaming SSE](003-streaming-sse.md) : pourquoi la base n'est pas
   sur le chemin du flux audio
+
+---
+
+## Summary (English)
+
+PostgreSQL 16, accessed directly through `pgx/v5` with no ORM, backs a
+data model that is relational end to end — five tables linked by foreign
+keys, needing cascading deletes, uniqueness constraints, atomic playlist
+reordering (a single transaction rewriting every position), and full-text
+search. MongoDB was rejected because the relational needs would have to be
+reimplemented in application code; MySQL and SQLite were rejected for
+concurrent-writer limits (SQLite) and for lacking PostgreSQL's built-in
+full-text search (`to_tsvector` + GIN index), which avoids deploying
+Elasticsearch for a few thousand titles. Skipping an ORM (GORM, ent) keeps
+the mapping in one place — the infrastructure layer already required by
+Clean Architecture — keeps SQL readable and auditable, and makes SQL
+injection structurally impossible since `pgx` sends parameterized queries
+at the protocol level, never string concatenation. Versioned `.up.sql`
+/`.down.sql` migration files were chosen over ORM auto-migration to keep
+every schema change explicit, reviewable, and reversible. The accepted
+cost: every repository must be tested against a real database (a `pgx`
+mock couldn't verify constraints, cascades, or transactional behavior —
+exactly what PostgreSQL was chosen for), hand-written queries are
+repetitive, and migrations running at server startup could race if two
+instances start simultaneously — a gap to close before any multi-replica
+deployment.

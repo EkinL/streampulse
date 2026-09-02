@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/error_widget.dart' as app_error;
 import '../../../../core/utils/extensions.dart';
 import '../../../music/data/music_repository.dart';
 import '../../../music/domain/music_model.dart';
+import '../../../../shared/providers/offline_provider.dart';
 import '../../../../shared/providers/player_provider.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
@@ -25,18 +27,23 @@ class PlaylistDetailScreen extends ConsumerWidget {
     final playlistAsync = ref.watch(playlistDetailProvider(playlistId));
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: SP.surface,
-        foregroundColor: SP.text1,
+        backgroundColor: context.colors.surface,
+        foregroundColor: context.colors.text1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Playlist'),
         actions: [
+          if (!kIsWeb)
+            _DownloadPlaylistButton(
+              tracks: playlistAsync.valueOrNull?.tracks ?? const [],
+            ),
           IconButton(
             icon: const Icon(Icons.add),
+            tooltip: 'Ajouter un morceau',
             onPressed: () => _showAddTrackDialog(context, ref),
           ),
         ],
@@ -51,128 +58,170 @@ class PlaylistDetailScreen extends ConsumerWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      SP.accent.withValues(alpha: 0.15),
-                      SP.accent.withValues(alpha: 0.02),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      playlist.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: SP.text1,
-                          ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        context.colors.accent.withValues(alpha: 0.2),
+                        context.colors.accent.withValues(alpha: 0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          playlist.isPublic ? Icons.public : Icons.lock,
-                          size: 16,
-                          color: SP.text3,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          playlist.isPublic ? 'Public' : 'Private',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: SP.text3),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: context.colors.tag,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.queue_music, color: context.colors.accent, size: 26),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  playlist.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.5,
+                                    color: context.colors.text1,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: context.colors.accent.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        playlist.isPublic ? Icons.public : Icons.lock,
+                                        size: 12,
+                                        color: context.colors.accent,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        playlist.isPublic ? 'Public' : 'Privé',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.colors.accent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '${playlist.trackCount} titre${playlist.trackCount != 1 ? 's' : ''}',
+                        style: TextStyle(fontSize: 13, color: context.colors.text2),
+                      ),
+                      if (playlist.tracks.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () {
+                            final musicList = playlist.tracks
+                                .map((track) => MusicModel(
+                                      id: track.id,
+                                      title: track.title,
+                                      artist: '',
+                                      album: '',
+                                      duration: track.duration,
+                                      url: track.url,
+                                      coverUrl: null,
+                                      uploadedBy: '',
+                                      createdAt: DateTime.now(),
+                                    ))
+                                .toList();
+                            ref
+                                .read(playerProvider.notifier)
+                                .playPlaylist(musicList, 0);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: SP.primaryGradient,
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow, color: SP.btnText, size: 20),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Tout écouter',
+                                  style: TextStyle(
+                                    color: SP.btnText,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${playlist.trackCount} track${playlist.trackCount != 1 ? 's' : ''}',
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: SP.accent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                    ),
-                    if (playlist.tracks.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: () {
-                          final musicList = playlist.tracks
-                              .map((track) => MusicModel(
-                                    id: track.id,
-                                    title: track.title,
-                                    artist: '',
-                                    album: '',
-                                    duration: track.duration,
-                                    url: track.url,
-                                    coverUrl: null,
-                                    uploadedBy: '',
-                                    createdAt: DateTime.now(),
-                                  ))
-                              .toList();
-                          ref
-                              .read(playerProvider.notifier)
-                              .playPlaylist(musicList, 0);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: SP.primaryGradient,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.play_arrow, color: SP.btnText, size: 20),
-                              SizedBox(width: 6),
-                              Text(
-                                'Play All',
-                                style: TextStyle(
-                                  color: SP.btnText,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
+              if (playlist.tracks.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'Titres',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.colors.text1),
+                  ),
+                ),
               Expanded(
                 child: playlist.tracks.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.music_note,
-                              size: 64,
-                              color: SP.text3,
+                            Icon(
+                              Icons.queue_music,
+                              size: 80,
+                              color: context.colors.text3,
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             Text(
-                              'No tracks yet',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(color: SP.text3),
+                              'Aucun titre pour l\'instant',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: context.colors.text2),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Touchez + pour ajouter un titre',
+                              style: TextStyle(fontSize: 13, color: context.colors.text3),
                             ),
                           ],
                         ),
@@ -193,7 +242,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: SP.surface,
+      backgroundColor: context.colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -207,6 +256,69 @@ class PlaylistDetailScreen extends ConsumerWidget {
           scrollController: scrollController,
         ),
       ),
+    );
+  }
+}
+
+/// Bouton "telecharger la playlist" (mode offline). Trois etats :
+/// tout est en cache -> icone pleine, tap pour supprimer les telechargements ;
+/// telechargement en cours -> spinner ; sinon -> tap pour tout telecharger.
+class _DownloadPlaylistButton extends ConsumerWidget {
+  final List<TrackModel> tracks;
+
+  const _DownloadPlaylistButton({required this.tracks});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offline = ref.watch(offlineProvider);
+    if (tracks.isEmpty) return const SizedBox.shrink();
+
+    final downloading = tracks.any((t) => offline.isDownloading(t.id));
+    final allCached = tracks.every((t) => offline.isCached(t.id));
+
+    if (downloading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (allCached) {
+      return IconButton(
+        icon: Icon(Icons.download_done, color: context.colors.accent),
+        tooltip: 'Supprimer les téléchargements',
+        onPressed: () async {
+          await ref
+              .read(offlineProvider.notifier)
+              .removeTracks(tracks.map((t) => t.id));
+          if (context.mounted) {
+            context.showSnackBar('Téléchargements supprimés');
+          }
+        },
+      );
+    }
+
+    return IconButton(
+      icon: const Icon(Icons.download_for_offline_outlined),
+      tooltip: 'Télécharger pour écoute hors ligne',
+      onPressed: () async {
+        final failures = await ref.read(offlineProvider.notifier).downloadTracks(
+              tracks.map((t) => (id: t.id, url: t.url)).toList(),
+            );
+        if (context.mounted) {
+          context.showSnackBar(
+            failures == 0
+                ? 'Playlist disponible hors ligne'
+                : '$failures titre${failures > 1 ? 's' : ''} n\'ont pas pu être téléchargés',
+          );
+        }
+      },
     );
   }
 }
@@ -268,7 +380,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
       // The server refused: put things back the way they were.
       if (!mounted) return;
       setState(() => _tracks = previous);
-      context.showSnackBar('Could not reorder tracks');
+      context.showSnackBar('Impossible de réordonner les titres');
     }
   }
 
@@ -291,8 +403,9 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
 
   @override
   Widget build(BuildContext context) {
+    final offline = ref.watch(offlineProvider);
     return ReorderableListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       itemCount: _tracks.length,
       onReorder: _onReorder,
       itemBuilder: (context, index) {
@@ -301,6 +414,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
           key: ValueKey(track.id),
           track: track,
           index: index,
+          isCached: offline.isCached(track.id),
           onTap: () => _playFrom(index),
           onRemove: () {
             ref
@@ -312,7 +426,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
                 .then((_) {
               if (!context.mounted) return;
               ref.invalidate(playlistDetailProvider(widget.playlistId));
-              context.showSnackBar('Track removed');
+              context.showSnackBar('Titre retiré');
             });
           },
         );
@@ -324,6 +438,7 @@ class _ReorderableTrackListState extends ConsumerState<_ReorderableTrackList> {
 class _TrackListItem extends StatelessWidget {
   final TrackModel track;
   final int index;
+  final bool isCached;
   final VoidCallback onRemove;
   final VoidCallback? onTap;
 
@@ -331,49 +446,66 @@ class _TrackListItem extends StatelessWidget {
     super.key,
     required this.track,
     required this.index,
+    this.isCached = false,
     required this.onRemove,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: SP.surfaceVariant,
-        child: Text(
-          '${index + 1}',
-          style: const TextStyle(
-            color: SP.accent,
-            fontWeight: FontWeight.bold,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        onTap: onTap,
+        leading: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: context.colors.tag,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${index + 1}',
+            style: TextStyle(color: context.colors.accent, fontWeight: FontWeight.w700, fontSize: 14),
           ),
         ),
-      ),
-      title: Text(
-        track.title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: SP.text1,
+        title: Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: context.colors.text1),
+        ),
+        subtitle: Text(
+          track.formattedDuration,
+          style: TextStyle(fontSize: 12, color: context.colors.text3),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isCached)
+              Tooltip(
+                message: 'Disponible hors ligne',
+                child: Icon(
+                  Icons.download_done,
+                  size: 18,
+                  color: context.colors.accent,
+                ),
+              ),
+            IconButton(
+              tooltip: 'Retirer',
+              icon: Icon(Icons.remove_circle_outline, color: context.colors.error),
+              onPressed: onRemove,
             ),
-      ),
-      subtitle: Text(
-        track.formattedDuration,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: SP.text3,
-            ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(
-              Icons.remove_circle_outline,
-              color: SP.error,
-            ),
-            onPressed: onRemove,
-          ),
-          const Icon(Icons.drag_handle, color: SP.text3),
-        ],
+            Icon(Icons.drag_handle, color: context.colors.text3),
+          ],
+        ),
       ),
     );
   }
@@ -445,18 +577,18 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
           height: 4,
           margin: const EdgeInsets.only(top: 12, bottom: 16),
           decoration: BoxDecoration(
-            color: SP.text3.withValues(alpha: 0.3),
+            color: context.colors.text3.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Add Track',
+            'Ajouter un titre',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: SP.text1,
+              color: context.colors.text1,
             ),
           ),
         ),
@@ -467,12 +599,12 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
           child: TextField(
             controller: _searchController,
             autofocus: true,
-            style: const TextStyle(color: SP.text1, fontSize: 14),
+            style: TextStyle(color: context.colors.text1, fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Search music catalog...',
-              hintStyle: const TextStyle(color: SP.text3, fontSize: 14),
+              hintText: 'Rechercher dans le catalogue…',
+              hintStyle: TextStyle(color: context.colors.text3, fontSize: 14),
               filled: true,
-              fillColor: SP.surfaceVariant,
+              fillColor: context.colors.surfaceVariant,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -480,11 +612,12 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               prefixIcon:
-                  const Icon(Icons.search, color: SP.text3, size: 20),
+                  Icon(Icons.search, color: context.colors.text3, size: 20),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon:
-                          const Icon(Icons.clear, color: SP.text3, size: 20),
+                          Icon(Icons.clear, color: context.colors.text3, size: 20),
+                      tooltip: 'Effacer',
                       onPressed: () {
                         _searchController.clear();
                         _onSearchChanged('');
@@ -499,15 +632,15 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
         // Results
         Expanded(
           child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: SP.accent))
+              ? Center(
+                  child: CircularProgressIndicator(color: context.colors.accent))
               : _results.isEmpty
                   ? Center(
                       child: Text(
                         _searchController.text.isEmpty
-                            ? 'Search for music to add'
-                            : 'No results found',
-                        style: const TextStyle(color: SP.text3, fontSize: 14),
+                            ? 'Recherchez un titre à ajouter'
+                            : 'Aucun résultat',
+                        style: TextStyle(color: context.colors.text3, fontSize: 14),
                       ),
                     )
                   : ListView.builder(
@@ -530,7 +663,7 @@ class _AddTrackSheetState extends ConsumerState<_AddTrackSheet> {
                             Navigator.of(context).pop();
                             ref.invalidate(
                                 playlistDetailProvider(widget.playlistId));
-                            context.showSnackBar('Track added');
+                            context.showSnackBar('Titre ajouté');
                           },
                         );
                       },
@@ -553,21 +686,24 @@ class _SearchResultTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: SP.surfaceVariant,
+        color: context.colors.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: const LinearGradient(
-                colors: [SP.gradEnd, SP.accent],
+          // Album art placeholder — decorative, title/artist beside it carry the info
+          ExcludeSemantics(
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  colors: [SP.gradEnd, context.colors.accent],
+                ),
               ),
+              child: const Icon(Icons.music_note, color: SP.btnText, size: 22),
             ),
-            child: const Icon(Icons.music_note, color: SP.btnText, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -576,18 +712,18 @@ class _SearchResultTile extends StatelessWidget {
               children: [
                 Text(
                   music.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: SP.text1,
+                    color: context.colors.text1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  music.artist.isNotEmpty ? music.artist : 'Unknown artist',
-                  style: const TextStyle(fontSize: 12, color: SP.text2),
+                  music.artist.isNotEmpty ? music.artist : 'Artiste inconnu',
+                  style: TextStyle(fontSize: 12, color: context.colors.text2),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -596,12 +732,13 @@ class _SearchResultTile extends StatelessWidget {
           ),
           Text(
             music.formattedDuration,
-            style: const TextStyle(fontSize: 12, color: SP.text3),
+            style: TextStyle(fontSize: 12, color: context.colors.text3),
           ),
           const SizedBox(width: 8),
           IconButton(
             onPressed: onAdd,
-            icon: const Icon(Icons.add_circle, color: SP.accent, size: 28),
+            tooltip: 'Ajouter à la playlist',
+            icon: Icon(Icons.add_circle, color: context.colors.accent, size: 28),
           ),
         ],
       ),

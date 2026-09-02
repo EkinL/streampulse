@@ -28,14 +28,14 @@ class EditDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: SP.surface,
+      backgroundColor: context.colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          color: SP.text1,
+        style: TextStyle(
+          color: context.colors.text1,
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
@@ -49,12 +49,12 @@ class EditDialog extends StatelessWidget {
               child: TextField(
                 controller: field.controller,
                 maxLines: field.maxLines,
-                style: const TextStyle(color: SP.text1, fontSize: 14),
+                style: TextStyle(color: context.colors.text1, fontSize: 14),
                 decoration: InputDecoration(
                   labelText: field.label,
-                  labelStyle: const TextStyle(color: SP.text3, fontSize: 12),
+                  labelStyle: TextStyle(color: context.colors.text3, fontSize: 12),
                   filled: true,
-                  fillColor: SP.surfaceVariant,
+                  fillColor: context.colors.surfaceVariant,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -72,7 +72,7 @@ class EditDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: SP.text3)),
+          child: Text('Cancel', style: TextStyle(color: context.colors.text3)),
         ),
         FilledButton(
           onPressed: () {
@@ -80,7 +80,7 @@ class EditDialog extends StatelessWidget {
             Navigator.of(context).pop();
           },
           style: FilledButton.styleFrom(
-            backgroundColor: SP.accent,
+            backgroundColor: context.colors.accent,
             foregroundColor: SP.btnText,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

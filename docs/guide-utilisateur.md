@@ -15,12 +15,16 @@ Le compte est le meme sur les deux. La console web n'accepte que les roles
 `broadcaster` et `admin` : un compte `user` qui s'y connecte arrive sur une page
 expliquant qu'il n'y a pas acces, et non sur une erreur.
 
-## Les quatre roles
+## Les trois roles
+
+Il n'existe pas de mode visiteur : l'application redirige toute personne non
+connectee vers l'ecran de connexion, sans aucun ecran accessible avant
+d'avoir un compte (`mobile/lib/app/router.dart`). Parcourir les flux ou le
+catalogue necessite donc, au minimum, un compte `user`.
 
 | Role | Ce qu'il peut faire |
 |------|---------------------|
-| **Visiteur** (non connecte) | Parcourir les flux et le catalogue musical, rechercher |
-| **Auditeur** (`user`) | + ecouter le direct, gerer playlists et favoris |
+| **Auditeur** (`user`) | Parcourir les flux et le catalogue, rechercher, ecouter le direct, gerer playlists et favoris |
 | **Diffuseur** (`broadcaster`) | + creer et animer des flux, deposer des musiques |
 | **Administrateur** (`admin`) | + gerer les comptes et consulter les metriques |
 
@@ -176,23 +180,32 @@ disponible, ni le meme niveau technique, ni le meme besoin.
   jamais.
 - **Peu a l'aise avec l'ecrit** : les parcours 1 et 2 sont concus pour etre
   refaits en demonstration guidee, une etape a la fois, sans lecture prealable.
-- **Situation de handicap** : voir la section ci-dessous.
+- **Situation de handicap** : voir la section ci-dessous et le document
+  dedie [accessibilite.md](accessibilite.md).
 - **Sans connexion permanente** : l'application exige une connexion pour
   l'ecoute en direct. Le mode hors ligne n'existe pas encore.
 
 ### Accessibilite
 
-L'engagement est de rendre l'application utilisable au lecteur d'ecran, avec un
-contraste conforme et des zones tactiles suffisantes.
+Solutions livrees, verifiees controle par controle dans
+[accessibilite.md](accessibilite.md) : les controles du lecteur audio
+(lecture, volume, navigation) et tous les boutons icone de l'application sont
+annonces par VoiceOver et TalkBack ; les contrastes texte/fond sont mesures et
+conformes au seuil WCAG AA (4,5:1) sur le theme sombre, le theme clair et le
+mode contraste eleve ; la taille de texte du systeme est respectee ; les zones
+tactiles suivent la recommandation Material (48 px) ; la console web a ete
+auditee au clavier (connexion, navigation, focus visible). Ce qui reste a
+faire — audit VoiceOver/TalkBack ecran par ecran, grandes tailles de texte sur
+les cartes denses — est liste avec sa prochaine etape dans le tableau de fin
+de [accessibilite.md](accessibilite.md#etat-des-lieux-et-feuille-de-route).
 
-> **Etat reel a ce jour : cet engagement n'est pas tenu.** L'application mobile
-> ne comporte aucune annotation d'accessibilite — aucun `Semantics` ni
-> `semanticLabel` dans le code de l'interface mobile. Les seules annotations
-> presentes sont trois infobulles de la console web. Un lecteur d'ecran
-> annoncera donc des boutons sans nom sur les controles du lecteur audio.
->
-> C'est un ecart identifie, pas un oubli de documentation. Le corriger consiste
-> a annoter les controles du lecteur, les pochettes et les boutons d'icone.
+**Pour la formation elle-meme**, ce guide et le document d'accessibilite
+existent aussi en [EPUB](accessible/streampulse-documentation.epub) (police et
+mise en page ajustables, pour la basse vision et la dyslexie) et en
+[audio](accessible/guide-utilisateur.m4a) (narration par synthese vocale, pour
+un accompagnement sans lecture a l'ecran) — voir
+[accessibilite.md](accessibilite.md#accessibilite-de-cette-documentation)
+pour le detail et la maniere de les regenerer.
 
 ## Depannage
 
@@ -210,3 +223,31 @@ contraste conforme et des zones tactiles suffisantes.
 - [Cahier de recette](cahier-de-recette.md) — le comportement attendu, verifie
 - [API](api.md) et `/docs` — pour integrer StreamPulse a un autre outil
 - [SLO](slo.md) — ce que la plateforme s'engage a tenir
+
+---
+
+## Summary (English)
+
+StreamPulse is used through two clients sharing one account: a mobile app
+(listeners and broadcasters on the move) and a web console (broadcasters
+and admins at a desk). There is no visitor mode — the app redirects any
+unauthenticated request to the login screen, so browsing streams or the
+catalogue already requires a `user` account. Three cumulative roles —
+listener (`user`), broadcaster, admin — gate what's available beyond that;
+only an admin can promote an
+account, and a brand-new deployment needs its first admin created directly
+in the database (see [cahier-de-recette.md](cahier-de-recette.md)). Three
+guided onboarding paths cover listening and playlists (~10 min), going live
+as a broadcaster (~15 min), and account/metrics administration (~10 min).
+
+The training plan matches format and duration to audience: listeners are
+fully self-service (if one needs training, the interface is the bug to
+fix), broadcasters get a 45-minute hands-on workshop, admins get one-on-one
+coaching, and developers self-train from the README, ADRs and OpenAPI docs.
+It explicitly adapts to particular needs — non-English readers (this guide
+stays in French), low-literacy users (step-by-step guided demos), and
+disability (see [accessibilite.md](accessibilite.md), plus this guide and
+the accessibility document are also available as an
+[EPUB](accessible/streampulse-documentation.epub) and as
+[synthesized-speech audio](accessible/guide-utilisateur.m4a) for training
+without on-screen reading).

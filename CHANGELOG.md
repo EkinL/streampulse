@@ -26,6 +26,27 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 ## [Non publie]
 
 ### Ajoute
+- Canal de retour utilisateur (Ce3.4.3) : `POST /feedback` permet a tout compte
+  authentifie de signaler un bug ou une suggestion ; `GET /admin/feedback`
+  (filtrable par statut) et `PUT /admin/feedback/{id}/status` permettent a
+  l'equipe de le consulter et de le faire avancer (`new` → `in_progress` →
+  `resolved`), reserve au role `admin`. Cote mobile : ecran **Signaler un
+  probleme**, accessible depuis Mon compte, qui joint la version de l'app
+  (`package_info_plus`) et la plateforme au signalement. Cote console admin :
+  la page **Administration** separe desormais **Utilisateurs** et
+  **Signalements** en deux onglets, le second listant les signalements
+  (filtrables par statut) avec changement de statut directement depuis la
+  liste
+- Reverse proxy de production dans la stack : `docker-compose.prod.yml` +
+  `caddy/Caddyfile` (`make up-prod`). Caddy termine TLS (Let's Encrypt),
+  l'API n'est plus publiee, PostgreSQL et le collecteur OTEL non plus,
+  Prometheus et Grafana ne repondent que sur l'interface locale, et
+  `TRUSTED_PROXIES` designe le reseau Docker pour que le rate limiting voie
+  l'adresse du client
+- `APP_ENV=production` refuse de demarrer avec `CORS_ALLOWED_ORIGINS=*` ou
+  vide : les origines de la console web doivent etre nommees. Avec le joker,
+  `Access-Control-Allow-Credentials` n'est plus annonce (observation O-3 du
+  plan de tests)
 - Droits RGPD (Ce3.1.4) : `GET /users/me` renvoie toutes les donnees du
   compte, `DELETE /users/me` l'efface avec tout ce qui s'y rattache (cascade
   en base), `DELETE /admin/users/{id}` pour une demande traitee par un
@@ -83,6 +104,9 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   `golang-jwt` 5.2.1 -> 5.3.0, `x/crypto` 0.21.0 -> 0.53.0,
   `x/net` 0.22.0 -> 0.56.0, `x/text` 0.14.0 -> 0.39.0,
   OpenTelemetry 1.24.0 -> 1.44.0
+- `x/crypto` 0.53.0 -> 0.55.0 pour corriger **CVE-2026-56854 (CRITICAL)** :
+  contournement d'authentification SSH par restriction d'adresse source non
+  appliquee (`golang.org/x/crypto/ssh`). Detectee par le scan Trivy de la PR
 - Image de base `alpine` 3.19 -> 3.22, avec `apk upgrade` au build : sans lui
   l'image embarque les paquets figes a la date de publication de l'etiquette
 - Le conteneur ne tourne plus en **root** : compte de service `streampulse`
@@ -196,3 +220,32 @@ git push origin v1.1.0
 actuel de `develop` et doit etre pose pour que le job `docker` de
 `.github/workflows/backend.yml`, declenche par `startsWith(github.ref, 'refs/tags/')`,
 s'execute pour la premiere fois.
+
+---
+
+## Summary (English)
+
+Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
+[SemVer](https://semver.org/). One version number covers all three
+deliverables together — the Go API, the Flutter mobile app, and the web
+console — since they ship from a single repository and share one REST
+contract; a breaking change to that contract forces a major version bump,
+because an already-installed mobile client cannot be force-updated.
+
+Highlights across versions: **0.1.0** laid down the Clean Architecture
+skeleton, auth, admin, and the mobile music/playlist/player scaffolding;
+**0.2.0** upgraded to Go 1.26 and fixed live-playback audio session
+interleaving on iOS; **0.3.0** added the web console and server-side
+playlist queueing; **1.0.0** is the first end-to-end-complete release —
+authentication, role hierarchy, real-time broadcasting via the fan-out
+Hub, music catalogue, playlists, favorites, admin, and full observability.
+The unreleased changes on top of it add a production reverse-proxy
+(Caddy, automatic TLS), hardened production config (no wildcard CORS),
+GDPR account rights (access, self-erasure, admin-erasure, automatic
+refresh-token purge), native optional HTTPS, the full documentation set
+referenced from this repository, and a security pass that patched 29
+HIGH/CRITICAL dependency vulnerabilities, moved the container off root,
+and fixed the rate-limiter key bug recorded as finding A-01 in the
+[acceptance cahier](docs/cahier-de-recette.md). **No git tag exists yet**
+in this repository; publishing `v1.0.0` is the pending step described
+above.

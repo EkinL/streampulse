@@ -29,6 +29,8 @@ type RegisterInput struct {
 	Email    string
 	Username string
 	Password string
+	// AcceptedTerms doit valoir true : voir dto.RegisterRequest.
+	AcceptedTerms bool
 }
 
 type LoginInput struct {
@@ -50,6 +52,9 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthR
 	if len(input.Password) < 8 {
 		return nil, fmt.Errorf("auth: register: password must be at least 8 characters: %w", domain.ErrInvalidInput)
 	}
+	if !input.AcceptedTerms {
+		return nil, fmt.Errorf("auth: register: terms of use must be accepted: %w", domain.ErrInvalidInput)
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), 12)
 	if err != nil {
@@ -57,11 +62,12 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthR
 	}
 
 	user := &domain.User{
-		ID:           uuid.New(),
-		Email:        input.Email,
-		Username:     input.Username,
-		PasswordHash: string(hash),
-		Role:         domain.RoleUser,
+		ID:              uuid.New(),
+		Email:           input.Email,
+		Username:        input.Username,
+		PasswordHash:    string(hash),
+		Role:            domain.RoleUser,
+		TermsAcceptedAt: time.Now().UTC(),
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

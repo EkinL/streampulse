@@ -48,6 +48,11 @@ type User struct {
 	Username     string
 	PasswordHash string
 	Role         Role
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// TermsAcceptedAt horodate le consentement donne aux conditions
+	// d'utilisation a l'inscription (case a cocher obligatoire, cote client
+	// et revalidee cote serveur). Sert de preuve en cas de controle
+	// (obligation de rendre compte, docs/rgpd.md).
+	TermsAcceptedAt time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

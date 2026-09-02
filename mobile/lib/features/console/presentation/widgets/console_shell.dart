@@ -36,7 +36,7 @@ const ConsoleDestination _users = ConsoleDestination(
   icon: Icons.admin_panel_settings_outlined,
   activeIcon: Icons.admin_panel_settings,
   label: 'Users',
-  description: 'Manage accounts and roles',
+  description: 'Accounts, roles & feedback reports',
 );
 
 /// The console sections [user] is allowed to open.
@@ -62,9 +62,9 @@ class ConsoleShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(
-        backgroundColor: SP.bg,
-        body: Center(child: CircularProgressIndicator(color: SP.accent)),
+      return Scaffold(
+        backgroundColor: context.colors.bg,
+        body: Center(child: CircularProgressIndicator(color: context.colors.accent)),
       );
     }
 
@@ -72,7 +72,7 @@ class ConsoleShell extends ConsumerWidget {
     final currentPath = GoRouterState.of(context).uri.path;
 
     return Scaffold(
-      backgroundColor: SP.bg,
+      backgroundColor: context.colors.bg,
       body: Row(
         children: [
           _ConsoleSidebar(
@@ -80,7 +80,7 @@ class ConsoleShell extends ConsumerWidget {
             currentPath: currentPath,
             expanded: expanded,
           ),
-          const VerticalDivider(width: 1, thickness: 1, color: SP.divider),
+          VerticalDivider(width: 1, thickness: 1, color: context.colors.divider),
           Expanded(child: child),
         ],
       ),
@@ -105,14 +105,14 @@ class _ConsoleSidebar extends ConsumerWidget {
 
     return Container(
       width: expanded ? 264 : 76,
-      color: SP.surface,
+      color: context.colors.surface,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Brand(expanded: expanded),
             const SizedBox(height: 8),
-            const Divider(height: 1, thickness: 1, color: SP.divider),
+            Divider(height: 1, thickness: 1, color: context.colors.divider),
             const SizedBox(height: 12),
             Expanded(
               child: ListView(
@@ -128,7 +128,7 @@ class _ConsoleSidebar extends ConsumerWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, thickness: 1, color: SP.divider),
+            Divider(height: 1, thickness: 1, color: context.colors.divider),
             _UserCard(
               user: user,
               expanded: expanded,
@@ -151,10 +151,10 @@ class _Brand extends StatelessWidget {
     final mark = Container(
       width: 40,
       height: 40,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: SP.primaryGradient,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: SP.glow, blurRadius: 24)],
+        boxShadow: [BoxShadow(color: context.colors.glow, blurRadius: 24)],
       ),
       child: const Icon(Icons.wifi_tethering, size: 22, color: SP.btnText),
     );
@@ -182,7 +182,7 @@ class _Brand extends StatelessWidget {
                       Text(
                         'CONSOLE',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: SP.accent,
+                              color: context.colors.accent,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.6,
                             ),
@@ -212,7 +212,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? SP.accent : SP.text2;
+    final color = selected ? context.colors.accent : context.colors.text2;
 
     final content = Row(
       mainAxisAlignment:
@@ -242,7 +242,7 @@ class _NavItem extends StatelessWidget {
                 Text(
                   destination.description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: SP.text3,
+                        color: context.colors.text3,
                         fontSize: 11,
                       ),
                   maxLines: 1,
@@ -258,7 +258,7 @@ class _NavItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: selected ? SP.accent.withValues(alpha: 0.12) : Colors.transparent,
+        color: selected ? context.colors.accent.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -293,11 +293,11 @@ class _UserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatar = CircleAvatar(
       radius: 18,
-      backgroundColor: SP.surfaceVariant,
+      backgroundColor: context.colors.surfaceVariant,
       child: Text(
         user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-        style: const TextStyle(
-          color: SP.accent,
+        style: TextStyle(
+          color: context.colors.accent,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -313,7 +313,7 @@ class _UserCard extends StatelessWidget {
             IconButton(
               onPressed: onSignOut,
               icon: const Icon(Icons.logout, size: 18),
-              color: SP.error,
+              color: context.colors.error,
               tooltip: 'Sign out',
             ),
           ],
@@ -344,7 +344,7 @@ class _UserCard extends StatelessWidget {
                     Text(
                       user.email,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: SP.text3,
+                            color: context.colors.text3,
                             fontSize: 11,
                           ),
                       maxLines: 1,
@@ -361,16 +361,16 @@ class _UserCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: SP.surfaceVariant,
+                color: context.colors.surfaceVariant,
                 borderRadius: BorderRadius.circular(9999),
               ),
               child: Text(
                 user.role.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
-                  color: SP.accent,
+                  color: context.colors.accent,
                 ),
               ),
             ),
@@ -381,8 +381,8 @@ class _UserCard extends StatelessWidget {
             icon: const Icon(Icons.logout, size: 16),
             label: const Text('Sign out'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: SP.error,
-              side: const BorderSide(color: SP.error),
+              foregroundColor: context.colors.error,
+              side: BorderSide(color: context.colors.error),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

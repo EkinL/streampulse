@@ -17,6 +17,8 @@ func TestRBAC_EndpointMatrix(t *testing.T) {
 	admin := s.newAccount(t, domain.RoleAdmin)
 	streamID := s.createStream(t, bc, "Flux matrice")
 	musicID := s.addMusicByURL(t, bc, "Morceau matrice", "Artiste")
+	feedbackID := s.do(t, http.MethodPost, "/feedback", user.Access,
+		map[string]any{"type": "bug", "message": "matrice RBAC"}).expect(t, http.StatusCreated, "").data(t)["id"].(string)
 	// Compte jetable : la ligne DELETE /admin/users/{id} le supprime pour de
 	// bon quand c'est l'admin qui appelle.
 	doomed := s.newAccount(t, domain.RoleUser)
@@ -51,6 +53,12 @@ func TestRBAC_EndpointMatrix(t *testing.T) {
 		{http.MethodGet, "/music/favorites/ids", nil, authenticated},
 		// Tout compte connecte lit ses propres donnees (RGPD, docs/rgpd.md)
 		{http.MethodGet, "/users/me", nil, authenticated},
+		// Canal de retour utilisateur : tout compte connecte signale,
+		// seul un admin consulte et traite les signalements des autres.
+		{http.MethodPost, "/feedback", map[string]any{"type": "bug", "message": "matrice RBAC"},
+			map[string]int{"anonymous": unauth, "user": created, "broadcaster": created, "admin": created}},
+		{http.MethodGet, "/admin/feedback", nil, adminOnly},
+		{http.MethodPut, "/admin/feedback/" + feedbackID + "/status", map[string]any{"status": "in_progress"}, adminOnly},
 		// Diffuseur : flux et sources audio (exigence 1.4)
 		{http.MethodPost, "/streams", map[string]any{"title": "Nouveau flux"}, broadcasterOnly},
 		{http.MethodPost, "/music", map[string]any{"title": "Nouveau", "url": "https://cdn.test/n.mp3"}, broadcasterOnly},

@@ -37,11 +37,12 @@ info:
     ## Personal data
 
     `GET /users/me` returns every piece of personal data held on the
-    calling account; `DELETE /users/me` erases the account and everything
-    attached to it (tokens, streams, playlists, favorites, uploaded
-    tracks). An admin can do the same on behalf of a user with
-    `DELETE /admin/users/{id}`. Retention rules and the security measures
-    behind them are in `docs/rgpd.md`.
+    calling account; `PATCH /users/me` rectifies its email or username;
+    `DELETE /users/me` erases the account and everything attached to it
+    (tokens, streams, playlists, favorites, uploaded tracks). An admin can
+    delete an account on behalf of a user with `DELETE /admin/users/{id}`.
+    Retention rules and the security measures behind them are in
+    `docs/rgpd.md`.
 
     ## Known inconsistency
 
@@ -87,6 +88,10 @@ tags:
     description: The calling user's own account — data access and erasure.
   - name: admin
     description: User administration, admin only.
+  - name: feedback
+    description: |
+      User feedback channel: any authenticated account can report a bug or
+      a suggestion; an admin lists and processes what comes in.
 
 security: []
 
@@ -469,6 +474,55 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /streams/{id}/chat/ws:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [streams]
+      operationId: streamChatWebSocket
+      summary: Join the live chat room (WebSocket)
+      description: |
+        Upgrades the connection to a **WebSocket** and joins the chat room of
+        a live stream — one ephemeral room per live, gone when the live ends.
+
+        Browser WebSocket handshakes cannot carry an `Authorization` header,
+        so the access token is also accepted as a `?token=` query parameter;
+        native clients should keep the standard `Bearer` header.
+
+        On join, the server first replays the room history (last 50 messages),
+        then delivers events as they happen. Every server frame is one JSON
+        `ChatMessage`; its `type` is `message`, `user_joined` or `user_left`.
+        The client only ever sends `{"text": "..."}` (at most 500 characters);
+        identity and timestamps are set server-side from the token claims.
+
+        When the broadcaster stops the stream, the room is closed and every
+        participant receives a close frame (going away, "stream ended").
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: query
+          required: false
+          description: Access token fallback for browser WebSocket clients.
+          schema: { type: string }
+      responses:
+        '101':
+          description: Connection upgraded to WebSocket.
+        '400':
+          description: Invalid id, the stream is not live, or the handshake is not a WebSocket upgrade.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                notLive:
+                  value:
+                    error: { code: STREAM_NOT_LIVE, message: stream is not currently live }
+                    meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
@@ -1028,6 +1082,31 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /playlists/public:
+    get:
+      tags: [playlists]
+      operationId: listPublicPlaylists
+      summary: List public playlists from every user
+      description: |
+        Playlists with `is_public = true`, from any owner, most recent first.
+        Each item carries `owner_username` so the client can show who created
+        it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Page of public playlists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistListEnvelope'
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /playlists/{id}:
     parameters:
       - $ref: '#/components/parameters/PlaylistID'
@@ -1233,6 +1312,50 @@ paths:
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      tags: [users]
+      operationId: updateMe
+      summary: Rectify my email or username
+      description: |
+        Right of rectification (GDPR art. 16). Both fields are required and
+        replace the current value; there is no partial rename of just one
+        letter without resending the other field. Email uniqueness is
+        enforced the same way as at registration.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '404':
+          description: The account no longer exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: NOT_FOUND, message: user not found }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '409':
+          description: Email already used by another account.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: CONFLICT, message: email already registered }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
     delete:
       tags: [users]
       operationId: deleteMe
@@ -1370,6 +1493,110 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
               example:
                 error: { code: BAD_REQUEST, message: invalid role }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /feedback:
+    post:
+      tags: [feedback]
+      operationId: submitFeedback
+      summary: Report a bug or a suggestion
+      description: |
+        The user feedback channel: any authenticated account, whatever its
+        role, can send a message describing a problem or an idea. It always
+        starts in the `new` status; only an admin can move it forward.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitFeedbackRequest'
+      responses:
+        '201':
+          description: Feedback recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/feedback:
+    get:
+      tags: [admin, feedback]
+      operationId: listFeedback
+      summary: List reported feedback
+      description: |
+        Most recent first, optionally filtered by status. This is how the
+        team processes what comes in through `POST /feedback`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/FeedbackStatus' }
+          description: Restrict the list to this status.
+      responses:
+        '200':
+          description: Page of feedback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackListEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/MiddlewareForbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /admin/feedback/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin, feedback]
+      operationId: updateFeedbackStatus
+      summary: Move feedback through its processing status
+      description: Typically `new` → `in_progress` → `resolved`, admin only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/FeedbackStatus' }
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusEnvelope' }
+              example:
+                data: { status: updated }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '400':
+          description: Invalid feedback id, malformed body, or unknown status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: BAD_REQUEST, message: invalid status }
                 meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
         '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
         '403': { $ref: '#/components/responses/MiddlewareForbidden' }
@@ -1563,6 +1790,35 @@ components:
         data: true
         meta: { $ref: '#/components/schemas/Meta' }
 
+    ChatMessage:
+      type: object
+      description: |
+        One frame of the live chat WebSocket (`/streams/{id}/chat/ws`).
+        `text` is only present when `type` is `message`; presence events
+        (`user_joined`, `user_left`) carry the identity fields alone.
+      required: [type, id, stream_id, user_id, username, sent_at]
+      properties:
+        type:
+          type: string
+          enum: [message, user_joined, user_left]
+        id:
+          type: string
+          format: uuid
+        stream_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        text:
+          type: string
+          maxLength: 500
+        sent_at:
+          type: string
+          format: date-time
+
     Error:
       type: object
       required: [code, message]
@@ -1671,6 +1927,16 @@ components:
         email: ada@streampulse.local
         username: ada
         password: correct-horse-battery-staple
+
+    UpdateProfileRequest:
+      type: object
+      required: [email, username]
+      properties:
+        email: { type: string, format: email }
+        username: { type: string, minLength: 3, maxLength: 30 }
+      example:
+        email: ada@streampulse.local
+        username: ada
 
     LoginRequest:
       type: object
@@ -1796,6 +2062,9 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         owner_id: { type: string, format: uuid }
+        owner_username:
+          type: string
+          description: Only set on `GET /playlists/public`, where the owner isn't necessarily the caller.
         is_public:
           type: boolean
           description: A public playlist is readable by any authenticated user; only the owner can write.
@@ -1912,3 +2181,57 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/User' }
+
+    FeedbackType:
+      type: string
+      enum: [bug, suggestion, other]
+
+    FeedbackStatus:
+      type: string
+      description: Processing lifecycle, moved forward by an admin.
+      enum: [new, in_progress, resolved]
+
+    SubmitFeedbackRequest:
+      type: object
+      required: [type, message]
+      properties:
+        type: { $ref: '#/components/schemas/FeedbackType' }
+        message:
+          type: string
+          maxLength: 4000
+        app_version:
+          type: string
+          description: e.g. `pubspec.yaml` version, so a report can be tied to a build.
+        platform:
+          type: string
+          description: e.g. `android`, `ios`, `web`.
+
+    Feedback:
+      type: object
+      required: [id, user_id, type, message, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/FeedbackType' }
+        message: { type: string }
+        app_version: { type: string }
+        platform: { type: string }
+        status: { $ref: '#/components/schemas/FeedbackStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FeedbackEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Feedback' }
+
+    FeedbackListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Feedback' }

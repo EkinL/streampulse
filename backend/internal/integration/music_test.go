@@ -69,9 +69,15 @@ func TestMusic_CatalogueByURL(t *testing.T) {
 		}
 		s.do(t, http.MethodPut, "/music/"+uuid.NewString(), owner.Access, update).expect(t, http.StatusNotFound, "NOT_FOUND")
 
+		// Ce morceau n'a jamais ete ecrit sur disque (ajoute par URL externe) :
+		// sa suppression ne doit rien tenter de retirer dans uploads/.
+		before := uploadedFiles(t)
 		s.do(t, http.MethodDelete, "/music/"+id, owner.Access, nil).expect(t, http.StatusOK, "")
 		s.do(t, http.MethodGet, "/music/"+id, "", nil).expect(t, http.StatusNotFound, "NOT_FOUND")
 		s.do(t, http.MethodDelete, "/music/"+id, owner.Access, nil).expect(t, http.StatusNotFound, "NOT_FOUND")
+		if uploadedFiles(t) != before {
+			t.Fatal("la suppression d'un morceau ajoute par URL ne doit pas toucher au disque")
+		}
 	})
 }
 
@@ -162,4 +168,14 @@ func TestMusic_UploadFile(t *testing.T) {
 	if uploadedFiles(t) != before+1 {
 		t.Fatal("un upload refuse a laisse un fichier sur disque")
 	}
+
+	// UC-11 (suite) : DELETE /music/{id} ne doit pas seulement effacer la
+	// ligne en base, mais aussi le fichier verse (limite connue, docs/rgpd.md).
+	t.Run("suppression retire le fichier du disque", func(t *testing.T) {
+		id := str(d, "id")
+		s.do(t, http.MethodDelete, "/music/"+id, bc.Access, nil).expect(t, http.StatusOK, "")
+		if uploadedFiles(t) != before {
+			t.Fatal("le fichier uploade doit avoir disparu du disque apres suppression")
+		}
+	})
 }

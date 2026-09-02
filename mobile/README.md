@@ -36,6 +36,14 @@ flutter run -d chrome -t lib/main_web.dart --dart-define=API_BASE_URL=http://loc
 `API_BASE_URL` defaults to `http://localhost:8080`. The backend must allow the
 console's origin via `CORS_ALLOWED_ORIGINS`.
 
+`GRAFANA_URL` defaults to `http://localhost:3000/d/streampulse` and is used by
+the "Open Grafana dashboard" button on the admin screen. Override it for a
+deployed Grafana instance:
+
+```sh
+flutter run --dart-define=GRAFANA_URL=https://grafana.example.com/d/streampulse
+```
+
 ## Building
 
 ```sh

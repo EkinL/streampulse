@@ -1,0 +1,22 @@
+# Terminaison TLS devant l'API (docs/deployment.md, section HTTPS).
+#
+# Caddy obtient et renouvelle le certificat seul : Let's Encrypt pour un vrai
+# nom de domaine, autorite de certification locale pour `localhost` (essai du
+# montage de production sur sa machine, `curl -k https://localhost/health`).
+# HTTP (port 80) est redirige vers HTTPS automatiquement.
+{$API_DOMAIN} {
+	header {
+		# Une fois l'API vue en HTTPS, le navigateur n'y revient plus en clair.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+
+	# Caddy pose X-Forwarded-For / X-Forwarded-Proto ; l'API ne les croit que
+	# parce que TRUSTED_PROXIES couvre le reseau Docker (docker-compose.prod.yml).
+	reverse_proxy api:8080 {
+		# Les flux (SSE /streams/{id}/listen, audio /streams/{id}/audio) ne
+		# doivent pas etre mis en tampon : chaque ecriture part au client.
+		flush_interval -1
+	}
+}

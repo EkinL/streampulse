@@ -1,0 +1,30 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:streampulse/shared/widgets/error_widget.dart';
+import 'package:streampulse/app/theme.dart';
+
+void main() {
+  testWidgets('affiche le message sans bouton de retry par defaut', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.darkTheme, home: const AppErrorWidget(message: 'Network unreachable')),
+    );
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+    expect(find.text('Network unreachable'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
+  testWidgets('affiche un bouton Try Again et le declenche quand onRetry est fourni',
+      (tester) async {
+    var retried = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme, home: AppErrorWidget(message: 'boom', onRetry: () => retried = true),
+      ),
+    );
+
+    expect(find.text('Try Again'), findsOneWidget);
+    await tester.tap(find.text('Try Again'));
+    expect(retried, isTrue);
+  });
+}

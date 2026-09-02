@@ -1,0 +1,95 @@
+# Surcouche de production : a empiler sur docker-compose.yml, jamais seule.
+#
+#   make up-prod
+#   (= docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build)
+#
+# Ce que la surcouche change par rapport a la stack de dev :
+#   - Caddy termine TLS et porte seul les ports 80/443 ; l'API n'est plus
+#     publiee, on ne la joint qu'en HTTPS a travers le proxy.
+#   - APP_ENV=production : le serveur refuse de demarrer avec le joker CORS,
+#     CORS_ALLOWED_ORIGINS doit nommer les origines de la console web.
+#   - JWT_SECRET est exige : le secret de dev du fichier de base ne doit pas
+#     survivre a un deploiement.
+#   - TRUSTED_PROXIES = sous-reseau Docker : le rate limiting lit
+#     X-Forwarded-For pose par Caddy, et lui seul.
+#   - PostgreSQL, le collecteur OTEL et Loki ne sont plus publies ; Prometheus
+#     et Grafana ne repondent que sur l'interface locale de l'hote (tunnel SSH).
+#   - Rotation des logs de l'API resserree vers la recommandation de 30 jours
+#     (docs/rgpd.md) : approximative, le pilote local de Docker fait tourner
+#     par taille, pas par date. Loki garde de son cote une copie indexee des
+#     logs (loki/loki.yaml) sans retention par date configuree pour l'instant.
+#
+# Variables attendues (fichier .env a la racine ou environnement) :
+#   API_DOMAIN            nom DNS public de l'API (localhost pour un essai local)
+#   CORS_ALLOWED_ORIGINS  origines de la console web, separees par des virgules
+#   JWT_SECRET            secret de signature des jetons
+#   DOCKER_SUBNET         optionnel, sous-reseau du reseau Docker
+#
+# La syntaxe `!override` exige Docker Compose 2.24 ou plus recent.
+services:
+  api:
+    ports: !override []
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: info
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?origines de la console web, ex. https://console.example.com}
+      JWT_SECRET: ${JWT_SECRET:?secret JWT de production}
+      TRUSTED_PROXIES: ${DOCKER_SUBNET:-172.28.0.0/16}
+      PUBLIC_BASE_URL: https://${API_DOMAIN:-localhost}
+    # ~30 jours a volume de dev normal (30 fichiers de 20 Mo) : approximatif,
+    # voir la note de retention des logs en tete de fichier.
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "30"
+
+  caddy:
+    image: caddy:2.8-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificats et cles : a conserver entre deux redemarrages, sinon Caddy
+      # redemande un certificat a chaque `up` et finit rate-limite par
+      # Let's Encrypt.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - streampulse
+
+  postgres:
+    ports: !override []
+
+  prometheus:
+    ports: !override
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+
+  otel-collector:
+    ports: !override []
+
+  loki:
+    # Seul Grafana interroge Loki, par le reseau interne : rien a publier.
+    ports: !override []
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  streampulse:
+    # Sous-reseau fixe : TRUSTED_PROXIES doit designer l'adresse de Caddy, et
+    # une plage choisie par Docker changerait d'une machine a l'autre.
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.28.0.0/16}

@@ -1,16 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/stream_repository.dart';
 import '../../domain/stream_model.dart';
-import '../../../favorites/data/favorites_repository.dart';
 import '../../../../core/network/api_exceptions.dart';
 
 final streamListProvider =
     StateNotifierProvider<StreamNotifier, AsyncValue<List<StreamModel>>>(
         (ref) {
-  return StreamNotifier(
-    ref.read(streamRepositoryProvider),
-    ref.read(favoritesRepositoryProvider),
-  );
+  return StreamNotifier(ref.read(streamRepositoryProvider));
 });
 
 final streamDetailProvider =
@@ -22,9 +18,8 @@ final streamDetailProvider =
 class StreamNotifier
     extends StateNotifier<AsyncValue<List<StreamModel>>> {
   final StreamRepository _streamRepository;
-  final FavoritesRepository _favoritesRepository;
 
-  StreamNotifier(this._streamRepository, this._favoritesRepository)
+  StreamNotifier(this._streamRepository)
       : super(const AsyncValue.loading()) {
     fetchStreams();
   }
@@ -53,14 +48,6 @@ class StreamNotifier
         format: format,
       );
       await fetchStreams();
-    } on ApiException {
-      rethrow;
-    }
-  }
-
-  Future<void> toggleFavorite(String streamId) async {
-    try {
-      await _favoritesRepository.addFavorite(streamId);
     } on ApiException {
       rethrow;
     }

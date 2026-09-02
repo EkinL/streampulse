@@ -186,7 +186,8 @@ une liste partielle est refusee plutot que d'etre appliquee a moitie.
 
 Executee le 2026-08-28 contre le serveur lance en local (`make run`) sur une
 base PostgreSQL jetable ; R-88 et R-89 contre un second serveur demarre avec
-un certificat auto-signe (voir [deployment.md](deployment.md#https)).
+un certificat auto-signe (voir [deployment.md](deployment.md#https)) ; R-90
+le 2026-08-30, binaire lance directement avec les variables d'environnement.
 
 | Cas | Requete | Role | Attendu | Obtenu | |
 |-----|---------|------|---------|--------|---|
@@ -200,11 +201,33 @@ un certificat auto-signe (voir [deployment.md](deployment.md#https)).
 | R-87 | `DELETE /admin/users/{id}`, puis rejeu, puis id `pas-un-uuid` | admin | 200, 404, 400 | 200 `status: deleted`, 404, 400 | OK |
 | R-88 | `GET /health` sur le serveur demarre avec `TLS_CERT_FILE` / `TLS_KEY_FILE` | anonyme | 200 en HTTPS, refus du HTTP en clair | 200, `TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256` ; 400 en HTTP clair | OK |
 | R-89 | Demarrage avec `TLS_CERT_FILE` seul | — | refus de demarrer | `TLS_CERT_FILE and TLS_KEY_FILE must be set together`, exit 2 | OK |
+| R-90 | Demarrage avec `APP_ENV=production` et `CORS_ALLOWED_ORIGINS=*` ; puis avec `CORS_ALLOWED_ORIGINS=https://console.example.com` | — | refus de demarrer, puis demarrage normal | `CORS_ALLOWED_ORIGINS must list explicit origins when APP_ENV=production`, exit 2 ; puis `starting streampulse api env=production` | OK |
 
 R-83 a R-85 sont les cas qui prouvent l'effacement : rien d'utilisable ne
 subsiste pour l'ancien detenteur du compte, et l'adresse est immediatement
 reutilisable. La disparition des lignes liees (jetons, flux, playlists,
 favoris, morceaux) est verifiee en base par `TestUsers_AccessAndErasure`.
+
+### 3.9 Retour utilisateur (Ce3.4.3)
+
+Executee le 2026-09-02 contre le serveur lance en local (`go run ./cmd/server`)
+sur une base PostgreSQL jetable, selon le meme protocole d'amorcage admin
+que la section 2 (promotion en base puis reconnexion).
+
+| Cas | Requete | Role | Attendu | Obtenu | |
+|-----|---------|------|---------|--------|---|
+| R-91 | `POST /feedback` type et message valides | user | 201, statut `new` | 201, `{"data":{"status":"new",…}}` | OK |
+| R-92 | `POST /feedback` message vide | user | 400 `BAD_REQUEST` | 400, `{"error":{"code":"BAD_REQUEST"…}}` | OK |
+| R-93 | `GET /admin/feedback` | user | 403 | 403, `{"error":{"code":"FORBIDDEN"…}}` | OK |
+| R-94 | `GET /admin/feedback?status=new` | admin | 200, le signalement de R-91 | 200, 1 element, `total:1` | OK |
+| R-95 | `PUT /admin/feedback/{id}/status` | user | 403 | 403, `{"error":{"code":"FORBIDDEN"…}}` | OK |
+| R-96 | `PUT /admin/feedback/{id}/status` `{"status":"resolved"}` | admin | 200 `status: updated` | 200, `{"data":{"status":"updated"}}` | OK |
+| R-97 | `GET /admin/feedback?status=resolved` apres R-96 | admin | 200, le signalement desormais resolu | 200, 1 element, statut `resolved` | OK |
+
+R-91 a R-97 verifient le canal de retour utilisateur de bout en bout : un
+compte quelconque signale, seul un admin consulte et fait avancer le
+signalement (`new` → `resolved`), et un compte non admin ne voit ni ne
+traite les signalements des autres.
 
 ## 4. Anomalies relevees
 
@@ -264,14 +287,14 @@ service est mort.
 
 | | Cas | |
 |---|---:|---|
-| Executes | **58** | |
-| Conformes | **56** | 97 % |
+| Executes | **65** | |
+| Conformes | **63** | 97 % |
 | En echec | **2** | A-01 (haute, corrigee depuis), A-02 (faible) |
-| Dont cas de refus attendu | 26 | 45 % des cas |
+| Dont cas de refus attendu | 29 | 45 % des cas |
 
-Les 56 cas conformes couvrent les quatre roles, les sept domaines fonctionnels
-(dont les droits RGPD) et les principaux codes d'erreur de la description
-OpenAPI.
+Les 63 cas conformes couvrent les quatre roles, les huit domaines
+fonctionnels (dont les droits RGPD et le canal de retour utilisateur) et les
+principaux codes d'erreur de la description OpenAPI.
 
 ## 6. Rejouer cette recette
 
@@ -293,3 +316,28 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $API/auth/refresh \
 Les cas automatises correspondants vivent dans `backend/internal/integration`
 et `backend/internal/transport/http` ; ils se lancent avec
 `cd backend && make test-integration` (voir le [plan de tests](plan-de-tests.md)).
+
+---
+
+## Summary (English)
+
+This document records the manual acceptance run against the running stack:
+65 test cases across system health, authentication, anonymous browsing,
+broadcasting, playlists/favorites, administration, security, GDPR account
+rights, and the user feedback channel — each with the expected result and
+the HTTP status/body **actually returned by the server**, not a copy of the
+expectation. 29 of the 65 cases are deliberate rejections (wrong password,
+insufficient role, non-ownership, invalid or replayed token): a working
+happy path proves nothing about what happens when a user steps outside the
+intended scenario.
+
+63 of 65 cases passed (97%). Two failed and are documented as findings:
+**A-01** (high severity, now fixed) — rate limiting was keyed on
+`RemoteAddr`, which includes the ephemeral source port, so every request
+got a fresh counter and 60 rapid requests all returned 200 instead of
+throttling after 20; the fix keys on the host only, verified by
+`TestRateLimiterKeyIgnoresSourcePort`. **A-02** (low severity, open) —
+`HEAD /health` returns 405 instead of 200, harmless today since health
+probes use `GET`, but would mislead an orchestrator configured to use
+`HEAD`. Section 6 gives the exact `curl` commands to replay every case
+against a running stack.

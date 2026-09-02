@@ -165,3 +165,32 @@ l'hebergeur cible.
 - [SLO](slo.md) — le budget d'erreur et la politique associee
 - [Scalabilite](scalability.md) — les mesures qui orientent les priorites
 - [CHANGELOG](../CHANGELOG.md) — l'historique des versions
+
+---
+
+## Summary (English)
+
+Work moves through single-purpose short-lived branches (`feat/`, `fix/`,
+`docs/`, ...) opened from `develop`, merged `--no-ff` only once CI is green,
+coverage is above threshold, the OpenAPI description matches the router,
+and no fixable HIGH/CRITICAL vulnerability is open. Publishing a version is
+the one deliberately manual step — a human judgment call — after which
+`.github/workflows/release.yml` verifies the git tag, `pubspec.yaml` and
+`openapi.yaml` agree, then builds and publishes the multi-arch Docker
+image, the Android APK, the unsigned iOS `.ipa`, the web console bundle,
+and a GitHub release with CHANGELOG-derived notes. Version tags are
+immutable, so rolling back means redeploying the previous tag — except
+destructive database migrations, which are never reverted automatically
+and must ship as two separate versions (add, then later remove).
+
+A weekly 30-minute review turns monitoring into a roadmap: what fired this
+week (alerts, CI failures, auto-opened issues), how much error budget is
+left (which gates what can ship, see [slo.md](slo.md)), and what the data
+revealed that wasn't already known. Two real examples from this project:
+load testing showed the network saturates at 86% while CPU sits at 20%
+([scalability.md](scalability.md)), which redirected effort away from
+optimizing the fan-out Hub and toward favoring the raw-audio endpoint over
+SSE; and running the acceptance cahier revealed that rate limiting was
+silently broken because its counter key included the ephemeral source
+port — no alert could have caught it, since the system looked healthy the
+whole time.

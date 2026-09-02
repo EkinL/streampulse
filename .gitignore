@@ -1,8 +1,13 @@
+# Secrets locaux (webhooks, etc. - voir .env.example)
+/.env
+
 # Go
 backend/bin/
 backend/coverage.out
 backend/openapi.bundled.yaml
 backend/.env
+# Variables de la surcouche de production (docker-compose.prod.yml)
+.env
 backend/uploads/
 *.exe
 
