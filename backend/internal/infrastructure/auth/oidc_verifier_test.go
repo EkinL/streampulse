@@ -28,8 +28,8 @@ func jwksTestServer(t *testing.T, kid string, key *rsa.PrivateKey) *httptest.Ser
 				"kid": kid,
 				"alg": "RS256",
 				"use": "sig",
-				"n":   base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes()),
-				"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes()),
+				"n":   base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
+				"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
 			}},
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -193,8 +193,8 @@ func TestOIDCVerifier_Verify(t *testing.T) {
 				"keys": []map[string]string{{
 					"kty": "RSA",
 					"kid": "kid-1",
-					"n":   base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes()),
-					"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes()),
+					"n":   base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
+					"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
 				}},
 			}
 			w.Header().Set("Content-Type", "application/json")
