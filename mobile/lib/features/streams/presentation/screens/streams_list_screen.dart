@@ -33,9 +33,12 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch music favorites on init
+    // Fetch music favorites on init (inutile sans compte : l'endpoint
+    // répondrait 401)
     Future.microtask(() {
-      ref.read(musicFavoritesProvider.notifier).fetch();
+      if (ref.read(authProvider) is AuthAuthenticated) {
+        ref.read(musicFavoritesProvider.notifier).fetch();
+      }
     });
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) ref.read(streamListProvider.notifier).fetchStreams();
@@ -54,6 +57,7 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
     final musicAsync = ref.watch(musicListProvider);
     final favoriteIds = ref.watch(favoriteIdsProvider);
     final authState = ref.watch(authProvider);
+    final isGuest = authState is! AuthAuthenticated;
     final isBroadcaster =
         authState is AuthAuthenticated && authState.user.isBroadcaster;
     final currentUserId =
@@ -149,6 +153,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                             favoriteFilled: isFavorite,
                             onTap: () => context.push('/streams/${stream.id}'),
                             onFavorite: () {
+                              if (isGuest) {
+                                context.promptLogin(
+                                    'Connectez-vous pour gérer vos favoris');
+                                return;
+                              }
                               final notifier = ref.read(favoritesProvider.notifier);
                               final action = isFavorite
                                   ? notifier.remove(stream.id)
@@ -197,6 +206,11 @@ class _StreamsListScreenState extends ConsumerState<StreamsListScreen> {
                             children: musicList.take(5).map((music) => MusicTile(
                               music: music,
                               onTap: () {
+                                if (isGuest) {
+                                  context.promptLogin(
+                                      'Connectez-vous pour écouter');
+                                  return;
+                                }
                                 ref.read(playerProvider.notifier).play(music);
                               },
                               onEdit: music.uploadedBy == currentUserId

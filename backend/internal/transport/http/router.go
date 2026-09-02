@@ -95,6 +95,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/register", authHandler.Register)
 		r.Post("/login", authHandler.Login)
+		r.Post("/oauth", authHandler.OAuthLogin)
 		r.Post("/refresh", authHandler.Refresh)
 	})
 

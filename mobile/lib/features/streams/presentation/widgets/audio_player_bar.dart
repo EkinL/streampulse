@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/volume_control.dart';
+import '../../../auth/domain/auth_state.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/live_stream_provider.dart';
 import 'audio_waveform.dart';
 
@@ -146,9 +149,15 @@ class AudioPlayerBar extends ConsumerWidget {
         ? () {
             if (isConnected) {
               ref.read(liveStreamProvider.notifier).disconnect();
-            } else {
-              ref.read(liveStreamProvider.notifier).connect(streamId, title: title);
+              return;
             }
+            // L'écoute est réservée aux comptes connectés (le backend
+            // répondrait 401 sur /streams/:id/audio de toute façon).
+            if (ref.read(authProvider) is! AuthAuthenticated) {
+              context.promptLogin('Connectez-vous pour écouter le direct');
+              return;
+            }
+            ref.read(liveStreamProvider.notifier).connect(streamId, title: title);
           }
         : null;
 

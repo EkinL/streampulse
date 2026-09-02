@@ -266,6 +266,59 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /auth/oauth:
+    post:
+      tags: [auth]
+      operationId: oauthLogin
+      summary: Open a session with Google or Apple
+      description: |
+        Social login. The mobile app obtains an ID token from the provider's
+        SDK (Google Sign-In or Sign in with Apple) and posts it here. The
+        server verifies its signature against the provider's JWKS, its issuer
+        and its audience (`GOOGLE_OAUTH_CLIENT_IDS` / `APPLE_OAUTH_CLIENT_IDS`),
+        then opens a session. First sign-in creates a `user` account, or links
+        the identity to the existing account bearing the same verified email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthLoginRequest'
+      responses:
+        '200':
+          description: Session opened (account created on first sign-in).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Identity token rejected (bad signature, issuer, audience, or expired).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: UNAUTHORIZED, message: invalid identity token }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '409':
+          description: Email already registered but not verified by the provider, so it cannot be linked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: CONFLICT, message: email already registered with a password account }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503':
+          description: The requested provider has no client ID configured on this server.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: SERVICE_UNAVAILABLE, message: social login is not configured on this server }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+
   /auth/refresh:
     post:
       tags: [auth]
@@ -1842,6 +1895,20 @@ components:
       required: [refresh_token]
       properties:
         refresh_token: { type: string }
+
+    OAuthLoginRequest:
+      type: object
+      required: [provider, id_token]
+      properties:
+        provider:
+          type: string
+          enum: [google, apple]
+        id_token:
+          type: string
+          description: Signed ID token returned by the provider's SDK on the device.
+      example:
+        provider: google
+        id_token: eyJhbGciOiJSUzI1NiIs…
 
     Stream:
       type: object

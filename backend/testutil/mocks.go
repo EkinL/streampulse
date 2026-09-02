@@ -59,6 +59,34 @@ func (m *MockUserRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.User, 
 	return u, nil
 }
 
+func (m *MockUserRepo) FindByProviderSubject(_ context.Context, provider, subject string) (*domain.User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, u := range m.users {
+		if u.AuthProvider == provider && u.ProviderSubject == subject && subject != "" {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (m *MockUserRepo) LinkProviderSubject(_ context.Context, id uuid.UUID, provider, subject string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	for _, other := range m.users {
+		if other.ID != id && other.AuthProvider == provider && other.ProviderSubject == subject {
+			return domain.ErrAlreadyExists
+		}
+	}
+	u.AuthProvider = provider
+	u.ProviderSubject = subject
+	return nil
+}
+
 func (m *MockUserRepo) List(_ context.Context, page, perPage int) ([]domain.User, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

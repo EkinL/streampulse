@@ -89,6 +89,48 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// OAuthLogin ouvre une session a partir d'un ID token Google ou Apple
+// (connexion sociale). Cree le compte au premier passage.
+func (h *AuthHandler) OAuthLogin(w http.ResponseWriter, r *http.Request) {
+	var req dto.OAuthLoginRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+		return
+	}
+
+	result, err := h.authService.LoginWithOAuth(r.Context(), application.OAuthLoginInput{
+		Provider: req.Provider,
+		IDToken:  req.IDToken,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrProviderNotConfigured):
+			respondError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "social login is not configured on this server")
+		case errors.Is(err, domain.ErrTokenInvalid):
+			respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid identity token")
+		case errors.Is(err, domain.ErrAlreadyExists):
+			respondError(w, http.StatusConflict, "CONFLICT", "email already registered with a password account")
+		case errors.Is(err, domain.ErrInvalidInput):
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		default:
+			respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "social login failed")
+		}
+		return
+	}
+
+	respondJSON(w, http.StatusOK, dto.TokenResponse{
+		AccessToken:  result.AccessToken,
+		RefreshToken: result.RefreshToken,
+		ExpiresAt:    result.ExpiresAt,
+		User: dto.UserDTO{
+			ID:       result.User.ID.String(),
+			Email:    result.User.Email,
+			Username: result.User.Username,
+			Role:     string(result.User.Role),
+		},
+	})
+}
+
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req dto.RefreshRequest
 	if err := decodeJSON(r, &req); err != nil {

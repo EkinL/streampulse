@@ -11,11 +11,31 @@ import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/core/audio/audio_handler.dart';
 import 'package:streampulse/core/network/api_client.dart';
 import 'package:streampulse/core/network/api_endpoints.dart';
+import 'package:streampulse/features/auth/data/auth_local_source.dart';
+import 'package:streampulse/features/auth/data/auth_repository.dart';
+import 'package:streampulse/features/auth/domain/auth_state.dart';
+import 'package:streampulse/features/auth/domain/user_model.dart';
+import 'package:streampulse/features/auth/presentation/providers/auth_provider.dart';
 import 'package:streampulse/features/music/presentation/providers/music_favorites_provider.dart';
 import 'package:streampulse/features/music/presentation/screens/search_screen.dart';
 import 'package:streampulse/app/theme.dart';
 
 class _MockDio extends Mock implements Dio {}
+
+class _MockAuthRepository extends Mock implements AuthRepository {}
+
+class _MockAuthLocalSource extends Mock implements AuthLocalSource {}
+
+/// Session connectée : l'écoute est gardée pour les visiteurs sans compte,
+/// ces tests couvrent le parcours connecté.
+class _FakeAuthNotifier extends AuthNotifier {
+  _FakeAuthNotifier() : super(_MockAuthRepository(), _MockAuthLocalSource()) {
+    state = const AuthAuthenticated(
+      user: UserModel(id: 'u1', email: 'a@a.fr', username: 'alice', role: 'user'),
+      token: 't',
+    );
+  }
+}
 
 class _FakeHandler extends Fake implements StreamPulseAudioHandler {
   final loaded = <String>[];
@@ -90,6 +110,7 @@ Future<_FakeHandler> _pump(WidgetTester tester, {required _MockDio dio}) async {
       overrides: [
         dioProvider.overrideWithValue(dio),
         audioHandlerProvider.overrideWithValue(handler),
+        authProvider.overrideWith((ref) => _FakeAuthNotifier()),
         musicFavoritesProvider.overrideWith((ref) => MusicFavoritesNotifier(dio)),
       ],
       child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),

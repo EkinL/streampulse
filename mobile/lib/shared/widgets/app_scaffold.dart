@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
+import '../../core/utils/extensions.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/domain/auth_state.dart';
 import 'live_mini_player.dart';
@@ -17,6 +18,7 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final isGuest = authState is! AuthAuthenticated;
     final isAdmin = authState is AuthAuthenticated && authState.user.isAdmin;
     final currentLocation = GoRouterState.of(context).uri.toString();
 
@@ -37,7 +39,10 @@ class AppScaffold extends ConsumerWidget {
       const _NavTab(Icons.radio_outlined, Icons.radio, 'DIRECT'),
       const _NavTab(Icons.queue_music_outlined, Icons.queue_music, 'PLAYLISTS'),
       const _NavTab(Icons.favorite_border, Icons.favorite, 'FAVORIS'),
-      const _NavTab(Icons.person_outline, Icons.person, 'PROFIL'),
+      if (isGuest)
+        const _NavTab(Icons.login, Icons.login, 'CONNEXION')
+      else
+        const _NavTab(Icons.person_outline, Icons.person, 'PROFIL'),
       if (isAdmin) const _NavTab(Icons.admin_panel_settings_outlined, Icons.admin_panel_settings, 'ADMIN'),
     ];
 
@@ -81,15 +86,28 @@ class AppScaffold extends ConsumerWidget {
   }
 
   void _onTabTap(BuildContext context, WidgetRef ref, int index) {
+    final isGuest = ref.read(authProvider) is! AuthAuthenticated;
     switch (index) {
       case 0:
         context.go('/streams');
       case 1:
-        context.go('/playlists');
+        if (isGuest) {
+          context.promptLogin('Connectez-vous pour accéder aux playlists');
+        } else {
+          context.go('/playlists');
+        }
       case 2:
-        context.go('/favorites');
+        if (isGuest) {
+          context.promptLogin('Connectez-vous pour gérer vos favoris');
+        } else {
+          context.go('/favorites');
+        }
       case 3:
-        _showProfileSheet(context, ref);
+        if (isGuest) {
+          context.go('/login');
+        } else {
+          _showProfileSheet(context, ref);
+        }
       case 4:
         context.go('/admin');
     }

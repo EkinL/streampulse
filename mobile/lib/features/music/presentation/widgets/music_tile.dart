@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/utils/extensions.dart';
+import '../../../auth/domain/auth_state.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/music_model.dart';
 import '../providers/music_favorites_provider.dart';
 
@@ -100,6 +103,10 @@ class MusicTile extends ConsumerWidget {
             // Favorite heart button
             GestureDetector(
               onTap: () {
+                if (ref.read(authProvider) is! AuthAuthenticated) {
+                  context.promptLogin('Connectez-vous pour gérer vos favoris');
+                  return;
+                }
                 ref.read(musicFavoritesProvider.notifier).toggle(music.id);
               },
               child: Padding(

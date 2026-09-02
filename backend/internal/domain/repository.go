@@ -10,6 +10,12 @@ type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+	// FindByProviderSubject retrouve le compte relie a une identite sociale
+	// (claim "sub" d'un fournisseur). ErrNotFound si aucune.
+	FindByProviderSubject(ctx context.Context, provider, subject string) (*User, error)
+	// LinkProviderSubject relie une identite sociale a un compte existant :
+	// premiere connexion Google/Apple d'un compte cree par mot de passe.
+	LinkProviderSubject(ctx context.Context, id uuid.UUID, provider, subject string) error
 	List(ctx context.Context, page, perPage int) ([]User, int, error)
 	UpdateRole(ctx context.Context, id uuid.UUID, role Role) error
 	// UpdateProfile change l'email et le nom d'utilisateur d'un compte. C'est

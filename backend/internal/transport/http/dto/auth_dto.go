@@ -21,6 +21,14 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type OAuthLoginRequest struct {
+	// Provider : "google" ou "apple".
+	Provider string `json:"provider"`
+	// IDToken : l'ID token signe rendu par le SDK du fournisseur sur
+	// l'appareil ; le serveur le verifie contre le JWKS du fournisseur.
+	IDToken string `json:"id_token"`
+}
+
 type TokenResponse struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`

@@ -30,6 +30,21 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Callback OAuth de Google Sign-In : le schema est le client ID iOS
+	     inverse (console Google Cloud). Remplacer REPLACE-WITH-IOS-CLIENT-ID
+	     par la partie avant ".apps.googleusercontent.com" du client iOS,
+	     voir docs/social-login.md. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE-WITH-IOS-CLIENT-ID</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
