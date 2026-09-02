@@ -129,18 +129,32 @@ budget d'erreur decide de ce qui est livre, pas une impression.
 
 ## Alertes
 
-| Alerte | Condition | Gravite |
-|--------|-----------|---------|
-| `APIHighErrorRate` | taux de 5xx > 1 % pendant 5 min | critique |
-| `APIHighLatency` | p95 > 500 ms pendant 10 min | avertissement |
-| `NoListenersOnLiveStream` | `active_streams > 0` et `active_listeners == 0` pendant 15 min | avertissement |
-| `AbruptDisconnectSpike` | taux de deconnexions brutales > 5 % pendant 10 min | critique |
+Provisionnees par fichier dans `grafana/provisioning/alerting/` (alerting
+unifie de Grafana, pas un Alertmanager Prometheus separe — voir
+[ADR 008](ADR/008-dashboard-alertes-grafana.md) pour ce choix). Deux
+regles existent reellement aujourd'hui, l'une technique, l'une metier,
+toutes deux routees vers le canal Discord de l'equipe
+(`contact-points.yaml`, `notification-policies.yaml`) :
 
-Les seuils d'alerte sont **plus severes que les SLO** : une alerte doit se
-declencher pendant qu'il reste du budget, pas une fois qu'il est epuise.
+| Alerte (uid) | Condition reelle | Categorie | Gravite |
+|--------------|-------------------|-----------|---------|
+| `streampulse-api-down` | `up{job="streampulse-api"} == 0` pendant 1 min | technique | critique |
+| `streampulse-disconnections-spike` | `increase(stream_disconnections_total[5m]) > 3` | metier | avertissement |
 
-> Ces regles ne sont pas encore ecrites. `prometheus/` ne contient que
-> `prometheus.yml`, il n'y a ni `rules/` ni Alertmanager dans la stack.
+Le seuil de la seconde regle (3 deconnexions brutales sur 5 minutes) est
+un choix assume pour l'echelle actuelle du projet — une poignee
+d'auditeurs en demonstration — et non une valeur deduite d'un historique
+de production, qui n'existe pas encore.
+
+> **Ce qui manque encore.** Ces deux regles ne couvrent ni le taux
+> d'erreur (SLO 1) ni la latence (SLO 2), alors que leurs metriques sont
+> deja disponibles (`http_requests_total`, `http_request_duration_seconds`
+> — voir l'etat de l'instrumentation ci-dessous). Il n'existe donc
+> aujourd'hui aucune alerte qui se declenche **avant** l'epuisement du
+> budget d'erreur de ces deux SLO ; seule une panne franche (API injoignable)
+> ou un pic brutal de deconnexions le sont. Ajouter une regle de taux
+> d'erreur et une regle de latence, toutes deux a un seuil plus severe que
+> le SLO correspondant, est la prochaine etape.
 
 ## Etat de l'instrumentation
 
@@ -186,5 +200,10 @@ features and fix reliability only; over 100%, a written post-mortem is
 required before shipping again. Two of the four SLOs are honestly flagged
 as **not yet measurable**: SLO 3 needs a `reason` label added to
 `stream_disconnections_total` to distinguish clean from abrupt
-disconnects, and SLO 4's metric doesn't exist yet at all. Alert rules
-(`prometheus/rules/`) are likewise not yet written.
+disconnects, and SLO 4's metric doesn't exist yet at all. Two Grafana
+unified-alerting rules are provisioned by file and route to the team's
+Discord channel — an API-down check (`up{job="streampulse-api"} == 0`) and
+an abrupt-disconnect-spike check (`increase(stream_disconnections_total[5m]) > 3`,
+its threshold sized for demo-scale traffic, not production history) — but
+neither SLO 1 (error rate) nor SLO 2 (latency) has a matching alert yet,
+despite both metrics already being available.
