@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:streampulse/app/theme.dart';
-import 'package:streampulse/core/storage/secure_storage.dart';
-import 'package:streampulse/core/storage/token_store.dart';
 import 'package:streampulse/features/auth/data/auth_local_source.dart';
 import 'package:streampulse/features/auth/data/auth_repository.dart';
 import 'package:streampulse/features/auth/domain/auth_state.dart';
@@ -13,15 +11,6 @@ import 'package:streampulse/features/auth/presentation/providers/auth_provider.d
 import 'package:streampulse/features/chat/domain/chat_message.dart';
 import 'package:streampulse/features/chat/presentation/providers/chat_provider.dart';
 import 'package:streampulse/features/chat/presentation/widgets/stream_chat_panel.dart';
-
-class _NullStore implements TokenStore {
-  @override
-  Future<void> write(String key, String value) async {}
-  @override
-  Future<String?> read(String key) async => null;
-  @override
-  Future<void> delete(String key) async {}
-}
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -39,8 +28,7 @@ class _StubChatNotifier extends ChatNotifier {
   final sent = <String>[];
 
   _StubChatNotifier(String streamId)
-      : super(streamId, SecureStorageService(store: _NullStore()),
-            connectOnInit: false);
+      : super(streamId, () async => null, connectOnInit: false);
 
   void setTestState(ChatState newState) => state = newState;
 

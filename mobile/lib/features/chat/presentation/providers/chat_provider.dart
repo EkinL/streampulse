@@ -7,11 +7,14 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../../../app/constants.dart';
 import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/session_refresher.dart';
 import '../../domain/chat_message.dart';
 
 /// Fabrique de canal WebSocket, injectable pour les tests.
 typedef ChatChannelFactory = WebSocketChannel Function(Uri uri);
+
+/// Fournit un access token valide pour la poignée de main, null sans session.
+typedef ChatTokenProvider = Future<String?> Function();
 
 class ChatState {
   final List<ChatMessage> messages;
@@ -46,19 +49,30 @@ class ChatNotifier extends StateNotifier<ChatState> {
   /// Le serveur ne rejoue de toute façon que les 50 derniers.
   static const int maxMessages = 200;
 
+  /// Délai avant de retenter après une coupure, doublé à chaque nouvel échec
+  /// jusqu'à [maxReconnectDelay] pour ne pas marteler un serveur en panne.
+  static const Duration initialReconnectDelay = Duration(seconds: 2);
+  static const Duration maxReconnectDelay = Duration(seconds: 30);
+
   final String streamId;
-  final SecureStorageService _secureStorage;
+  final ChatTokenProvider _accessToken;
   final ChatChannelFactory _channelFactory;
+  final Duration _initialReconnectDelay;
 
   WebSocketChannel? _channel;
   StreamSubscription? _sub;
+  Timer? _reconnectTimer;
+  Duration _reconnectDelay;
 
   ChatNotifier(
     this.streamId,
-    this._secureStorage, {
+    this._accessToken, {
     ChatChannelFactory? channelFactory,
     bool connectOnInit = true,
+    Duration reconnectDelay = initialReconnectDelay,
   })  : _channelFactory = channelFactory ?? WebSocketChannel.connect,
+        _initialReconnectDelay = reconnectDelay,
+        _reconnectDelay = reconnectDelay,
         super(const ChatState()) {
     if (connectOnInit) {
       connect();
@@ -79,10 +93,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> connect() async {
     if (state.isConnecting || state.isConnected) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     state = state.copyWith(isConnecting: true, statusText: 'Connexion…');
 
     try {
-      final token = await _secureStorage.getAccessToken();
+      // L'access token ne vit que 15 min : renouvelé au besoin avant la
+      // poignée de main. Contrairement aux appels REST, le WebSocket n'a
+      // pas d'intercepteur pour rejouer sur un 401 : un token périmé
+      // laissait le chat « indisponible » pour tout le live.
+      final token = await _accessToken();
+      if (!mounted) return;
       if (token == null) {
         state = state.copyWith(
             isConnecting: false, statusText: 'Connectez-vous pour discuter');
@@ -97,6 +118,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         return;
       }
       _channel = channel;
+      _reconnectDelay = _initialReconnectDelay;
 
       _sub = channel.stream.listen(
         _onFrame,
@@ -112,10 +134,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
           isConnecting: false, isConnected: true, statusText: '');
     } catch (e) {
       debugPrint('Chat connect failed: $e');
-      if (mounted) {
-        state = state.copyWith(
-            isConnecting: false, statusText: 'Chat indisponible');
-      }
+      if (!mounted) return;
+      state = state.copyWith(
+          isConnecting: false, statusText: 'Chat indisponible');
+      _scheduleReconnect();
     }
   }
 
@@ -136,13 +158,25 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void _onClosed(String reason) {
     if (!mounted) return;
+    // 1001 = le diffuseur a arrêté le live, le salon est fermé pour de bon.
+    final liveEnded = _channel?.closeCode == 1001;
     state = state.copyWith(
       isConnected: false,
       isConnecting: false,
-      // 1001 = le diffuseur a arrêté le live, le salon est fermé.
-      statusText:
-          _channel?.closeCode == 1001 ? 'Le live est terminé' : reason,
+      statusText: liveEnded ? 'Le live est terminé' : reason,
     );
+    if (!liveEnded) _scheduleReconnect();
+  }
+
+  /// Une coupure (réseau, app revenue de l'arrière-plan, serveur redémarré)
+  /// ne doit pas laisser le chat mort jusqu'à ce qu'on quitte l'écran.
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(_reconnectDelay, connect);
+    _reconnectDelay *= 2;
+    if (_reconnectDelay > maxReconnectDelay) {
+      _reconnectDelay = maxReconnectDelay;
+    }
   }
 
   /// Envoie un message ; l'auteur et l'horodatage sont posés côté serveur.
@@ -154,6 +188,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     _sub?.cancel();
     _channel?.sink.close();
     super.dispose();
@@ -164,5 +199,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
 /// quand plus personne n'affiche le chat (autoDispose).
 final chatProvider = StateNotifierProvider.autoDispose
     .family<ChatNotifier, ChatState, String>((ref, streamId) {
-  return ChatNotifier(streamId, ref.read(secureStorageProvider));
+  return ChatNotifier(
+      streamId, ref.read(sessionRefresherProvider).validAccessToken);
 });

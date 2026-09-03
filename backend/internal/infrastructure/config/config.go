@@ -56,6 +56,12 @@ type Config struct {
 	// (docs/rgpd.md) : un jeton expire ne sert plus a rien, on ne le garde pas.
 	RefreshTokenPurgeInterval time.Duration `env:"REFRESH_TOKEN_PURGE_INTERVAL,default=1h"`
 
+	// Delai accorde au diffuseur pour rouvrir son POST /broadcast apres une
+	// coupure (reseau, app relancee) avant que le direct soit arrete
+	// automatiquement. Doit depasser le delai de reconnexion de l'app
+	// mobile (2 s), sinon chaque micro-coupure tue le live.
+	BroadcastGracePeriod time.Duration `env:"BROADCAST_GRACE_PERIOD,default=10s"`
+
 	// Connexion sociale : audiences (client IDs OAuth) acceptees dans les ID
 	// tokens, en liste separee par des virgules. Google en attend souvent
 	// plusieurs (client web + client iOS) ; Apple attend le bundle id de
@@ -84,6 +90,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.RefreshTokenPurgeInterval <= 0 {
 		return nil, fmt.Errorf("config: load: REFRESH_TOKEN_PURGE_INTERVAL must be positive")
+	}
+	if cfg.BroadcastGracePeriod <= 0 {
+		return nil, fmt.Errorf("config: load: BROADCAST_GRACE_PERIOD must be positive")
 	}
 	// Le joker CORS convient au developpement (simulateur, Flutter web sur un
 	// port quelconque) mais pas a un serveur expose : n'importe quel site

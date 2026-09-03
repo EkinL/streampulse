@@ -156,6 +156,7 @@ Identifiant d'application : `dev.streampulse.app` (iOS et Android).
 | `TLS_CERT_FILE` / `TLS_KEY_FILE` | - | Renseignes ensemble, le serveur sert en HTTPS (TLS 1.2 min.) ; vides, il reste en clair derriere un reverse proxy, voir [deployment.md](docs/deployment.md#https) |
 | `PUBLIC_BASE_URL` | déduit | URL publique de l'API pour les liens des fichiers uploades ; vide = `http(s)://localhost:PORT` selon TLS |
 | `REFRESH_TOKEN_PURGE_INTERVAL` | 1h | Purge des refresh tokens expires (retention, voir [rgpd.md](docs/rgpd.md)) |
+| `BROADCAST_GRACE_PERIOD` | 10s | Delai avant l'arret automatique d'un direct dont le diffuseur a disparu (`POST /broadcast` termine sans remplacant) ; au demarrage, tout flux encore `live` est passe en `ended` |
 
 Les routes de flux (`/streams/{id}/listen`, `/audio`, `/broadcast`) levent
 ces timeouts pour leur propre connexion, voir [ADR 005](docs/ADR/005-http-timeouts.md).

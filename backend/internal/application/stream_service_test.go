@@ -152,3 +152,34 @@ func TestStreamService_StartStream(t *testing.T) {
 		}
 	})
 }
+
+func TestStreamService_EndOrphanedLiveStreams(t *testing.T) {
+	svc, repo := newStreamService()
+	ctx := context.Background()
+
+	live := testutil.NewTestStream(uuid.New())
+	live.Status = domain.StreamStatusLive
+	live.ListenerCount = 3
+	created := testutil.NewTestStream(uuid.New())
+	for _, s := range []*domain.Stream{live, created} {
+		if err := repo.Create(ctx, s); err != nil {
+			t.Fatalf("create: %v", err)
+		}
+	}
+
+	n, err := svc.EndOrphanedLiveStreams(ctx)
+	if err != nil {
+		t.Fatalf("EndOrphanedLiveStreams: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("attendu 1 flux arrete, obtenu %d", n)
+	}
+	got, _ := repo.FindByID(ctx, live.ID)
+	if got.Status != domain.StreamStatusEnded || got.ListenerCount != 0 {
+		t.Fatalf("flux live attendu ended sans auditeur, obtenu %s / %d", got.Status, got.ListenerCount)
+	}
+	untouched, _ := repo.FindByID(ctx, created.ID)
+	if untouched.Status != domain.StreamStatusIdle {
+		t.Fatalf("flux non live modifie : %s", untouched.Status)
+	}
+}

@@ -104,6 +104,17 @@ func (r *StreamRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status doma
 	return nil
 }
 
+func (r *StreamRepo) EndLiveStreams(ctx context.Context) (int, error) {
+	result, err := r.pool.Exec(ctx,
+		"UPDATE streams SET status = $1, listener_count = 0, updated_at = $2 WHERE status = $3",
+		string(domain.StreamStatusEnded), time.Now().UTC(), string(domain.StreamStatusLive),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("stream_repo: end_live_streams: %w", err)
+	}
+	return int(result.RowsAffected()), nil
+}
+
 func (r *StreamRepo) UpdateListenerCount(ctx context.Context, id uuid.UUID, count int) error {
 	_, err := r.pool.Exec(ctx,
 		"UPDATE streams SET listener_count = $1, updated_at = $2 WHERE id = $3",

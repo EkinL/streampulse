@@ -39,6 +39,10 @@ type StreamRepository interface {
 	// ListByOwner rend tous les flux d'un diffuseur, sans pagination : sert a
 	// fermer ses directs quand son compte est supprime.
 	ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Stream, error)
+	// EndLiveStreams passe tous les flux "live" en "ended" et rend leur
+	// nombre : nettoyage au demarrage du serveur, quand aucun diffuseur ne
+	// peut etre connecte.
+	EndLiveStreams(ctx context.Context) (int, error)
 }
 
 type PlaylistRepository interface {

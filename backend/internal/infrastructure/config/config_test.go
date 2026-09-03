@@ -147,6 +147,9 @@ func TestLoadTLSDisabledByDefault(t *testing.T) {
 	if cfg.RefreshTokenPurgeInterval <= 0 {
 		t.Fatalf("REFRESH_TOKEN_PURGE_INTERVAL doit avoir un defaut positif, obtenu %s", cfg.RefreshTokenPurgeInterval)
 	}
+	if cfg.BroadcastGracePeriod <= 0 {
+		t.Fatalf("BROADCAST_GRACE_PERIOD doit avoir un defaut positif, obtenu %s", cfg.BroadcastGracePeriod)
+	}
 }
 
 func TestLoadTLSEnabledWithBothFiles(t *testing.T) {
@@ -175,6 +178,14 @@ func TestLoadRejectsHalfTLSConfig(t *testing.T) {
 				t.Fatalf("Load doit echouer avec %s seul, obtenu %+v", only, cfg)
 			}
 		})
+	}
+}
+
+func TestLoadRejectsNonPositiveBroadcastGrace(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("BROADCAST_GRACE_PERIOD", "0s")
+	if cfg, err := Load(); err == nil {
+		t.Fatalf("Load doit refuser un delai de grace nul, obtenu %+v", cfg)
 	}
 }
 

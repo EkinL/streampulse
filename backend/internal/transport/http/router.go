@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -38,6 +39,9 @@ type RouterConfig struct {
 	RateLimitBurst    int
 	TrustedProxies    []string
 	ServiceName       string
+	// Delai avant l'arret automatique d'un direct sans diffuseur
+	// (BROADCAST_GRACE_PERIOD).
+	BroadcastGrace time.Duration
 }
 
 func NewRouter(cfg RouterConfig) *chi.Mux {
@@ -72,7 +76,7 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	healthHandler := handlers.NewHealthHandler()
 	docsHandler := handlers.NewDocsHandler()
 	authHandler := handlers.NewAuthHandler(cfg.AuthService)
-	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.ChatHub, cfg.Logger, cfg.Metrics)
+	streamHandler := handlers.NewStreamHandler(cfg.StreamService, cfg.Hub, cfg.ChatHub, cfg.Logger, cfg.Metrics, cfg.BroadcastGrace)
 	chatHandler := handlers.NewChatHandler(cfg.StreamService, cfg.ChatHub, cfg.Logger, cfg.Metrics)
 	playlistHandler := handlers.NewPlaylistHandler(cfg.PlaylistService)
 	adminHandler := handlers.NewAdminHandler(cfg.UserService)
