@@ -1,22 +1,17 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:record/record.dart';
 import '../../../../app/theme.dart';
 import '../../data/stream_repository.dart';
 import '../../domain/stream_model.dart';
+import '../providers/broadcast_provider.dart';
 import '../providers/stream_provider.dart';
 import '../widgets/audio_waveform.dart';
-import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/utils/extensions.dart';
-import '../../../../app/constants.dart';
 import '../../../music/data/music_repository.dart';
 import '../../../music/domain/music_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -38,12 +33,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
   String _selectedFormat = 'mp3';
   bool _isCreating = false;
   StreamModel? _activeStream;
-  bool _isBroadcasting = false;
-
-  // Audio recording
-  final AudioRecorder _recorder = AudioRecorder();
-  StreamSubscription<Uint8List>? _audioSub;
-  CancelToken? _broadcastCancelToken;
 
   // Listeners tracking
   Timer? _listenerTimer;
@@ -53,7 +42,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
   Duration _elapsed = Duration.zero;
   Timer? _elapsedTimer;
   final List<MapEntry<DateTime, int>> _listenerHistory = [];
-  int _dropCount = 0;
 
   // Bouton "Couper l'antenne" : maintien obligatoire de 2 s.
   late final AnimationController _holdController;
@@ -84,6 +72,12 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
       }
     });
     _loadMyMusic();
+    // Capture micro toujours en cours (console quittee puis rouverte) : on
+    // revient directement sur l'antenne au lieu de la liste.
+    final broadcast = ref.read(broadcastProvider);
+    if (broadcast.isBroadcasting && broadcast.streamId != null) {
+      _resumeConsole(broadcast.streamId!);
+    }
   }
 
   @override
@@ -91,8 +85,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
     _listenerTimer?.cancel();
     _elapsedTimer?.cancel();
     _holdController.dispose();
-    _stopBroadcasting();
-    _recorder.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -149,7 +141,6 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
       setState(() {
         _activeStream = updated;
         _listenerHistory.clear();
-        _dropCount = 0;
         _liveSince = DateTime.now();
         _elapsed = Duration.zero;
       });
@@ -159,8 +150,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
         setState(() => _elapsed = DateTime.now().difference(_liveSince!));
       });
 
-      // Start mic broadcasting
-      await _startBroadcasting(streamId);
+      await _startMic(streamId);
 
       if (mounted) context.showSnackBar('You are LIVE!');
     } catch (e) {
@@ -170,94 +160,34 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
     }
   }
 
-  Future<void> _startBroadcasting(String streamId) async {
-    final hasPermission = await _recorder.hasPermission();
-    if (!hasPermission) {
-      if (mounted) {
-        context.showSnackBar('Microphone permission denied', isError: true);
-      }
-      return;
+  /// Lance la capture micro via le provider. Une permission refusee est
+  /// signalee mais ne bloque pas la console : le flux est deja live.
+  Future<void> _startMic(String streamId) async {
+    final micOk = await ref.read(broadcastProvider.notifier).start(streamId);
+    if (!micOk && mounted) {
+      context.showSnackBar('Microphone permission denied', isError: true);
     }
-
-    final token = await ref.read(secureStorageProvider).getAccessToken();
-    _broadcastCancelToken = CancelToken();
-
-    // Start recording as a stream of PCM data
-    final recordStream = await _recorder.startStream(const RecordConfig(
-      encoder: AudioEncoder.pcm16bits,
-      sampleRate: 16000,
-      numChannels: 1,
-    ));
-
-    setState(() => _isBroadcasting = true);
-
-    // Pipe audio data to the backend via chunked HTTP POST
-    final url =
-        '${AppConstants.apiBaseUrl}${ApiEndpoints.streamBroadcast(streamId)}';
-
-    // Create a stream controller that we'll feed audio into
-    final controller = StreamController<List<int>>();
-
-    _audioSub = recordStream.listen(
-      (data) {
-        if (!controller.isClosed) {
-          controller.add(data);
-        }
-      },
-      onDone: () {
-        if (!controller.isClosed) controller.close();
-      },
-      onError: (e) {
-        if (!controller.isClosed) controller.close();
-      },
-    );
-
-    // Send the stream to the backend
-    final broadcastDio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: Duration.zero,
-      sendTimeout: Duration.zero,
-    ));
-
-    broadcastDio
-        .post(
-      url,
-      data: controller.stream,
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/octet-stream',
-          'Transfer-Encoding': 'chunked',
-        },
-      ),
-      cancelToken: _broadcastCancelToken,
-    )
-        .then<void>((_) {}, onError: (e) {
-      if (!CancelToken.isCancel(e)) {
-        debugPrint('Broadcast connection ended: $e');
-        // Coupure non planifiée (pas un arrêt volontaire via le bouton) :
-        // comptabilisée dans le compteur "Coupures" de la console.
-        if (mounted && _isBroadcasting) {
-          setState(() => _dropCount++);
-        }
-      }
-    });
   }
 
-  Future<void> _stopBroadcasting() async {
-    _broadcastCancelToken?.cancel();
-    _broadcastCancelToken = null;
-    await _audioSub?.cancel();
-    _audioSub = null;
-    if (await _recorder.isRecording()) {
-      await _recorder.stop();
-    }
-    if (mounted) setState(() => _isBroadcasting = false);
+  /// Retour sur la console alors que le micro tourne encore : on rouvre
+  /// l'antenne du flux concerne, ou on coupe le micro si le flux a ete
+  /// arrete entre-temps.
+  Future<void> _resumeConsole(String streamId) async {
+    try {
+      final stream =
+          await ref.read(streamRepositoryProvider).getStream(streamId);
+      if (!mounted) return;
+      if (stream.isLive) {
+        await _openManagement(stream);
+      } else {
+        await ref.read(broadcastProvider.notifier).stop();
+      }
+    } catch (_) {}
   }
 
   Future<void> _stopStream(String streamId) async {
     try {
-      await _stopBroadcasting();
+      await ref.read(broadcastProvider.notifier).stop();
       final repo = ref.read(streamRepositoryProvider);
       await repo.stopStream(streamId);
       _elapsedTimer?.cancel();
@@ -276,20 +206,23 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
     }
   }
 
-  /// Ouvre la console "antenne" pour un flux déjà en direct (démarré plus tôt
-  /// dans cette session, ou retrouvé après une navigation) sans relancer la
-  /// capture micro — seul `_startStream` fait ça. Permet de rejoindre l'écran
-  /// de gestion (et son bouton couper l'antenne à maintien obligatoire de
-  /// 2 s) au lieu d'un arrêt en un tap depuis la liste.
-  void _openManagement(StreamModel stream) {
+  /// Ouvre la console "antenne" pour un flux déjà en direct côté serveur.
+  /// Si la capture micro tourne encore (console quittée puis rouverte), on
+  /// la garde ; sinon (app relancée, live repris) on la relance : un flux
+  /// affiché "à l'antenne" sans micro était un direct muet pour les
+  /// auditeurs.
+  Future<void> _openManagement(StreamModel stream) async {
+    final broadcast = ref.read(broadcastProvider);
+    final alreadyOnAir = broadcast.isBroadcastingStream(stream.id);
     setState(() {
       _activeStream = stream;
-      _liveSince ??= DateTime.now();
+      _liveSince ??= alreadyOnAir ? broadcast.startedAt : DateTime.now();
     });
     _elapsedTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || _liveSince == null) return;
       setState(() => _elapsed = DateTime.now().difference(_liveSince!));
     });
+    if (!alreadyOnAir) await _startMic(stream.id);
   }
 
   Future<void> _loadMyMusic() async {
@@ -528,6 +461,8 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
   /// de l'écran de préparation ci-dessus, calqué sur la maquette v1-console.
   Widget _buildOnAirConsole() {
     final stream = _activeStream!;
+    final broadcast = ref.watch(broadcastProvider);
+    final isBroadcasting = broadcast.isBroadcastingStream(stream.id);
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -563,7 +498,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                     ),
                     const Spacer(),
                     Text(
-                      _isBroadcasting ? 'SSE · CONNECTÉ' : 'SSE · CONNEXION…',
+                      isBroadcasting ? 'SSE · CONNECTÉ' : 'SSE · CONNEXION…',
                       style: GoogleFonts.ibmPlexMono(
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
@@ -579,10 +514,9 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                   child: Column(
                     children: [
                       // Reflète le flux (déjà en direct côté serveur) et pas
-                      // seulement la capture micro locale : gérer un flux
-                      // démarré plus tôt dans la session ne relance pas le
-                      // micro, mais doit quand même afficher "à l'antenne".
-                      _AntennaPill(isBroadcasting: _isBroadcasting || stream.isLive),
+                      // seulement la capture micro locale, qui peut mettre
+                      // une seconde à (re)démarrer.
+                      _AntennaPill(isBroadcasting: isBroadcasting || stream.isLive),
                       const SizedBox(height: 20),
                       Text(
                         stream.title,
@@ -617,7 +551,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           border: Border.all(color: context.colors.consoleCardBorder),
                         ),
                         child: AudioWaveform(
-                          isActive: _isBroadcasting,
+                          isActive: isBroadcasting,
                           gradient: const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
@@ -652,7 +586,7 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                           const SizedBox(width: 12),
                           Expanded(
                             child: _ConsoleStat(
-                              value: '$_dropCount',
+                              value: '${broadcast.dropCount}',
                               label: 'COUPURES',
                               color: SP.liveBg,
                             ),

@@ -46,6 +46,7 @@ func testRouter(t *testing.T) (*chi.Mux, *auth.JWTManager) {
 		testRouterStreams = testutil.NewMockStreamRepo()
 		testRouterMetrics = observability.NewMetrics()
 		testRouterMux = NewRouter(RouterConfig{
+			BroadcastGrace: time.Hour,
 			StreamService:  application.NewStreamService(testRouterStreams, testRouterHub),
 			StreamRepo:     testRouterStreams,
 			Hub:            testRouterHub,

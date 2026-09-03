@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -26,15 +29,24 @@ type StreamHandler struct {
 	chatHub       *chat.Hub
 	logger        zerolog.Logger
 	metrics       *observability.Metrics
+
+	// Arret automatique d'un direct dont le diffuseur a disparu (app tuee,
+	// reseau coupe) sans passer par POST /stop. Sans lui, le flux restait
+	// "live" en base et les auditeurs se connectaient a un direct muet.
+	broadcastGrace time.Duration
+	mu             sync.Mutex
+	broadcasters   map[uuid.UUID]uint64 // generation du dernier POST /broadcast par flux
 }
 
-func NewStreamHandler(streamService *application.StreamService, hub *streaming.Hub, chatHub *chat.Hub, logger zerolog.Logger, metrics *observability.Metrics) *StreamHandler {
+func NewStreamHandler(streamService *application.StreamService, hub *streaming.Hub, chatHub *chat.Hub, logger zerolog.Logger, metrics *observability.Metrics, broadcastGrace time.Duration) *StreamHandler {
 	return &StreamHandler{
-		streamService: streamService,
-		hub:           hub,
-		chatHub:       chatHub,
-		logger:        logger,
-		metrics:       metrics,
+		streamService:  streamService,
+		hub:            hub,
+		chatHub:        chatHub,
+		logger:         logger,
+		metrics:        metrics,
+		broadcastGrace: broadcastGrace,
+		broadcasters:   make(map[uuid.UUID]uint64),
 	}
 }
 
@@ -424,6 +436,11 @@ func (h *StreamHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 	keepConnectionOpen(w, h.logger)
 	defer unblockReadOnCancel(r.Context(), w)()
 
+	// Ce POST est la preuve de vie du diffuseur : s'il se termine sans
+	// qu'un autre le remplace dans le delai de grace, le direct est arrete.
+	gen := h.broadcasterConnected(streamID)
+	defer h.broadcasterGone(streamID, gen, ownerID)
+
 	h.logger.Info().
 		Str("stream_id", streamID.String()).
 		Msg("broadcaster connected, reading audio chunks")
@@ -454,6 +471,61 @@ func (h *StreamHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
 		Msg("broadcaster disconnected")
 
 	// Don't write response - connection was streaming
+}
+
+// broadcasterConnected note un nouveau POST /broadcast pour ce flux et rend
+// sa generation : l'arret programme par une connexion precedente s'y compare
+// pour savoir si le diffuseur est bien revenu entre-temps.
+func (h *StreamHandler) broadcasterConnected(streamID uuid.UUID) uint64 {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.broadcasters[streamID]++
+	return h.broadcasters[streamID]
+}
+
+// broadcasterGone programme l'arret du flux si aucun POST /broadcast plus
+// recent que gen n'est arrive avant la fin du delai de grace. Le delai laisse
+// a l'app le temps de rouvrir sa connexion apres une coupure (le mobile
+// reessaie au bout de 2 s, voir BroadcastNotifier).
+func (h *StreamHandler) broadcasterGone(streamID uuid.UUID, gen uint64, ownerID uuid.UUID) {
+	time.AfterFunc(h.broadcastGrace, func() {
+		h.mu.Lock()
+		current := h.broadcasters[streamID]
+		h.mu.Unlock()
+		if current != gen {
+			return
+		}
+		h.stopAbandonedStream(streamID, ownerID)
+	})
+}
+
+// stopAbandonedStream arrete un direct comme le ferait POST /stop, mais hors
+// requete : contexte borne, et on verifie d'abord que le flux est toujours
+// live (le diffuseur a pu l'arreter lui-meme pendant le delai de grace).
+func (h *StreamHandler) stopAbandonedStream(streamID, ownerID uuid.UUID) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := h.streamService.GetStream(ctx, streamID)
+	if err != nil {
+		if !errors.Is(err, domain.ErrNotFound) {
+			h.logger.Warn().Err(err).Str("stream_id", streamID.String()).Msg("cannot check abandoned stream")
+		}
+		return
+	}
+	if stream.Status != domain.StreamStatusLive {
+		return
+	}
+	if err := h.streamService.StopStream(ctx, streamID, ownerID); err != nil {
+		h.logger.Warn().Err(err).Str("stream_id", streamID.String()).Msg("failed to stop abandoned stream")
+		return
+	}
+	h.chatHub.CloseStream(streamID)
+	h.metrics.ActiveStreams.Dec()
+	h.logger.Info().
+		Str("stream_id", streamID.String()).
+		Dur("grace", h.broadcastGrace).
+		Msg("stream stopped automatically: broadcaster gone")
 }
 
 func (h *StreamHandler) StopStream(w http.ResponseWriter, r *http.Request) {

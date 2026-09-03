@@ -227,6 +227,20 @@ func (m *MockStreamRepo) UpdateStatus(_ context.Context, id uuid.UUID, status do
 	return nil
 }
 
+func (m *MockStreamRepo) EndLiveStreams(_ context.Context) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for _, s := range m.streams {
+		if s.Status == domain.StreamStatusLive {
+			s.Status = domain.StreamStatusEnded
+			s.ListenerCount = 0
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (m *MockStreamRepo) UpdateListenerCount(_ context.Context, id uuid.UUID, count int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
