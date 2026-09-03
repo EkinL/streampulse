@@ -2,23 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:streampulse/core/storage/secure_storage.dart';
-import 'package:streampulse/core/storage/token_store.dart';
 import 'package:streampulse/features/chat/domain/chat_message.dart';
 import 'package:streampulse/features/chat/presentation/providers/chat_provider.dart';
 import 'package:web_socket_channel/io.dart';
-
-class _TokenStore implements TokenStore {
-  final String? token;
-  _TokenStore(this.token);
-
-  @override
-  Future<void> write(String key, String value) async {}
-  @override
-  Future<String?> read(String key) async => token;
-  @override
-  Future<void> delete(String key) async {}
-}
 
 Future<void> _waitUntil(bool Function() cond) async {
   final deadline = DateTime.now().add(const Duration(seconds: 3));
@@ -29,6 +15,11 @@ Future<void> _waitUntil(bool Function() cond) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 }
+
+Future<String?> _token() async => 'tok';
+
+/// Délai de reconnexion court : les tests ne dorment pas 2 s.
+const _retry = Duration(milliseconds: 50);
 
 void main() {
   test('construit une URL ws avec le token en parametre', () {
@@ -75,7 +66,7 @@ void main() {
     Uri? dialedUri;
     final notifier = ChatNotifier(
       's1',
-      SecureStorageService(store: _TokenStore('tok')),
+      _token,
       channelFactory: (uri) {
         dialedUri = uri;
         return IOWebSocketChannel.connect('ws://127.0.0.1:${server.port}');
@@ -99,7 +90,7 @@ void main() {
   test('sans token, ne tente pas de connexion', () async {
     final notifier = ChatNotifier(
       's1',
-      SecureStorageService(store: _TokenStore(null)),
+      () async => null,
       channelFactory: (uri) => fail('ne doit pas ouvrir de canal sans token'),
     );
     addTearDown(notifier.dispose);
@@ -109,7 +100,7 @@ void main() {
     expect(notifier.state.statusText, 'Connectez-vous pour discuter');
   });
 
-  test('signale la fin du live quand le serveur ferme en 1001', () async {
+  test('signale la fin du live sur un 1001, sans se reconnecter', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
     server.listen((request) async {
@@ -117,16 +108,85 @@ void main() {
       await ws.close(1001, 'stream ended');
     });
 
+    var dials = 0;
     final notifier = ChatNotifier(
       's1',
-      SecureStorageService(store: _TokenStore('tok')),
-      channelFactory: (_) =>
-          IOWebSocketChannel.connect('ws://127.0.0.1:${server.port}'),
+      _token,
+      channelFactory: (_) {
+        dials++;
+        return IOWebSocketChannel.connect('ws://127.0.0.1:${server.port}');
+      },
+      reconnectDelay: _retry,
     );
     addTearDown(notifier.dispose);
 
     await _waitUntil(
         () => !notifier.state.isConnected && !notifier.state.isConnecting);
     await _waitUntil(() => notifier.state.statusText == 'Le live est terminé');
+
+    // Le salon est fermé pour de bon : aucune nouvelle tentative.
+    await Future<void>.delayed(_retry * 4);
+    expect(dials, 1);
+  });
+
+  test('se reconnecte apres une coupure', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    // Le serveur coupe la premiere connexion sans raison (pas un 1001) et
+    // garde la seconde ouverte.
+    var connections = 0;
+    server.listen((request) async {
+      final ws = await WebSocketTransformer.upgrade(request);
+      connections++;
+      if (connections == 1) await ws.close();
+    });
+
+    final notifier = ChatNotifier(
+      's1',
+      _token,
+      channelFactory: (_) =>
+          IOWebSocketChannel.connect('ws://127.0.0.1:${server.port}'),
+      reconnectDelay: _retry,
+    );
+    addTearDown(notifier.dispose);
+    final statuses = <String>[];
+    notifier.addListener((s) => statuses.add(s.statusText));
+
+    await _waitUntil(() => connections == 2 && notifier.state.isConnected);
+    expect(statuses, contains('Chat fermé'));
+  });
+
+  test('poignee de main refusee : indisponible, puis nouvel essai', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    // Premiere tentative refusee comme le ferait l'API sur un token expire
+    // (pas d'upgrade), la seconde acceptee.
+    var requests = 0;
+    server.listen((request) async {
+      requests++;
+      if (requests == 1) {
+        request.response.statusCode = HttpStatus.unauthorized;
+        await request.response.close();
+        return;
+      }
+      await WebSocketTransformer.upgrade(request);
+    });
+
+    final notifier = ChatNotifier(
+      's1',
+      _token,
+      channelFactory: (_) =>
+          IOWebSocketChannel.connect('ws://127.0.0.1:${server.port}'),
+      reconnectDelay: _retry,
+    );
+    addTearDown(notifier.dispose);
+    final statuses = <String>[];
+    notifier.addListener((s) => statuses.add(s.statusText));
+
+    await _waitUntil(() => notifier.state.isConnected);
+    expect(requests, 2);
+    expect(statuses, contains('Chat indisponible'));
   });
 }

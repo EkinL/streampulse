@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage.dart';
-import 'api_endpoints.dart';
 import 'api_exceptions.dart';
+import 'session_refresher.dart';
 import 'trace_context.dart';
 
 final dioProvider = Provider<Dio>((ref) {
@@ -23,6 +23,7 @@ final dioProvider = Provider<Dio>((ref) {
   );
 
   final secureStorage = ref.read(secureStorageProvider);
+  final session = ref.read(sessionRefresherProvider);
 
   dio.interceptors.add(
     InterceptorsWrapper(
@@ -35,42 +36,24 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          final refreshToken = await secureStorage.getRefreshToken();
-          if (refreshToken != null) {
-            try {
-              final refreshDio = Dio(
-                BaseOptions(baseUrl: dio.options.baseUrl),
-              );
-              final response = await refreshDio.post(
-                ApiEndpoints.authRefresh,
-                data: {'refresh_token': refreshToken},
-              );
+        if (error.response?.statusCode == 401 &&
+            await secureStorage.getRefreshToken() != null) {
+          final newAccessToken = await session.refresh();
+          if (newAccessToken == null) {
+            return handler.reject(
+              DioException(
+                requestOptions: error.requestOptions,
+                error: const UnauthorizedException(),
+              ),
+            );
+          }
 
-              final body = response.data as Map<String, dynamic>;
-              final data = body['data'] as Map<String, dynamic>;
-              final newAccessToken = data['access_token'] as String;
-              final newRefreshToken = data['refresh_token'] as String;
-
-              await secureStorage.saveTokens(
-                accessToken: newAccessToken,
-                refreshToken: newRefreshToken,
-              );
-
-              error.requestOptions.headers['Authorization'] =
-                  'Bearer $newAccessToken';
-
-              final retryResponse = await dio.fetch(error.requestOptions);
-              return handler.resolve(retryResponse);
-            } on DioException {
-              await secureStorage.clearTokens();
-              return handler.reject(
-                DioException(
-                  requestOptions: error.requestOptions,
-                  error: const UnauthorizedException(),
-                ),
-              );
-            }
+          error.requestOptions.headers['Authorization'] =
+              'Bearer $newAccessToken';
+          try {
+            return handler.resolve(await dio.fetch(error.requestOptions));
+          } on DioException catch (e) {
+            return handler.reject(e);
           }
         }
         handler.next(error);

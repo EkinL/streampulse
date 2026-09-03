@@ -28,6 +28,15 @@ Un salon de chat ephemere par flux en direct, expose en **WebSocket** sur
   WebSocket des navigateurs ne permet pas de poser de header sur la poignee
   de main. Pas de cookie, donc pas de surface CSRF : la verification
   d'Origin est volontairement desactivee.
+- **Session et coupures** : l'access token ne vit que 15 min et, a la
+  difference des appels REST, la poignee de main WebSocket n'a pas
+  d'intercepteur pour rejouer sur un 401. Le client renouvelle donc le token
+  si besoin avant de se connecter, par le meme chemin que l'intercepteur
+  (`SessionRefresher`, un seul renouvellement a la fois puisque le serveur
+  revoque l'ancien refresh token), et se reconnecte seul apres une coupure
+  (reseau, app revenue de l'arriere-plan, serveur redemarre) avec un delai
+  croissant de 2 a 30 s. Seule la fermeture `1001` (fin du live) est
+  definitive.
 
 ## Justification
 
@@ -94,7 +103,13 @@ claims, so nobody can speak in someone else's name. Authentication accepts
 the usual `Bearer` header or a `?token=` query fallback, because the
 browser WebSocket API cannot set headers on the handshake; since no cookie
 is involved there is no CSRF surface, so Origin checking is deliberately
-disabled.
+disabled. Because the access token only lives 15 minutes and, unlike REST
+calls, the handshake has no interceptor to replay on a 401, the client
+refreshes the token when needed before dialing, through the same
+single-flight `SessionRefresher` the REST interceptor uses (the server
+revokes the previous refresh token on every refresh), and reconnects on
+its own with a growing delay (2 to 30 s) after any closure other than
+`1001`, which alone means the live is over.
 
 The chat hub reuses the streaming hub's goroutines-and-channels fan-out and
 `streaming.Client` as-is, inheriting the same properties: non-blocking

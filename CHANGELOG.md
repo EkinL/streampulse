@@ -127,6 +127,17 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   `schedule`, une CVE publiee apres un merge etant invisible d'un scan de PR
 
 ### Corrige
+- Chat de live « indisponible » des que la session avait plus de 15 min :
+  la poignee de main WebSocket partait avec l'access token brut du stockage,
+  expire, et l'API repondait 401 sans que l'app ne renouvelle ni ne retente
+  (les appels REST, eux, passent par l'intercepteur Dio). Le token est
+  desormais renouvele si besoin avant de se connecter, par un
+  `SessionRefresher` partage avec l'intercepteur (un seul renouvellement a la
+  fois : le serveur revoque l'ancien refresh token, deux renouvellements
+  concurrents deconnectaient l'utilisateur), et le chat se reconnecte seul
+  apres une coupure (reseau, app revenue de l'arriere-plan, serveur
+  redemarre) avec un delai croissant de 2 a 30 s ; seule la fermeture `1001`
+  (fin du live) est definitive
 - Direct muet pour les auditeurs : la capture micro du diffuseur vivait dans
   l'ecran de la console, quitter cet ecran (retour a la liste, detail d'un
   flux) ou relancer l'app la coupait alors que le flux restait `live` cote
