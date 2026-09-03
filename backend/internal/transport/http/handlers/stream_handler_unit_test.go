@@ -27,12 +27,18 @@ type streamHarness struct {
 	hub     *streaming.Hub
 }
 
+// newStreamHarness pose un delai de grace d'une heure : l'arret automatique
+// d'un direct sans diffuseur ne se declenche pas au milieu des autres tests.
 func newStreamHarness() *streamHarness {
+	return newStreamHarnessWithGrace(time.Hour)
+}
+
+func newStreamHarnessWithGrace(grace time.Duration) *streamHarness {
 	repo := &stubStreamRepo{MockStreamRepo: testutil.NewMockStreamRepo()}
 	hub := streaming.NewHub(zerolog.Nop())
 	svc := application.NewStreamService(repo, hub)
 	return &streamHarness{
-		handler: NewStreamHandler(svc, hub, chat.NewHub(zerolog.Nop()), zerolog.Nop(), testMetrics),
+		handler: NewStreamHandler(svc, hub, chat.NewHub(zerolog.Nop()), zerolog.Nop(), testMetrics, grace),
 		repo:    repo,
 		hub:     hub,
 	}
@@ -311,6 +317,74 @@ func TestStreamHandlerBroadcastStopsOnReadError(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("statut attendu 200 (aucune ecriture), obtenu %d", rec.Code)
 	}
+}
+
+// Diffuseur disparu (app tuee, reseau coupe) : sans POST /broadcast de
+// remplacement dans le delai de grace, le direct est arrete comme par
+// POST /stop et les auditeurs sont deconnectes. Avant, le flux restait
+// "live" en base et les auditeurs se connectaient a un direct muet.
+func TestStreamHandlerBroadcastAutoStopsWhenBroadcasterGone(t *testing.T) {
+	h := newStreamHarnessWithGrace(30 * time.Millisecond)
+	ownerID := uuid.New()
+	stream := h.liveStream(t, ownerID)
+
+	listener := streaming.NewClient(uuid.New(), "alice")
+	h.hub.Register(stream.ID, listener)
+
+	req := httptest.NewRequest(http.MethodPost, "/streams/x/broadcast", strings.NewReader("quelques octets"))
+	req = reqWithClaims(req, unitClaims(ownerID, domain.RoleBroadcaster))
+	req = reqWithParams(req, "id", stream.ID.String())
+	h.handler.Broadcast(httptest.NewRecorder(), req)
+
+	waitUntil(t, 5*time.Second, func() bool {
+		s, err := h.repo.FindByID(context.Background(), stream.ID)
+		return err == nil && s.Status == domain.StreamStatusEnded
+	}, "le flux n'a pas ete arrete automatiquement")
+	select {
+	case <-listener.Done():
+	case <-time.After(time.Second):
+		t.Fatal("l'auditeur n'a pas ete deconnecte")
+	}
+}
+
+// Le diffuseur revient dans le delai de grace (reconnexion apres une
+// coupure) : le direct continue, et il n'est arrete qu'une fois la nouvelle
+// connexion terminee sans remplacant.
+func TestStreamHandlerBroadcastKeepsStreamWhenBroadcasterReturns(t *testing.T) {
+	const grace = 80 * time.Millisecond
+	h := newStreamHarnessWithGrace(grace)
+	ownerID := uuid.New()
+	stream := h.liveStream(t, ownerID)
+
+	newReq := func(body io.Reader) *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "/streams/x/broadcast", body)
+		req = reqWithClaims(req, unitClaims(ownerID, domain.RoleBroadcaster))
+		return reqWithParams(req, "id", stream.ID.String())
+	}
+
+	// Premiere connexion, coupee.
+	h.handler.Broadcast(httptest.NewRecorder(), newReq(strings.NewReader("premier")))
+
+	// Reconnexion immediate, maintenue ouverte.
+	pr, pw := io.Pipe()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		h.handler.Broadcast(httptest.NewRecorder(), newReq(pr))
+	}()
+
+	time.Sleep(3 * grace)
+	if s, _ := h.repo.FindByID(context.Background(), stream.ID); s.Status != domain.StreamStatusLive {
+		t.Fatalf("flux arrete alors que le diffuseur est revenu, statut %s", s.Status)
+	}
+
+	// Le diffuseur raccroche pour de bon.
+	_ = pw.Close()
+	<-done
+	waitUntil(t, 5*time.Second, func() bool {
+		s, err := h.repo.FindByID(context.Background(), stream.ID)
+		return err == nil && s.Status == domain.StreamStatusEnded
+	}, "le flux n'a pas ete arrete apres la derniere deconnexion")
 }
 
 // Fin de direct normale : le corps se termine par EOF apres quelques octets.

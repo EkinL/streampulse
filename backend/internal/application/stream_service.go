@@ -134,6 +134,18 @@ func (s *StreamService) StopStream(ctx context.Context, streamID, ownerID uuid.U
 	return nil
 }
 
+// EndOrphanedLiveStreams passe en "ended" tous les flux encore "live" et
+// rend leur nombre. A appeler au demarrage : aucun diffuseur n'est connecte
+// a ce moment-la, ces directs sont des restes d'un arret du serveur en
+// plein live. Sans ce nettoyage ils resteraient affiches live, muets.
+func (s *StreamService) EndOrphanedLiveStreams(ctx context.Context) (int, error) {
+	n, err := s.streamRepo.EndLiveStreams(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("stream: end orphaned live streams: %w", err)
+	}
+	return n, nil
+}
+
 func (s *StreamService) Hub() *streaming.Hub {
 	return s.hub
 }

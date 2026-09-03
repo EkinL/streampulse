@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/streampulse/backend/internal/domain"
+	"github.com/streampulse/backend/internal/infrastructure/postgres"
 )
 
 // readSSEData lit le prochain evenement SSE et rend le contenu de sa ligne
@@ -198,5 +199,33 @@ func TestStreams_ListPagination(t *testing.T) {
 	}
 	if str(m, "requestId") == "" || r.Header.Get("X-Request-ID") != str(m, "requestId") {
 		t.Fatalf("meta.requestId doit egaler l'en-tete X-Request-ID: %v / %q", m, r.Header.Get("X-Request-ID"))
+	}
+}
+
+// Nettoyage au demarrage du serveur (main.go) : les flux encore "live" en
+// base passent en "ended", compteur d'auditeurs a zero, les autres sont
+// laisses tels quels.
+func TestStreams_EndLiveStreamsAtStartup(t *testing.T) {
+	s := newSuite(t)
+	bc := s.newAccount(t, domain.RoleBroadcaster)
+	live := s.createStream(t, bc, "Direct orphelin")
+	idle := s.createStream(t, bc, "Jamais demarre")
+	s.do(t, http.MethodPost, "/streams/"+live+"/start", bc.Access, nil).expect(t, http.StatusOK, "")
+
+	n, err := postgres.NewStreamRepo(s.pool).EndLiveStreams(context.Background())
+	if err != nil {
+		t.Fatalf("EndLiveStreams: %v", err)
+	}
+	if n < 1 {
+		t.Fatalf("au moins 1 flux arrete attendu, obtenu %d", n)
+	}
+
+	d := s.do(t, http.MethodGet, "/streams/"+live, "", nil).expect(t, http.StatusOK, "").data(t)
+	if str(d, "status") != "ended" || d["listener_count"].(float64) != 0 {
+		t.Fatalf("flux live attendu ended sans auditeur, obtenu %v", d)
+	}
+	d = s.do(t, http.MethodGet, "/streams/"+idle, "", nil).expect(t, http.StatusOK, "").data(t)
+	if str(d, "status") != "idle" {
+		t.Fatalf("flux non live modifie: %v", d)
 	}
 }

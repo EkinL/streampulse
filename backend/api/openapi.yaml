@@ -686,6 +686,12 @@ paths:
         whole broadcast. The stream must already be `live`
         (`POST /streams/{id}/start`) and the caller must own it.
 
+        This request is the broadcaster's liveness signal: if it ends and no
+        new one replaces it within `BROADCAST_GRACE_PERIOD` (10 s by
+        default), the stream is stopped as if `POST /streams/{id}/stop` had
+        been called. Streams still `live` when the server starts are ended
+        the same way.
+
         No response body is written: the connection is the transport.
       security:
         - bearerAuth: []

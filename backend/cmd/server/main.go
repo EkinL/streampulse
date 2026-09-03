@@ -133,6 +133,17 @@ func main() {
 	// Initialize services
 	authService := application.NewAuthService(userRepo, refreshTokenRepo, jwtManager, oauthVerifier)
 	streamService := application.NewStreamService(streamRepo, hub)
+
+	// Au demarrage, aucun diffuseur n'est connecte : un flux encore "live" en
+	// base est un reste d'un arret du serveur en plein direct. Sans ce
+	// nettoyage il resterait affiche live, muet, jusqu'a ce que son
+	// proprietaire le relance. En cours de route, c'est BROADCAST_GRACE_PERIOD
+	// qui joue ce role (handlers.StreamHandler).
+	if n, err := streamService.EndOrphanedLiveStreams(ctx); err != nil {
+		logger.Warn().Err(err).Msg("failed to end orphaned live streams")
+	} else if n > 0 {
+		logger.Info().Int("count", n).Msg("orphaned live streams ended at startup")
+	}
 	playlistService := application.NewPlaylistService(playlistRepo)
 	userService := application.NewUserService(userRepo, streamRepo, musicRepo, hub, fileStore)
 	musicService := application.NewMusicService(musicRepo, fileStore)
@@ -146,6 +157,7 @@ func main() {
 		UserService:       userService,
 		MusicService:      musicService,
 		FeedbackService:   feedbackService,
+		BroadcastGrace:    cfg.BroadcastGracePeriod,
 		FavoriteRepo:      favoriteRepo,
 		MusicFavoriteRepo: musicFavoriteRepo,
 		StreamRepo:        streamRepo,
