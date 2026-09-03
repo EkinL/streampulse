@@ -172,6 +172,14 @@ A broadcaster pushes audio with a single long-lived
 is fanned out to every connected listener. The stream must have been started
 with `POST /streams/{id}/start` first.
 
+The same ingest is also exposed as a **WebSocket**, `GET /streams/{id}/broadcast/ws`
+(every binary frame is one chunk, text frames are ignored, frames are capped at
+64 KiB, `?token=` accepted like the chat). This is what both Flutter clients
+use: a browser cannot stream a request body (XMLHttpRequest buffers it until
+the upload ends), so the chunked POST only ever worked from native clients.
+Both entry points share the checks (owner, stream `live`) and the liveness
+rule below (see [ADR 010](ADR/010-broadcast-websocket.md)).
+
 `ReadTimeout` and `WriteTimeout` are enabled by default (30s) on every route
 to bound slow or malicious clients. These three streaming handlers are the
 only exception: each lifts the deadline **for its own connection only**, via

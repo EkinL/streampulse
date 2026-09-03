@@ -30,6 +30,10 @@ void main() {
 
     final secure = ChatNotifier.chatUri('https://api.example.com', 's1', 'tok');
     expect(secure.scheme, 'wss');
+
+    // API servie sous un prefixe : conserve, comme le fait Dio.
+    final prefixed = ChatNotifier.chatUri('https://example.com/api/', 's1', 'tok');
+    expect(prefixed.path, '/api/streams/s1/chat/ws');
   });
 
   test('se connecte, recoit les trames et envoie le texte', () async {

@@ -58,13 +58,14 @@ func (h *streamHarness) liveStream(t *testing.T, ownerID uuid.UUID) *domain.Stre
 func TestStreamHandlerRequiresAuthentication(t *testing.T) {
 	h := newStreamHarness()
 	cases := map[string]http.HandlerFunc{
-		"create":    h.handler.CreateStream,
-		"update":    h.handler.UpdateStream,
-		"listen":    h.handler.Listen,
-		"audio":     h.handler.AudioStream,
-		"start":     h.handler.StartStream,
-		"broadcast": h.handler.Broadcast,
-		"stop":      h.handler.StopStream,
+		"create":       h.handler.CreateStream,
+		"update":       h.handler.UpdateStream,
+		"listen":       h.handler.Listen,
+		"audio":        h.handler.AudioStream,
+		"start":        h.handler.StartStream,
+		"broadcast":    h.handler.Broadcast,
+		"broadcast_ws": h.handler.BroadcastWS,
+		"stop":         h.handler.StopStream,
 	}
 	for name, fn := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -80,14 +81,15 @@ func TestStreamHandlerRejectsInvalidID(t *testing.T) {
 	h := newStreamHarness()
 	claims := unitClaims(uuid.New(), domain.RoleBroadcaster)
 	cases := map[string]http.HandlerFunc{
-		"update":    h.handler.UpdateStream,
-		"get":       h.handler.GetStream,
-		"listen":    h.handler.Listen,
-		"audio":     h.handler.AudioStream,
-		"start":     h.handler.StartStream,
-		"broadcast": h.handler.Broadcast,
-		"stop":      h.handler.StopStream,
-		"listeners": h.handler.GetListeners,
+		"update":       h.handler.UpdateStream,
+		"get":          h.handler.GetStream,
+		"listen":       h.handler.Listen,
+		"audio":        h.handler.AudioStream,
+		"start":        h.handler.StartStream,
+		"broadcast":    h.handler.Broadcast,
+		"broadcast_ws": h.handler.BroadcastWS,
+		"stop":         h.handler.StopStream,
+		"listeners":    h.handler.GetListeners,
 	}
 	for name, fn := range cases {
 		t.Run(name, func(t *testing.T) {

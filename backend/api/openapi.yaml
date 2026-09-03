@@ -720,6 +720,54 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /streams/{id}/broadcast/ws:
+    parameters:
+      - $ref: '#/components/parameters/StreamID'
+    get:
+      tags: [broadcast]
+      operationId: broadcastStreamWebSocket
+      summary: Push audio into a live stream (WebSocket)
+      description: |
+        Same ingest as `POST /streams/{id}/broadcast`, over a **WebSocket**:
+        every binary frame is one audio chunk, fanned out as-is to every
+        connected listener. Text frames are ignored. Frames are capped at
+        64 KiB.
+
+        This is the path the web console uses: a browser cannot stream a
+        request body (XMLHttpRequest buffers it until the upload ends), so
+        the chunked POST only works from native clients.
+
+        Browser WebSocket handshakes cannot carry an `Authorization` header,
+        so the access token is also accepted as a `?token=` query parameter.
+        The stream must already be `live` and the caller must own it. Like
+        the POST, the open connection is the broadcaster's liveness signal:
+        closed without a replacement within `BROADCAST_GRACE_PERIOD`, the
+        stream is stopped.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: query
+          required: false
+          description: Access token fallback for browser WebSocket clients.
+          schema: { type: string }
+      responses:
+        '101':
+          description: Connection upgraded to WebSocket; send binary audio frames.
+        '400':
+          description: Invalid id, the stream was never started, or the handshake is not a WebSocket upgrade.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error: { code: STREAM_NOT_LIVE, message: stream must be started first }
+                meta: { requestId: 8f1c…, timestamp: '2026-08-27T10:00:00Z' }
+        '401': { $ref: '#/components/responses/MiddlewareUnauthorized' }
+        '403': { $ref: '#/components/responses/NotOwner' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /music:
     get:
       tags: [music]
