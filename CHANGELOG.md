@@ -25,6 +25,18 @@ client mobile deja installe ne peut pas etre mis a jour de force.
 
 ## [Non publie]
 
+### Corrige
+- Auditeurs bloques sur « Waiting for audio » quand le diffuseur emet depuis
+  la console web : dans un navigateur, XMLHttpRequest accumule tout le corps
+  du `POST /broadcast` en memoire et ne l'envoie qu'a la fin du live, rien
+  ne partait. L'ingest audio est desormais aussi expose en WebSocket
+  (`GET /streams/{id}/broadcast/ws`, une trame binaire par chunk, memes
+  controles et meme delai de grace que le POST) et les deux clients Flutter
+  l'utilisent ; le POST chunke reste servi pour les autres clients. Le token
+  est renouvele avant chaque (re)connexion, et l'indicateur de la console
+  reflete l'etat reel de la connexion vers le backend, plus seulement la
+  capture micro (docs/ADR/010-broadcast-websocket.md)
+
 ### Ajoute
 - Arret automatique des directs sans diffuseur : quand le `POST /broadcast`
   se termine sans etre remplace dans `BROADCAST_GRACE_PERIOD` (10 s), le

@@ -396,36 +396,8 @@ func (h *StreamHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 // Broadcast accepts a long-lived POST with chunked audio data from the broadcaster.
 // The body is read continuously and each chunk is broadcast to all connected listeners.
 func (h *StreamHandler) Broadcast(w http.ResponseWriter, r *http.Request) {
-	claims := middleware.GetClaims(r.Context())
-	if claims == nil {
-		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
-		return
-	}
-
-	streamID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid stream id")
-		return
-	}
-
-	stream, err := h.streamService.GetStream(r.Context(), streamID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "NOT_FOUND", "stream not found")
-			return
-		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get stream")
-		return
-	}
-
-	ownerID, _ := uuid.Parse(claims.UserID)
-	if stream.OwnerID != ownerID {
-		respondError(w, http.StatusForbidden, "FORBIDDEN", "not the owner of this stream")
-		return
-	}
-
-	if stream.Status != domain.StreamStatusLive {
-		respondError(w, http.StatusBadRequest, "STREAM_NOT_LIVE", "stream must be started first")
+	streamID, ownerID, ok := h.broadcastAllowed(w, r)
+	if !ok {
 		return
 	}
 
