@@ -43,6 +43,9 @@ Variables critiques pour la production :
   sinon les liens des fichiers uploades pointent sur `localhost`
 - `REFRESH_TOKEN_PURGE_INTERVAL` : purge des jetons expires (1 h par defaut,
   voir [rgpd.md](rgpd.md))
+- `BROADCAST_GRACE_PERIOD` : delai avant l'arret automatique d'un direct dont
+  le diffuseur a disparu (10 s par defaut, doit depasser les 2 s de
+  reconnexion de l'app mobile)
 
 ## Developpement local
 
