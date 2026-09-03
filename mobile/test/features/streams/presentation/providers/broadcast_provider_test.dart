@@ -1,7 +1,8 @@
 // Tests de BroadcastNotifier : la capture micro est simulee (mock du
-// plugin record), le backend par un HttpServer local qui recoit le POST
-// chunke. Verifie que les octets du micro arrivent bien au serveur, que
-// l'arret libere tout, et qu'une coupure de connexion est rattrapee.
+// plugin record), le backend par un vrai serveur WebSocket local qui recoit
+// les trames binaires. Verifie que les octets du micro arrivent bien au
+// serveur avec le token, que l'arret libere tout, et qu'une coupure de
+// connexion est comptee puis rattrapee.
 
 import 'dart:async';
 import 'dart:io';
@@ -11,77 +12,60 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:record/record.dart';
 
-import 'package:streampulse/app/constants.dart';
-import 'package:streampulse/core/storage/secure_storage.dart';
-import 'package:streampulse/core/storage/token_store.dart';
 import 'package:streampulse/features/streams/presentation/providers/broadcast_provider.dart';
 
 class _MockRecorder extends Mock implements AudioRecorder {}
 
-class _MemoryStore implements TokenStore {
-  final Map<String, String> _values;
-  _MemoryStore(this._values);
-  @override
-  Future<void> write(String key, String value) async => _values[key] = value;
-  @override
-  Future<String?> read(String key) async => _values[key];
-  @override
-  Future<void> delete(String key) async => _values.remove(key);
-}
+Future<String?> _token() async => 'tok';
 
-/// Un chunk micro realiste : 4096 octets (2048 echantillons PCM16). Le
-/// client HTTP de dart:io tamponne l'envoi par blocs de 8 Ko, un chunk
-/// minuscule ne partirait jamais.
+/// Un chunk micro realiste : 4096 octets (2048 echantillons PCM16).
 Uint8List _chunk(int fill) => Uint8List(4096)..fillRange(0, 4096, fill);
 
-/// Backend minimal : accumule les corps des POST /streams/:id/broadcast.
+Future<void> _waitUntil(bool Function() cond, String what) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!cond()) {
+    if (DateTime.now().isAfter(deadline)) fail('timeout: $what');
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+/// Backend minimal : accepte les WebSocket sur /streams/:id/broadcast/ws et
+/// accumule les trames recues.
 class _FakeBackend {
   late final HttpServer _server;
-  final List<HttpRequest> requests = [];
-  final List<String> authHeaders = [];
+  final List<Uri> requests = [];
   final received = BytesBuilder();
-  final _firstChunk = <Completer<void>>[];
+  final _sockets = <WebSocket>[];
 
-  /// Si vrai, le serveur detruit la connexion apres le premier chunk recu
+  /// Si vrai, le serveur ferme la connexion apres la premiere trame recue
   /// (simule un backend qui redemarre).
-  bool closeAfterFirstChunk = false;
+  bool closeAfterFirstFrame = false;
 
   String get baseUrl => 'http://127.0.0.1:${_server.port}';
 
   Future<void> start() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _server.listen((req) async {
-      requests.add(req);
-      authHeaders.add(req.headers.value('authorization') ?? '');
+      requests.add(req.uri);
+      final ws = await WebSocketTransformer.upgrade(req);
+      _sockets.add(ws);
       var first = true;
-      try {
-        await for (final chunk in req) {
-          received.add(chunk);
-          if (first) {
-            first = false;
-            for (final c in _firstChunk) {
-              if (!c.isCompleted) c.complete();
-            }
-            if (closeAfterFirstChunk) {
-              (await req.response.detachSocket(writeHeaders: false)).destroy();
-              return;
-            }
-          }
+      ws.listen((frame) {
+        received.add(frame as List<int>);
+        if (first && closeAfterFirstFrame) {
+          ws.close();
         }
-        await req.response.close();
-      } catch (_) {
-        // Connexion coupee (arret du client ou close(force) du serveur).
-      }
+        first = false;
+      }, onError: (Object _) {});
     });
   }
 
-  Future<void> waitForChunk() {
-    final c = Completer<void>();
-    _firstChunk.add(c);
-    return c.future.timeout(const Duration(seconds: 5));
+  Future<void> close() async {
+    for (final ws in _sockets) {
+      await ws.close();
+    }
+    await _server.close(force: true);
   }
-
-  Future<void> close() => _server.close(force: true);
 }
 
 void main() {
@@ -107,9 +91,7 @@ void main() {
     await backend.start();
 
     notifier = BroadcastNotifier(
-      SecureStorageService(
-        store: _MemoryStore({AppConstants.accessTokenKey: 'tok'}),
-      ),
+      _token,
       recorder: recorder,
       baseUrl: backend.baseUrl,
       retryDelay: const Duration(milliseconds: 50),
@@ -121,6 +103,21 @@ void main() {
     // Pas de await : sans auditeur, close() ne se resout jamais.
     unawaited(mic.close());
     await backend.close();
+  });
+
+  test('construit une URL ws avec le token en parametre', () {
+    final uri = BroadcastNotifier.broadcastUri('http://localhost:8080', 's1', 'tok');
+    expect(uri.scheme, 'ws');
+    expect(uri.path, '/streams/s1/broadcast/ws');
+    expect(uri.queryParameters['token'], 'tok');
+
+    final secure = BroadcastNotifier.broadcastUri('https://api.example.com', 's1', 'tok');
+    expect(secure.scheme, 'wss');
+    expect(secure.host, 'api.example.com');
+
+    // API servie sous un prefixe : conserve, comme le fait Dio.
+    final prefixed = BroadcastNotifier.broadcastUri('https://example.com/api/', 's1', 'tok');
+    expect(prefixed.path, '/api/streams/s1/broadcast/ws');
   });
 
   test('permission micro refusee : rien ne demarre', () async {
@@ -136,17 +133,18 @@ void main() {
     expect(await notifier.start('s1'), isTrue);
     expect(notifier.state.isBroadcastingStream('s1'), isTrue);
     expect(notifier.state.startedAt, isNotNull);
+    expect(notifier.state.isConnected, isFalse);
 
-    final chunk = backend.waitForChunk();
+    await _waitUntil(() => notifier.state.isConnected, 'connexion ouverte');
     mic.add(_chunk(1));
     mic.add(_chunk(2));
-    await chunk;
+    await _waitUntil(() => backend.received.length >= 8192, 'trames recues');
 
-    expect(backend.requests.single.uri.path, '/streams/s1/broadcast');
-    expect(backend.authHeaders.single, 'Bearer tok');
+    expect(backend.requests.single.path, '/streams/s1/broadcast/ws');
+    expect(backend.requests.single.queryParameters['token'], 'tok');
     final bytes = backend.received.toBytes();
-    expect(bytes.length, greaterThanOrEqualTo(4096));
     expect(bytes.first, 1);
+    expect(bytes.last, 2);
 
     // Redemander le meme flux ne relance pas la capture.
     expect(await notifier.start('s1'), isTrue);
@@ -154,36 +152,26 @@ void main() {
 
     await notifier.stop();
     expect(notifier.state.isBroadcasting, isFalse);
+    expect(notifier.state.isConnected, isFalse);
     expect(notifier.state.dropCount, 0);
     verify(() => recorder.stop()).called(1);
   });
 
-  test('connexion coupee par le serveur : comptee et rouverte', () async {
-    backend.closeAfterFirstChunk = true;
+  test('connexion fermee par le serveur : comptee et rouverte', () async {
+    backend.closeAfterFirstFrame = true;
     await notifier.start('s1');
+    await _waitUntil(() => notifier.state.isConnected, 'premiere connexion');
 
-    final first = backend.waitForChunk();
     mic.add(_chunk(9));
-    mic.add(_chunk(9));
-    await first;
-
-    // Connexion detruite cote serveur : l'ecriture suivante du micro echoue,
-    // le notifier compte la coupure puis rouvre.
-    final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while (notifier.state.dropCount == 0 && DateTime.now().isBefore(deadline)) {
-      mic.add(_chunk(9));
-      mic.add(_chunk(9));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    expect(notifier.state.dropCount, 1);
+    // Le serveur ferme apres cette trame : le notifier compte la coupure,
+    // n'est plus "connecte", puis rouvre.
+    await _waitUntil(() => notifier.state.dropCount == 1, 'coupure comptee');
     expect(notifier.state.isBroadcastingStream('s1'), isTrue);
 
-    backend.closeAfterFirstChunk = false;
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    final second = backend.waitForChunk();
+    backend.closeAfterFirstFrame = false;
+    await _waitUntil(() => notifier.state.isConnected, 'reconnexion');
     mic.add(_chunk(7));
-    mic.add(_chunk(7));
-    await second;
+    await _waitUntil(() => backend.received.length >= 8192, 'trame apres reconnexion');
 
     expect(backend.requests.length, 2);
     final bytes = backend.received.toBytes();
@@ -191,5 +179,19 @@ void main() {
     expect(bytes.last, 7);
 
     await notifier.stop();
+  });
+
+  test('arret pendant la reconnexion : plus aucune tentative', () async {
+    backend.closeAfterFirstFrame = true;
+    await notifier.start('s1');
+    await _waitUntil(() => notifier.state.isConnected, 'premiere connexion');
+    mic.add(_chunk(3));
+    await _waitUntil(() => notifier.state.dropCount == 1, 'coupure comptee');
+
+    await notifier.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(notifier.state.isBroadcasting, isFalse);
+    expect(backend.requests.length, 1);
   });
 }

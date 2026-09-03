@@ -369,7 +369,7 @@ void main() {
       expect(find.text("Couper l'antenne"), findsOneWidget);
       expect(find.text('Create New Stream'), findsNothing);
       // Pas de capture micro -> statut connexion en attente.
-      expect(find.text('SSE · CONNEXION…'), findsOneWidget);
+      expect(find.text('ENVOI · CONNEXION…'), findsOneWidget);
       // showSnackBar remplace le snackbar courant : 'Microphone permission
       // denied' est aussitot masque par 'You are LIVE!'.
       expect(find.text('You are LIVE!'), findsOneWidget);
@@ -475,7 +475,7 @@ void main() {
       expect(find.text('Microphone permission denied'), findsOneWidget);
       // Le flux est deja en direct cote serveur : "a l'antenne" affiche,
       // sans capture locale tant que la permission manque.
-      expect(find.text('SSE · CONNEXION…'), findsOneWidget);
+      expect(find.text('ENVOI · CONNEXION…'), findsOneWidget);
       await settleSnackBar(tester);
     });
 

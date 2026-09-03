@@ -123,6 +123,10 @@ func NewRouter(cfg RouterConfig) *chi.Mux {
 	r.Group(func(r chi.Router) {
 		r.Use(authMw.AuthenticateWebSocket)
 		r.Get("/streams/{id}/chat/ws", chatHandler.ServeWS)
+		// Ingest audio de la console web : un navigateur ne sait pas envoyer
+		// un corps de requete en flux (POST /broadcast), il passe par ici.
+		r.With(middleware.RequireRole(domain.RoleBroadcaster)).
+			Get("/streams/{id}/broadcast/ws", streamHandler.BroadcastWS)
 	})
 
 	// Authenticated routes

@@ -79,17 +79,21 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  /// URL du salon : même hôte que l'API, schéma ws(s). Le token passe en
-  /// paramètre de requête, seul canal d'auth commun à toutes les
-  /// plateformes (un WebSocket navigateur ne peut pas poser de header).
+  /// URL du salon : même hôte (et même préfixe de chemin, comme Dio) que
+  /// l'API, schéma ws(s). Le token passe en paramètre de requête, seul canal
+  /// d'auth commun à toutes les plateformes (un WebSocket navigateur ne peut
+  /// pas poser de header).
   static Uri chatUri(String baseUrl, String streamId, String token) {
     final base = Uri.parse(baseUrl);
     return base.replace(
       scheme: base.scheme == 'https' ? 'wss' : 'ws',
-      path: '${ApiEndpoints.stream(streamId)}/chat/ws',
+      path: '${_stripTrailingSlash(base.path)}${ApiEndpoints.stream(streamId)}/chat/ws',
       queryParameters: {'token': token},
     );
   }
+
+  static String _stripTrailingSlash(String path) =>
+      path.endsWith('/') ? path.substring(0, path.length - 1) : path;
 
   Future<void> connect() async {
     if (state.isConnecting || state.isConnected) return;

@@ -497,8 +497,13 @@ class _BroadcasterScreenState extends ConsumerState<BroadcasterScreen>
                       ),
                     ),
                     const Spacer(),
+                    // Etat reel de l'envoi vers le backend, pas seulement
+                    // de la capture micro : le micro peut tourner alors que
+                    // la connexion est en cours (ou en reconnexion).
                     Text(
-                      isBroadcasting ? 'SSE · CONNECTÉ' : 'SSE · CONNEXION…',
+                      isBroadcasting && broadcast.isConnected
+                          ? 'ENVOI · CONNECTÉ'
+                          : 'ENVOI · CONNEXION…',
                       style: GoogleFonts.ibmPlexMono(
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
