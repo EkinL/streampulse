@@ -451,8 +451,11 @@ void main() {
       expect(find.text('CONSOLE DIFFUSEUR'), findsOneWidget);
     });
 
-    testWidgets('Gerer rejoint un direct sans relancer le micro',
+    testWidgets('Gerer rejoint un direct et relance la capture micro',
         timeout: const Timeout(Duration(seconds: 60)), (tester) async {
+      // Permission refusee : on verifie que le micro est demande, sans
+      // demarrer un vrai flux record (voir l'en-tete du fichier).
+      micGranted = false;
       when(() => streamRepo.listStreams()).thenAnswer((_) async =>
           [_stream(id: 'live-1', title: 'Deja live', live: true, listeners: 3)]);
 
@@ -465,10 +468,15 @@ void main() {
 
       expect(find.text('CONSOLE DIFFUSEUR'), findsOneWidget);
       expect(find.text('Deja live'), findsOneWidget);
-      // Rejoindre ne redemarre ni le flux serveur ni la capture micro.
+      // Rejoindre ne redemarre pas le flux serveur (deja live)...
       verifyNever(() => streamRepo.startStream(any()));
-      // Le flux est deja en direct cote serveur : "a l'antenne" affiche.
+      // ...mais relance la capture micro : un flux live sans micro dans
+      // cette instance de l'app etait un direct muet pour les auditeurs.
+      expect(find.text('Microphone permission denied'), findsOneWidget);
+      // Le flux est deja en direct cote serveur : "a l'antenne" affiche,
+      // sans capture locale tant que la permission manque.
       expect(find.text('SSE · CONNEXION…'), findsOneWidget);
+      await settleSnackBar(tester);
     });
 
     testWidgets('echec du demarrage affiche l erreur', (tester) async {

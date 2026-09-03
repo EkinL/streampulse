@@ -122,6 +122,12 @@ client mobile deja installe ne peut pas etre mis a jour de force.
   `schedule`, une CVE publiee apres un merge etant invisible d'un scan de PR
 
 ### Corrige
+- Direct muet pour les auditeurs : la capture micro du diffuseur vivait dans
+  l'ecran de la console, quitter cet ecran (retour a la liste, detail d'un
+  flux) ou relancer l'app la coupait alors que le flux restait `live` cote
+  serveur. La capture vit desormais dans un provider (`broadcastProvider`),
+  survit a la navigation, est relancee par **Gerer** sur un flux live sans
+  micro, et rouvre l'envoi vers le backend apres une coupure de connexion
 - `/metrics` restreint au role `admin` ; Prometheus scrute un listener interne
 - CI mobile reparee : le test de fumee compilait sur une classe inexistante
 - Rate limiting inoperant (A-01) : la cle etait `IP:port`, donc un compteur
